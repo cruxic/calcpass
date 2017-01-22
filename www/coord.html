@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Coordinate - Passcard</title>
+
+<!--link rel="icon" type="image/png" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAGXRFWHRTb2Z0d2FyZQBBZG9iZSBJbWFnZVJlYWR5ccllPAAAAcxJREFUeNp80t8r3XEcx/Hv8SM/IhdL6UzRUGTHj3NWqBEJR201NwvHBeUPsNoFN1smkhtKWhQXxG4ou9glSrK2aaE1P7O7JS5YGykcnu96fXV241OPvp/v9/P5vj/vz+f98QQCgZDjOL2IwzZmMYm/zv8tBk1ohg9RGIz2er1zdB4hCb+QgHb9tKlnEEN4iBuUIBl+i3qtSUd4jjNkoxvlOMQTvMU3zd1AAS4tjVV9tMge9ffRahPwBq8ifnb03dpPC/BBL6koVt+LNSyiE8so05htN6D+jJ2B7btCA3/wFSs41TaWEIt0ZZuhDBbw3kMVHB3KR63WhjzkKOC9LUrPL6hGnbKxrPwqbbxWTZOMiLO6C2CtBo22LzzDjipklRrQHTnAGPLdIG6AQvTjXOU6xm9c4R+mkKLvE5jHCzeARytYunMq4Wu80+FZa9B5BLWNLPTYpbP0KlHrlkXPRa1iZ/NAF6weWwjjQtt4aRmE9NNJxGX5jlyUYlyLfNbYns7CWosFeKoXN7J7qfqQiRF0KW13Xlh9n20hUS+W6jR28Rif0KExq86wVk/SuLUEu4l2q4pUATvQdVViKaLEP3TR7A5UqbQ2f/RWgAEA6xlnphy+IP4AAAAASUVORK5CYII=" /-->
+<!--link id="favicon" rel="icon" type="image/png" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAIAAACQkWg2AAAACXBIWXMAAAsTAAALEwEAmpwYAAAAB3RJTUUH4AwFATgK3jaTwwAAAB1pVFh0Q29tbWVudAAAAAAAQ3JlYXRlZCB3aXRoIEdJTVBkLmUHAAAAGklEQVQoz2P8//8/AymAiYFEMKphVMPQ0QAAVW0DHZ8uFaIAAAAASUVORK5CYII=" /-->
+
+
+
+<script type="text/javascript">
+	var module; /*avoids firefox warning when loading sha256.js*/
+</script>
+
+<script type="text/javascript" src="sha256.js"></script>
+<script type="text/javascript" src="aes-js.js"></script>
+<script type="text/javascript" src="shared.js"></script>
+<script type="text/javascript" src="coord.js"></script>
+<script type="text/javascript" src="checkwords.js"></script>
+<style type="text/css">
+
+
+body {
+	font-family: sans-serif;
+	font-size: 20px;
+}
+
+/*@font-face {
+	font-family: DejaVuSansMono;
+	src: url("DejaVuSansMono.ttf") format("truetype");
+}*/
+@font-face {
+	font-family: DejaVuSansMono;
+	src: url("DejaVuSansMono-Bold.ttf") format("truetype");
+	font-weight: bold;
+}
+
+#title {
+	font-size: 125%;
+	font-weight: bold;
+}
+
+input, select, button {
+	font-size: 125%;
+}
+
+#revision {
+	font-size: 90%;
+}
+
+#sitename, #pass {
+	width: 20em;
+	max-width: 85%;
+}
+
+#result {
+	display: none;
+}
+
+#verbatimRow {
+	font-size: 90%;
+	display: none;
+}
+
+#checkwordBox {
+	visibility: hidden;
+}
+
+
+#checkword {
+	font-style: italic;	
+}
+
+div.row {
+	margin-bottom: 0.5em;
+}
+
+
+#btnCalculate {
+	font-weight: bold;
+	background-color: #78D466;
+	background: linear-gradient(#ABF39D, #78D466);
+	color: black;
+	border: 2px solid #147D00;
+	border-radius: 4px;
+	padding: 4px;
+}
+
+#btnCalculate:hover {
+	background-color: #ABF39D;
+	background: linear-gradient(#78D466, #ABF39D);
+}
+
+#errors {
+	display: none;
+	font-weight: bold;
+	margin-top: 0.5em;
+	background-color: #FFBABA;
+	border: 1px solid #FF3939;
+	border-radius: 8px;
+	padding-left: 0.5em;
+	padding-right: 0.5em;	
+	font-size: 90%;
+	
+}
+
+#tips {
+	border: 1px solid black;
+	background-color: #fcff66;
+	border-radius: 10px;
+	padding-top: 0.5em;
+	padding-bottom: 0.5em;
+	display: none;
+}
+
+
+table.result {
+	margin-top: 1em;
+	margin-bottom: 1em;
+	border-spacing: 0.5em;
+	
+}
+
+td.coord {
+	border: 1px solid black;
+	border-radius: 10px;
+	width: 5em;
+	height: 2em;
+	text-align: center;
+	font-size: large;
+	font-weight: bold;
+}
+/*
+#resPrefix {
+	width: 60px;
+	font-size: 125%;
+	font-family: DejaVuSansMono;
+	line-height: 43px;
+	height: 43px;
+	float: left;
+	text-align: center;
+	border: 1px solid #888888; 
+	border-radius: 5px;
+	margin-left: 0.5em;
+}
+
+#resCoord1, #resCoord2 {
+	font-family: DejaVuSansMono;
+	font-size: 125%;
+	width: 50px;
+	height: 35px;
+	float: left;
+	margin-left: 0.5em;
+	border: 1px solid #888888;
+	border-top: 8px solid #888888;
+	border-left: 8px solid #888888;
+	text-align: center;
+}
+*/
+
+#resPrefix, #resCoord1, #resCoord2 {
+	font-family: DejaVuSansMono;
+	font-weight: bold;
+	font-size: 125%;
+	border: 1px solid #888888; 
+	border-radius: 5px;
+	margin-left: 5px;
+	padding: 5px;
+}
+
+#resCoord1, #resCoord2 {
+	border-radius: inherit;
+	border-top: 4px solid #888888;
+	border-left: 4px solid #888888;
+	padding-top: 1px;
+	padding-left: 1px;
+}
+
+#progress {
+	display: none;
+}
+
+#progressBorder {
+	margin-top: 1em;
+	width: 95%;
+	border: 1px solid #666666;
+	background-color: #cccccc;
+	display: none;
+}
+
+#progressBar {
+	background-color: #4C80FF;
+	width: 1px;
+	white-space: nowrap;
+}
+
+#hashStats {
+	margin-top: 2em;
+	font-size: 75%;
+	font-style: italic;
+}
+
+a.help {
+	font-size: 85%;
+	font-weight: normal;
+	background-color: white	border: 1px solid #888888; 
+	border-radius: 5px;
+	margin-left: 0.5em;
+;
+	text-decoration: none;
+	background-color: #FFFFD6;
+	border: 1px solid #676700;
+	border-radius: 10px;
+	padding: 4px;
+	padding-top: 1px;
+	padding-bottom: 0px;
+	color: #676700;
+}
+
+a.help:hover {
+	background-color: #676700;
+	color: #FFFFD6;
+}
+
+div.help {
+	border: 1px solid black;
+	background-color: #FFFFD6;
+	border-radius: 10px;
+	padding-top: 0.5em;
+	padding-bottom: 0.5em;
+	display: none;
+	
+	font-size: 85%;
+	padding-left: 0.5em;
+	padding-right: 0.5em;
+	margin-top: 0.5em;
+}
+
+td.right {
+	text-align: right;
+}
+
+</style>
+</head>
+<body onload="onLoad()">
+
+<div class="row"><span id="title">Coordinates For Type <u>A</u> Cards</span>
+	<a class="help" href="javascript:toggleHelp('help_general')" title="Click to show Help">?</a>
+	<div class="help" id="help_general" onclick="toggleHelp('help_general')">
+		This page generates password coordinates for a password card.  Go to <a href="http://example.com">pwc.net</a> to learn more.
+		Use this page only with type <b>A</b> cards.  Your card type is printed below the character grid on your card.
+	</div>
+</div>
+
+
+<!--div class="row">
+<a id="btnTips" href="javascript:on_btnTips()">Show help and tips</a>
+</div>
+<ul class="row" id="tips">
+	<li>TODO: give overview</li>
+	<li>If you need coordinates for another card type, go <a href="todo">here</a>.</li>
+	<li>You can just drag or paste the full contents of the address bar into the Website Name field above.  The excess will be removed automatically so that only the domain name remains.</li>
+	<li>No information is submitted to any server.  The calculation is done entirely with your browser's JavaScript engine.</li>
+	<li>If you are paranoid, feel free to disconnect your Internet before typing into this page.</li>
+	<li>You can also save this page as an HTML file on your computer.</li>
+	<li>A strong Card Lock password will give you peace of mind.  TODO: link to article about creating strong passwords.</li>
+	<li>The "typo check word" is a quick way to verify that your Card Lock Password was entered correctly.  You will see the same word every time you enter your password.  If you see the wrong word then you have a typo (or your browser is not executing correctly).</li>
+</ul-->
+
+
+<div class="row">
+	<input id="sitename" type="text" placeholder="Website Address" value=""/>
+	<a class="help" href="javascript:toggleHelp('help_sitename')" title="Click to show Help">?</a>
+	<div class="help" id="help_sitename" onclick="toggleHelp('help_sitename')">
+		Enter the domain name, (eg "facebook.com"), of the website you need a password for.
+		<br/>
+		<b>Tip:</b> just copy/paste (or drag/drop) the full URL from your browser's address bar.  The
+		excess will be removed automatically.
+		This method saves typing and reduces risk of <a href="https://en.wikipedia.org/wiki/Phishing">phishing</a>.
+	</div>
+</div>
+<div class="row" id="verbatimRow">
+	<input type="checkbox" id="chkVerbatimSitename" checked="checked"/>
+	<label for="chkVerbatimSitename">Use short site name (recommended)</label>
+	<a class="help" href="javascript:toggleHelp('help_verbatim')" title="Click to show Help">?</a>
+	<div class="help" id="help_verbatim" onclick="toggleHelp('help_verbatim')">
+		Subdomains or port numbers were removed from the web site name.
+		For example, login.example.com would be shortened to example.com.
+		Uncheck this to undo the shortening.
+		<p>
+		On some occasions you might want to keep the subdomain.  For example a university might
+		have library.my-university.edu and staff.my-university.edu.  If you
+		wish to have different passwords for each then keep the subdomain.
+	</div>
+</div>
+
+<div class="row">
+	<input id="pass" type="password" placeholder="Card Lock Password" value="12345678"/>
+	<a class="help" href="javascript:toggleHelp('help_pass')" title="Click to show Help">?</a>
+	<div class="help" id="help_pass" onclick="toggleHelp('help_pass')">
+		The Card Lock password keeps you safe even if your card falls into the wrong hands.
+		Use the same Card Lock password for every web site.
+		For peace of mind, use a <a href="TODO">strong password</a>.
+	</div>
+	<div id="checkwordBox">
+		<span id="checkword">&nbsp;</span>
+		<a class="help" href="javascript:toggleHelp('help_checkword')" title="Click to show Help">?</a>
+		<div class="help" id="help_checkword" onclick="toggleHelp('help_checkword')">
+			This helps you check for password typos.  Every time you enter your 
+			password correctly you will see the same word.
+		</div>
+	</div>
+</div>
+
+<div class="row">
+	<select id="revision">
+		<option>Revision 0</option>
+		<option>1</option>result
+		<option>2</option>
+		<option>3</option>
+		<option>4</option>
+		<option>5</option>
+		<option>6</option>
+		<option>7</option>
+		<option>8</option>
+		<option>9</option>
+		<option>Other...</option>  <!-- todo when this is chosen the input becomes a number input -->
+	</select>	
+	<a class="help" href="javascript:toggleHelp('help_revision')" title="Click to show Help">?</a>
+	<div class="help" id="help_revision" onclick="toggleHelp('help_revision')">
+		Change the revision number to produce a different password for the same website.
+		Use revision 0 unless you believe the original password was compromised.
+		You must remember which revision number is currently being used.
+	</div>	
+</div>
+
+
+<div class="row">
+	<button id="btnCalculate" onclick="on_btnCalculate()">Calculate</button>
+	
+	<a class="help" href="javascript:toggleHelp('help_btnCalculate')" title="Click to show Help">?</a>
+	<div class="help" id="help_btnCalculate" onclick="toggleHelp('help_btnCalculate')">
+		Clicking this button does not submit data to any server.  The calculation is done
+		entirely with your brower's JavaScript engine.
+		<p>
+		The calculation takes 1-30 seconds, depending on the speed of your computer.
+		It is intentinally slow to discourage password guessing in the event that your card
+		falls into the wrong hands.  <a href="TODO">Learn more...</a>
+	</div>		
+</div>
+
+<!--div class="row" style="font-size: 125%; font-family: DejaVuSansMono">
+
+ABCDEFGHIJKLMNOPQRSTUVWXYZ<br/>
+<br/>
+abcdefghijklmnopqrstuvwxyz
+	
+</div-->
+
+<div class="row" id="progressBorder">
+	<div id="progressBar">Hashing password. <span id="progressPercent">0%</span></div>
+</div>
+
+<div class="row" id="errors">&nbsp;</div>
+
+
+<div class="row" id="result">	
+
+	<!--div class="row">
+		Prefix: <span id="resPrefix">?</span>
+	</div>
+	<div class="row">
+		Coordinate 1: <span id="resCoord1">?</span>
+	</div>
+	<div class="row">
+		Coordinate 2: <span id="resCoord2">?</span>
+	</div-->
+	<!--table>
+		<tr>
+			<td class="right">Prefix:</td><td id="resPrefix">?</td>
+		</tr>
+		<tr>
+			<td class="right">Coordinate 1:</td><td id="resCoord1">?</td>
+		</tr>
+		<tr>
+			<td class="right">Coordinate 2:</td><td id="resCoord2">?</td>
+		</tr>
+	</table-->
+	
+	<div class="row" style="margin-top: 1em">
+		<span id="resPrefix">?</span>
+		<span id="resCoord1">?</span>
+		<span id="resCoord2">?</span>
+		<a class="help" style="margin-left: 0.5em" href="javascript:toggleHelp('help_result')" title="Click to show Help">?</a>
+	</div>
+	
+	<div class="help row" id="help_result" onclick="toggleHelp('help_result')">
+		<ol>
+			<li>First type capital letter <b id="resPre_1">?</b>, then number <b id="resPre_2">?</b>, then lowercase <b id="resPre_3">?</b>.</li>
+			<li>Then, from your card:</li>
+			<li>Find the intersection of row <b id="resCoord1_row">?</b> and column <b id="resCoord1_col">?</b>.
+			<li>Type the four lowercase characters you find there (left to right).  Wrap around to the beginning of the row if necessary.</li>
+			<li>Find the intersection of row <b id="resCoord2_row">?</b> and column <b id="resCoord2_col">?</b>.</li>
+			<li>Type the four lowercase characters you find there (left to right).  Wrap if necessary.</li>
+		</ol>
+	</div>
+	
+	<div class="row" style="font-size: 85%; font-style: italic">
+		<b>Tip:</b> The two coordinates also appear in the title of this browser tab.
+	</div>	
+	
+	<div class="row" id="hashStats" style="display: none">&nbsp;</div>	
+</div>
+	
+<!--div>
+<canvas id="canv1" width="330" height="205">Your browser does not support HTML 5</canvas>
+</div>
+<div>
+<canvas id="canv2" width="330" height="205">Your browser does not support HTML 5</canvas>
+</div-->
+
+
+<!--div>
+<button onclick="nextPattern(-1)">Prev</button> <button onclick="nextPattern(1)">Next</button>
+<span id="patname">?</span>
+</div-->
+
+<!--div>
+<canvas id="canvAll" width="3000" height="150" style="border: 1px solid black">Your browser does not support HTML 5</canvas>
+</div-->
+
+
+<!-- It seems that I must reference both custom fonts before using them in the canvas or else they are sometimes not ready on time. -->
+<!-- 
+<span style="visibility: hidden; font-family: DejaVuSansMono;">abc</span>
+<span style="visibility: hidden; font-family: DejaVuSansMono; font-weight: bold">abc</span>
+-->
+
+
+
+</body>
+</html>

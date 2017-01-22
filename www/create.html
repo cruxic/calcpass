@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Create - Passcard</title>
+<script type="text/javascript">var module; /*avoids firefox warning when loading sha256.js*/</script>
+<script type="text/javascript" src="sha256.js"></script>
+<script type="text/javascript" src="aes-js.js"></script>
+<script type="text/javascript" src="shared.js"></script>
+<script type="text/javascript" src="create.js"></script>
+<style type="text/css">
+
+
+
+body {
+	font-family: sans-serif;
+	margin: 3em;
+}
+
+@font-face {
+	font-family: DejaVuSansMono;
+	src: url("DejaVuSansMono.ttf") format("truetype");
+}
+
+@font-face {
+	font-family: DejaVuSansMono;
+	src: url("DejaVuSansMono-Bold.ttf") format("truetype");
+	font-weight: bold;
+}
+
+/*Credit card dimensions: 85.60 × 53.98 mm*/
+
+div.card {
+	font-family: DejaVuSansMono;
+	font-size: 4.25mm;
+	letter-spacing: 0.75mm;
+	line-height: 5.25mm;
+}
+
+span.cell {
+	border-right: 0.5mm solid #dddddd;
+	border-bottom: 0.5mm solid #dddddd;
+}
+
+span.topHdr, span.sideHdr, span.topLeft {
+	font-weight: bold;
+	background-color: #dddddd;
+	border-right: 0.5mm solid #aaaaaa;
+	border-bottom: 0.5mm solid #aaaaaa;
+}
+
+span.topHdr, span.topLeft {
+	padding-top: 0.5mm;
+}
+
+span.sideHdr, span.topLeft {
+	letter-spacing: normal;
+}
+
+span.bottom {
+	font-size: 4mm;
+	color: #666666;
+	background-color: #dddddd;
+	border-top: 1px solid #888888;	
+}
+
+span.seed {
+	font-family: DejaVuSansMono;
+	font-size: 3mm;
+	color: #888888;
+	margin-left: 5mm;
+	padding-right: 2mm;
+}
+
+span.url {
+	color: black;
+}
+
+#scribbleCanv {
+	border: 1px solid black;
+	background-color: #cccccc;
+}
+
+#step2 {
+	display: none;
+}
+
+
+@media print {
+	
+}
+
+
+</style>
+</head>
+<body onload="onLoad()">
+
+<div id="step1">
+	Use your mouse to scribble randomly in the box below for a few seconds.
+	These random scribbles will be mixed with your operating
+	system's cryptographic random number generator to create a truly
+	random Seed.
+	<p>
+	<canvas id="scribbleCanv" width="220px" height="220px"></canvas>
+	<p>	
+	<div id="progress">0%</div>
+</div>
+
+<div id="step2">
+	<div class="card" id="card1">?</div>
+	<span class="bottom">
+		Go to: <span class="url">pwcard.com/a</span>
+		<span class="seed" id="seedPart1">?</span>
+	</span>
+
+	<div class="card" id="card2" style="margin-top: 4px;">?</div>
+	<span class="bottom">	
+		Or to: <span class="url">pwc.github.io/a</span>
+		<span class="seed" id="seedPart2">?</span>
+	</span>
+</div>
+
+</body>
+</html>
