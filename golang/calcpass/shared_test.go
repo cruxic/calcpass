@@ -210,6 +210,21 @@ func TestHmacSha256(t *testing.T) {
 	}
 }
 
+func TestConcatAll(t *testing.T) {
+	slices := [][]byte{
+		[]byte{1,2,3},
+		[]byte{4,5,6,7},
+		[]byte{8,9},
+	}
+	
+	res := concatAll(slices)
+	got := hex.EncodeToString(res)
+	expect := "010203040506070809"
+	if got != expect {
+		t.Error("concatAll failed: ", got)
+	}
+}
+
 func TestBcryptThread(t *testing.T) {
 	pass := []byte("SuperSecretPassword");
 	salt := []byte{0x71,0xd7,0x9f,0x82,0x18,0xa3,0x92,0x59,0xa7,0xa2,0x9a,0xab,0xb2,0xdb,0xaf,0xc3};  //"abcdefghijklmnopqrstuu" as bcrypt-base64
@@ -236,7 +251,7 @@ func TestHashCardLockPassword(t *testing.T) {
 	}
 	
 	got := hex.EncodeToString(hash);
-	expect := "df5c501779b0c3fb65a0c67386c561f625a5f622c3f2f31914ee463fa93d67d9";
+	expect := "22e73674182a1d306fb0bdf79988557c9b20410040d0521461aab3897b729535";
 	if got != expect {
 		t.Error("Wrong hash: ", got);
 	}
@@ -255,8 +270,8 @@ func singleCoreHashCardLockPassword(plaintextPassword []byte) ([]byte, error) {
 		keys[i] = hmacSha256(passwordShadow, salt)
 	}
 	
-	sha.Reset()
 	resultChan := make(chan *thread_result, 1)
+	all := make([]byte, 0)
 	for i := range keys {
 		bcryptThread(keys[i], salts[i], i, resultChan)
 		res := <-resultChan
@@ -266,10 +281,11 @@ func singleCoreHashCardLockPassword(plaintextPassword []byte) ([]byte, error) {
 		if res.threadIndex != i {
 			return nil, errors.New("bad threadIndex")
 		}
-		sha.Write(res.bcryptHash)
+		
+		all = append(all, res.bcryptHash...)
 	}
 	
-	return sha.Sum(nil), nil
+	return hmacSha256(passwordShadow, all), nil
 }
 
 
@@ -283,7 +299,7 @@ func TestHashCardLockPasswordSingleCore(t *testing.T) {
 	
 	got := hex.EncodeToString(hash);
 	//should have same output as TestHashCardLockPassword
-	expect := "df5c501779b0c3fb65a0c67386c561f625a5f622c3f2f31914ee463fa93d67d9";
+	expect := "22e73674182a1d306fb0bdf79988557c9b20410040d0521461aab3897b729535";
 	if got != expect {
 		t.Error("Wrong hash: ", got);
 	}

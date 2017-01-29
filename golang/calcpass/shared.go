@@ -71,7 +71,7 @@ func HashCardLockPassword(plaintextPassword []byte) ([]byte, error) {
 	sha.Write(plaintextPassword)
 	passwordShadow := sha.Sum(nil)
 	sha.Reset()
-	plaintextPassword = nil  //caller must still erase it
+	sha = nil
 	
 	salts := getThreadSalts()
 	
@@ -80,8 +80,6 @@ func HashCardLockPassword(plaintextPassword []byte) ([]byte, error) {
 	for i, salt := range salts {
 		keys[i] = hmacSha256(passwordShadow, salt)
 	}
-	
-	erase(passwordShadow)
 	
 	//Spawn bcrypt threads.
 	resultChan := make(chan *thread_result, NumBcryptThreads)
@@ -106,27 +104,35 @@ func HashCardLockPassword(plaintextPassword []byte) ([]byte, error) {
 		bcryptHashes[res.threadIndex] = res.bcryptHash
 	}
 	
-	//Digest the bcryptHashes sequentially
-	sha.Reset()
-	for i := range bcryptHashes {
-		sha.Write(bcryptHashes[i])
-	}
-	
-	finalHash := sha.Sum(nil)
+	//Concatenate the bcryptHashes sequentially and mix with passwordShadow
+	allBcryptHashes := concatAll(bcryptHashes[:])
+	finalHash := hmacSha256(passwordShadow, allBcryptHashes)
 	
 	//Cleanup
-	sha.Reset()
+	erase(passwordShadow)
+	erase(allBcryptHashes)
 	for i := range keys {
 		erase(keys[i]);
 		erase(bcryptHashes[i]);
 	}
 	
 	//prevent erase getting optimized away
-	if (keys[0][0] + bcryptHashes[0][0] + passwordShadow[0]) != 0 {
+	if (allBcryptHashes[0] + 
+		keys[0][0] + 
+		bcryptHashes[0][0] + 
+		passwordShadow[0]) != 0 {
 		panic("erase failed");
 	}
 	
 	return finalHash, nil
+}
+
+func concatAll(buffers [][]byte) []byte {
+	all := make([]byte, 0, len(buffers[0]) + len(buffers))
+	for i := range buffers {
+		all = append(all, buffers[i]...)
+	}
+	return all
 }
 
 func bcryptThread(password, salt []byte, threadIndex int, result chan *thread_result) {
@@ -147,6 +153,7 @@ func hmacSha256(key, message []byte) []byte {
 	hm := hmac.New(sha256.New, key)
 	hm.Write(message)
 	hash := hm.Sum(nil)
+	hm.Reset() //erase what we can - alas the key has already been copied
 	return hash
 }
 
