@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"crypto/sha256"
+	"bytes"
 )
 
 /*type fixed_rand_source struct {
@@ -92,7 +93,6 @@ func hasGoodDistribution(src byte_source, fn rand_int8_func, n int) bool {
 	for i := 0; i < iterations * 2; i++ {
 		b, err := fn(src, n)
 		if err != nil {
-			fmt.Println("Got err: ", err)
 			return false
 		}
 
@@ -288,6 +288,193 @@ func singleCoreHashCardLockPassword(plaintextPassword []byte) ([]byte, error) {
 	return hmacSha256(passwordShadow, all), nil
 }
 
+func TestGetSeedForWebsite(t *testing.T) {
+	passHash := make([]byte, sha256.Size)
+	passHash[0] = 1
+	passHash[15] = 127
+	passHash[31] = 255
+	
+	res1 := hex.EncodeToString(GetSeedForWebsite(passHash, "ExAmPlE.CoM", "a", 3))	
+	res2 := hex.EncodeToString(hmacSha256(passHash, []byte("a3example.com")))
+	
+	if res1 != res2 {
+		t.Errorf("%s != %s", res1, res2)
+	}
+
+	if res1 != "50ba3f6d12fe8e51641aaee2c2b7749fedc77c9fbe122bdbddf337ef32752fc0" {
+		t.Error("Wrong output:", res1)
+	}
+}
+
+func readManyFromByteSource(src byte_source, count int) ([]byte, error) {
+	all := make([]byte, count)
+	for i := range all {
+		b, err := src.NextByte()
+		if err != nil {
+			return nil, err
+		}
+		all[i] = b
+	}
+	
+	return all, nil
+}
+
+
+func TestSha256ByteSource(t *testing.T) {
+	seed := make([]byte, sha256.Size)
+	seed[0] = 1
+	seed[15] = 127
+	seed[31] = 255
+	
+	expect1 := hmacSha256(seed, []byte{0})
+	expect2 := hmacSha256(seed, []byte{1})
+	expectLast := hmacSha256(seed, []byte{0xFF})
+
+	src := newSha256ByteSource(seed)
+	
+	//seed has been copied so this has no effect
+	seed[0]++
+	
+	got1, err := readManyFromByteSource(src, len(expect1))
+	if !bytes.Equal(got1, expect1) || err != nil {
+		t.Error("wrong hash or err")
+		return
+	}
+	
+	got2, err := readManyFromByteSource(src, len(expect1))
+	if !bytes.Equal(got2, expect2) || err != nil {
+		t.Error("wrong hash or err")
+		return
+	}
+	
+	if src.nBytesUsed != sha256.Size * 2 {
+		t.Error("wrong nBytesUsed")
+		return
+	}
+	
+	//advance to last counter value
+	src.counter = 0xFF
+	got3, err := readManyFromByteSource(src, len(expect1))
+	if !bytes.Equal(got3, expectLast) || err != nil {
+		t.Error("wrong hash or err")
+		return
+	}
+	
+	//Cannot read any more bytes
+	_, err = src.NextByte()
+	if err == nil {
+		t.Error("source did not end!")
+	}
+	
+	//Test erase
+	src = newSha256ByteSource(seed)
+	src.NextByte()
+	src.erase()
+	_, err = src.NextByte()
+	if err == nil || src.seed[0] != 0 || src.curHash[0] != 0 {
+		t.Error("source erase failed.")
+	}
+}
+
+func TestNameFuncs(t *testing.T) {
+	if typeA_xNameFunc(0) != "1" || typeA_xNameFunc(99) != "100" {
+		t.Fail()
+	}
+
+	if typeA_yNameFunc(0) != "A" || typeA_yNameFunc(1) != "B" {
+		t.Fail()
+		return
+	}
+
+	var expect string
+	for i := 0; i < len(typeA_yNames); i++ {
+		expect = typeA_yNames[i:i+1]
+		if typeA_yNameFunc(i) != expect {
+			t.Error(i)
+			return
+		}
+	}
+}
+
+func TestMakeCoordinates(t *testing.T) {
+
+	//Test against ascending byte_source
+	
+	src := &cycle_byte_source{
+		maxCycleCount: 9999,		
+	}
+
+	coords, err := makeCoordinatesFromSource(src, 20, 13, 17, typeA_xNameFunc, typeA_yNameFunc)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	if len(coords) != 20 {
+		t.Error("wrong len")
+		return
+	}
+
+	r := 0
+	for _, coord := range coords {
+		if coord.X != (r % 13) {
+			t.Error(coord.X, r)
+			return
+		}
+		r++
+		if coord.Y != (r % 17) {
+			t.Error(coord.Y, r)
+			return
+		}
+		r++
+	}
+
+	//Test against fixed seed
+
+	seed := make([]byte, sha256.Size)
+	seed[0] = 1
+	seed[15] = 127
+	seed[31] = 255
+	
+	coords, err = MakeCoordinates(seed, 20, 13, 17, typeA_xNameFunc, typeA_yNameFunc)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	if len(coords) != 20 {
+		t.Error("wrong len")
+		return
+	}	
+
+	rawXY := ""
+	human := ""
+	for _, coord := range coords {
+		rawXY += fmt.Sprintf("%d,%d ", coord.X, coord.Y)
+		human += coord.String() + " "
+	}
+
+	expectXY := "2,11 1,8 8,12 2,15 0,13 12,11 1,11 2,14 0,12 3,4 7,16 2,15 5,14 4,10 0,2 4,4 5,3 2,0 0,1 11,3 "
+	expectHuman := "3L 2I 9M 3P 1N 13L 2L 3O 1M 4E 8Q 3P 6O 5K 1C 5E 6D 3A 1B 12D "
+
+	if rawXY != expectXY {
+		t.Error(rawXY)
+	}
+
+	if human != expectHuman {
+		t.Error(human)
+	}
+	
+	/*
+	here: use internal makeCoordinatesFromSource, passing a fixed source
+	
+	todo: is there a way to test the large scale randomness of the entire system?
+	perhaps generate 100 seeds, each with an english password
+	 and from each seed generate passwords for 100 websites*/
+	
+
+}
+
 
 //Test for possible threading problems
 func TestHashCardLockPasswordSingleCore(t *testing.T) {
@@ -304,7 +491,3 @@ func TestHashCardLockPasswordSingleCore(t *testing.T) {
 		t.Error("Wrong hash: ", got);
 	}
 }
-
-
-
-//

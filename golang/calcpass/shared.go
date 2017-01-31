@@ -2,15 +2,18 @@ package calcpass
 
 import (
 	"golang.org/x/crypto/bcrypt"
-	//"fmt"
+	"fmt"
 	//"encoding/hex"
 	"crypto/hmac"
 	"crypto/sha256"
 	"errors"
+	"strings"
+	"strconv"
 )
 
 const NumBcryptThreads = 4
 const BcryptCost = 14
+const typeA_yNames = "ABCDEFGHIJKLMNOPQRSTUV"
 
 func erase(sensitive []byte) {
 	for i := range sensitive {
@@ -26,6 +29,84 @@ type thread_result struct {
 
 type byte_source interface {
 	NextByte() (byte, error)
+}
+
+/**A coordinate on the card*/
+type CardCoord struct {
+	//Horizontal coordinate index, starting at 0
+	X int
+	//Vertical coordinate index, starting at 0
+	Y int
+	
+	//The human friendly representation (eg "13W").
+	HumanX string
+	HumanY string
+}
+
+func (self *CardCoord) String() string {
+	return self.HumanX + self.HumanY
+}
+
+type CoordinateNameFunc func(index int) string;
+
+/**Generate a short, deterministic stream of pseudo-random bytes
+using hmac-sha256.
+
+The source will return an error if more than
+8,192 bytes are requested (256 rehashes).  Given that most invokations
+of MakeCoordinates use less than 32 bytes, this is more than ample.
+*/
+type sha256ByteSource struct {
+	seed []byte
+	counter uint
+	nBytesUsed uint
+
+	curHash []byte
+	curIndex int
+}
+
+func newSha256ByteSource(seed []byte) *sha256ByteSource {
+	//require 256bit seed for now
+	if len(seed) != sha256.Size {
+		panic("Seed wrong size")
+	}
+
+	src := &sha256ByteSource{
+		curHash: make([]byte, 0),
+		seed: make([]byte, len(seed)),
+	}
+
+	copy(src.seed, seed)
+	
+	return src
+}
+
+func (self *sha256ByteSource) NextByte() (byte, error) {
+	if self.curIndex >= len(self.curHash) {
+		if self.counter > 0xFF {
+			return 0, errors.New("Counter limit reached")
+		}
+
+		erase(self.curHash)
+		oneByte := []byte{byte(self.counter)}
+		self.curHash = hmacSha256(self.seed, oneByte)
+		self.curIndex = 0
+		
+		self.counter++		
+	}
+
+	b := self.curHash[self.curIndex]
+	self.curIndex++
+	self.nBytesUsed++
+	return b, nil
+}
+
+func (self *sha256ByteSource) erase() {
+	erase(self.seed)
+	erase(self.curHash)
+	//force end-of-stream
+	self.counter = 256
+	self.curIndex = len(self.curHash)
 }
 
 //Constant salts for each thread (16 bytes each)
@@ -125,6 +206,71 @@ func HashCardLockPassword(plaintextPassword []byte) ([]byte, error) {
 	}
 	
 	return finalHash, nil
+}
+
+/**Mix the card lock password with the website name, card-type, and desired revision number.
+websiteName and cardType must be non-empty and are forced to lower case.  Revision must be >= 0.
+The function will panic if any parameter is invalid.
+*/
+func GetSeedForWebsite(hashedCardLockPassword []byte, websiteName, cardType string, revision int) []byte {
+	//sanity
+	if len(hashedCardLockPassword) != sha256.Size ||
+		len(websiteName) == 0 ||
+		len(cardType) == 0 ||
+		revision < 0 {
+		panic("illegal argument")
+	}
+	msg := strings.ToLower(cardType) + strconv.Itoa(revision) + strings.ToLower(websiteName)
+	fmt.Println(msg)
+	return hmacSha256(hashedCardLockPassword, []byte(msg))
+}
+
+func typeA_xNameFunc(index int) string {
+	return strconv.Itoa(index + 1)	
+}
+
+func typeA_yNameFunc(index int) string {
+	if index >= len(typeA_yNames) {
+		panic("index out of range")
+	}
+	
+	return typeA_yNames[index:index+1]
+}
+
+func makeCoordinatesFromSource(src byte_source, count, cardSizeX, cardSizeY int,
+	xNameFunc, yNameFunc CoordinateNameFunc) ([]CardCoord, error) {
+		
+	coords := make([]CardCoord, count)
+	var err error
+	
+	for i := 0; i < count; i++ {
+		coords[i].X, err = unbiased_rand_int8(src, cardSizeX)
+		if err != nil {
+			return nil, err
+		}
+		coords[i].Y, err = unbiased_rand_int8(src, cardSizeY)
+		if err != nil {
+			return nil, err
+		}
+		
+		coords[i].HumanX = xNameFunc(coords[i].X)
+		coords[i].HumanY = yNameFunc(coords[i].Y)
+	}
+	
+	return coords, nil
+}
+
+/**Given the seed, deterministically generate `count` X,Y coordinates in the range
+[0,cardSizeX), [0,cardSizeY).  The human friendly names for the coordinates are 
+produced by xNameFunc and yNameFunc 
+*/
+func MakeCoordinates(seed []byte, count, cardSizeX, cardSizeY int,
+	xNameFunc, yNameFunc CoordinateNameFunc) ([]CardCoord, error) {
+	
+	src := newSha256ByteSource(seed)
+	defer src.erase()
+
+	return makeCoordinatesFromSource(src, count, cardSizeX, cardSizeY, xNameFunc, yNameFunc)	
 }
 
 func concatAll(buffers [][]byte) []byte {
