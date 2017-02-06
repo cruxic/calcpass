@@ -7,39 +7,8 @@ import (
 	"fmt"
 	"crypto/sha256"
 	"bytes"
+	"strings"
 )
-
-/*type fixed_rand_source struct {
-	index int
-	values []int64
-}
-
-func (self *fixed_rand_source) Int63() int64 {
-	v := self.values[self.index % len(self.values)];
-	self.index++;
-	return v;
-}
-
-func (self *fixed_rand_source) Seed(seed int64) {
-	//just reset index
-	//self.index = 0;
-}*/
-
-type fixed_byte_source struct {
-	index int
-	values []byte	
-}
-
-func (self *fixed_byte_source) NextByte() (byte, error) {
-	if self.index >= len(self.values) {
-		return 0, errors.New("END")
-	}
-	
-	v := self.values[self.index];
-	self.index++;
-	
-	return v, nil
-}
 
 /**Cycle through all byte values*/
 type cycle_byte_source struct {
@@ -225,76 +194,14 @@ func TestConcatAll(t *testing.T) {
 	}
 }
 
-func TestBcryptThread(t *testing.T) {
-	pass := []byte("SuperSecretPassword");
-	salt := []byte{0x71,0xd7,0x9f,0x82,0x18,0xa3,0x92,0x59,0xa7,0xa2,0x9a,0xab,0xb2,0xdb,0xaf,0xc3};  //"abcdefghijklmnopqrstuu" as bcrypt-base64
-	resultChan := make(chan *thread_result);
-	go bcryptThread(pass, salt, 123, resultChan);
 
-	tr := <-resultChan
-
-	//this hash was generated with PHP's password_hash() function (prefix and salt removed)
-	expect := "knzXDUqgULdKteKc82qv7Ng4eidGTQW"
-
-	if tr.err != nil {
-		t.Error(tr.err);
-	} else if string(tr.bcryptHash) != expect {
-		t.Error("Wrong hash: ", string(tr.bcryptHash), "  Did you change the cost?");
-	}
-}
-
-func TestHashCardLockPassword(t *testing.T) {
-	hash, err := HashCardLockPassword([]byte("SuperSecretPassword"))
-	if err != nil {
-		t.Error(err);
-		return;
-	}
-	
-	got := hex.EncodeToString(hash);
-	expect := "22e73674182a1d306fb0bdf79988557c9b20410040d0521461aab3897b729535";
-	if got != expect {
-		t.Error("Wrong hash: ", got);
-	}
-}
-
-//A condensed version of HashCardLockPassword which does not use threads for acceleration
-func singleCoreHashCardLockPassword(plaintextPassword []byte) ([]byte, error) {
-	var sha = sha256.New()
-	sha.Write(plaintextPassword)
-	passwordShadow := sha.Sum(nil)
-	
-	salts := getThreadSalts()
-	
-	keys := [NumBcryptThreads][]byte{}
-	for i, salt := range salts {
-		keys[i] = hmacSha256(passwordShadow, salt)
-	}
-	
-	resultChan := make(chan *thread_result, 1)
-	all := make([]byte, 0)
-	for i := range keys {
-		bcryptThread(keys[i], salts[i], i, resultChan)
-		res := <-resultChan
-		if res.err != nil {
-			return nil, res.err
-		}
-		if res.threadIndex != i {
-			return nil, errors.New("bad threadIndex")
-		}
-		
-		all = append(all, res.bcryptHash...)
-	}
-	
-	return hmacSha256(passwordShadow, all), nil
-}
-
-func TestGetSeedForWebsite(t *testing.T) {
+func TestGetKeyForWebsite(t *testing.T) {
 	passHash := make([]byte, sha256.Size)
 	passHash[0] = 1
 	passHash[15] = 127
 	passHash[31] = 255
 	
-	res1 := hex.EncodeToString(GetSeedForWebsite(passHash, "ExAmPlE.CoM", "a", 3))	
+	res1 := hex.EncodeToString(GetKeyForWebsite(passHash, "ExAmPlE.CoM", "a", 3))	
 	res2 := hex.EncodeToString(hmacSha256(passHash, []byte("a3example.com")))
 	
 	if res1 != res2 {
@@ -474,6 +381,189 @@ func TestMakeCoordinates(t *testing.T) {
 	
 
 }
+
+func TestCreateRandomSeed(t *testing.T) {
+	//Different result upon every invokation
+	s1, err1 := CreateRandomSeed()
+	s2, err2 := CreateRandomSeed()
+	if err1 != nil || err2 != nil {
+		t.Error(err1, err2)
+	}
+	
+	if s1 == s2 {
+		t.Error(s1)
+		return
+	}
+	
+	//Properly formatted and checksumed
+	_, err1 = DigestSeed(s1)
+	_, err2 = DigestSeed(s2)
+	if err1 != nil || err2 != nil {
+		t.Error(err1, err2)
+	}
+}
+
+func TestDigestSeed(t *testing.T) {
+	d, err := DigestSeed("ATXK-XGFG-TSPF-JSCG-KEMD-YTBJ-ZWEB-LDVW")
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	
+	if len(d) != sha256.Size {
+		t.Fail()
+	}
+	
+	if hex.EncodeToString(d) != "7dcc2ef2201a22cedd07eb25459cb40b60115c0d104af8ab98f6a84cc6846344" {
+		t.Fail()
+	}
+	
+	//verify correct digestion
+	h := sha256.New()
+	h.Write([]byte("ATXKXGFGTSPFJSCGKEMDYTBJZWEBLD"))
+	d2 := h.Sum(nil)
+	if !bytes.Equal(d, d2) {
+		t.Fail()
+	}
+	
+	//case insenstive and white space and dashes are ignored
+	d, err = DigestSeed(" \t AtxK-XGFG-TSPF- - -JsCGKEMDYTBJ\t- ZWEB ---LDvw")
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	if !bytes.Equal(d, d2) {
+		t.Fail()
+	}
+
+	//too short
+	_, err = DigestSeed("TXK-XGFG-TSPF-JSCG-KEMD-YTBJ-ZWEB-LDVW")
+	if err == nil {
+		t.Fail()
+	}
+	
+	//too long
+	_, err = DigestSeed("AATXK-XGFG-TSPF-JSCG-KEMD-YTBJ-ZWEB-LDVW")
+	if err == nil {
+		t.Fail()
+	}
+	
+	//illegal character
+	_, err = DigestSeed("A9XK-XGFG-TSPF-JSCG-KEMD-YTBJ-ZWEB-LDVW")
+	if err == nil {
+		t.Fail()
+	}
+	
+	
+	
+}
+
+func TestRepeatAlphabet(t *testing.T) {
+	src := &cycle_byte_source{
+		maxCycleCount: 99,		
+	}
+	
+	alpha := "abcdefghijklmnopqrstuvwxyz"
+	nTotal := len(alpha) * 2 + 7
+	raw, err := repeatAlphabet(alpha, nTotal, src) 
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	
+	repeated := string(raw)
+	
+	//"abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefg"
+	if len(repeated) != nTotal {
+		t.Error(repeated)
+		return
+	}
+	
+	if !strings.HasPrefix(repeated, "abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz") {
+		t.Error(repeated)
+	}
+	
+	t.Log("TODO: assert randomized suffix", repeated)
+}
+
+func TestCreateCard(t *testing.T) {
+	seed := make([]byte, sha256.Size)
+	seed[0] = 1
+	seed[15] = 127
+	seed[31] = 255
+	
+	card, err := CreateCard(seed, 4, 3, "Z")
+	if err != nil {
+		t.Error(err)
+		return
+	}	
+	
+	t.Log(card)
+}
+
+func TestBcryptThread(t *testing.T) {
+	pass := []byte("SuperSecretPassword");
+	salt := []byte{0x71,0xd7,0x9f,0x82,0x18,0xa3,0x92,0x59,0xa7,0xa2,0x9a,0xab,0xb2,0xdb,0xaf,0xc3};  //"abcdefghijklmnopqrstuu" as bcrypt-base64
+	resultChan := make(chan *thread_result);
+	go bcryptThread(pass, salt, 123, resultChan);
+
+	tr := <-resultChan
+
+	//this hash was generated with PHP's password_hash() function (prefix and salt removed)
+	expect := "knzXDUqgULdKteKc82qv7Ng4eidGTQW"
+
+	if tr.err != nil {
+		t.Error(tr.err);
+	} else if string(tr.bcryptHash) != expect {
+		t.Error("Wrong hash: ", string(tr.bcryptHash), "  Did you change the cost?");
+	}
+}
+
+func TestHashCardLockPassword(t *testing.T) {
+	hash, err := HashCardLockPassword([]byte("SuperSecretPassword"))
+	if err != nil {
+		t.Error(err);
+		return;
+	}
+	
+	got := hex.EncodeToString(hash);
+	expect := "22e73674182a1d306fb0bdf79988557c9b20410040d0521461aab3897b729535";
+	if got != expect {
+		t.Error("Wrong hash: ", got);
+	}
+}
+
+//A condensed version of HashCardLockPassword which does not use threads for acceleration
+func singleCoreHashCardLockPassword(plaintextPassword []byte) ([]byte, error) {
+	var sha = sha256.New()
+	sha.Write(plaintextPassword)
+	passwordShadow := sha.Sum(nil)
+	
+	salts := getThreadSalts()
+	
+	keys := [NumBcryptThreads][]byte{}
+	for i, salt := range salts {
+		keys[i] = hmacSha256(passwordShadow, salt)
+	}
+	
+	resultChan := make(chan *thread_result, 1)
+	all := make([]byte, 0)
+	for i := range keys {
+		bcryptThread(keys[i], salts[i], i, resultChan)
+		res := <-resultChan
+		if res.err != nil {
+			return nil, res.err
+		}
+		if res.threadIndex != i {
+			return nil, errors.New("bad threadIndex")
+		}
+		
+		all = append(all, res.bcryptHash...)
+	}
+	
+	return hmacSha256(passwordShadow, all), nil
+}
+
 
 
 //Test for possible threading problems

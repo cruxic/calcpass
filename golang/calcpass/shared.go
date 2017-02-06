@@ -2,10 +2,12 @@ package calcpass
 
 import (
 	"golang.org/x/crypto/bcrypt"
+	"github.com/cruxic/go-hmac-drbg/hmacdrbg"
 	"fmt"
 	//"encoding/hex"
 	"crypto/hmac"
 	"crypto/sha256"
+	"crypto/rand"
 	"errors"
 	"strings"
 	"strconv"
@@ -14,6 +16,10 @@ import (
 const NumBcryptThreads = 4
 const BcryptCost = 14
 const typeA_yNames = "ABCDEFGHIJKLMNOPQRSTUV"
+//The number of characters in a seed (after removing dashes and spaces)
+const SeedLength = 32
+
+const cardAlphabet = "abcdefghijklmnopqrstuvwxyz"
 
 func erase(sensitive []byte) {
 	for i := range sensitive {
@@ -212,7 +218,7 @@ func HashCardLockPassword(plaintextPassword []byte) ([]byte, error) {
 websiteName and cardType must be non-empty and are forced to lower case.  Revision must be >= 0.
 The function will panic if any parameter is invalid.
 */
-func GetSeedForWebsite(hashedCardLockPassword []byte, websiteName, cardType string, revision int) []byte {
+func GetKeyForWebsite(hashedCardLockPassword []byte, websiteName, cardType string, revision int) []byte {
 	//sanity
 	if len(hashedCardLockPassword) != sha256.Size ||
 		len(websiteName) == 0 ||
@@ -221,7 +227,7 @@ func GetSeedForWebsite(hashedCardLockPassword []byte, websiteName, cardType stri
 		panic("illegal argument")
 	}
 	msg := strings.ToLower(cardType) + strconv.Itoa(revision) + strings.ToLower(websiteName)
-	fmt.Println(msg)
+
 	return hmacSha256(hashedCardLockPassword, []byte(msg))
 }
 
@@ -335,4 +341,255 @@ func unbiased_rand_int8(source byte_source, n int) (int, error) {
 	}
 
 	return r % n, nil;
+}
+
+type fixedByteSource struct {
+	index int
+	values []byte	
+}
+
+func (self *fixedByteSource) NextByte() (byte, error) {
+	if self.index >= len(self.values) {
+		return 0, errors.New("END")
+	}
+	
+	v := self.values[self.index];
+	self.index++;
+	
+	return v, nil
+}
+
+/**Generate a new seed from a secure-random source (crypto/rand).
+The seed has slightly more than 128bits of entropy.  It is encoded
+as 32 A-Z characters.  The last two characters
+are a checksum.  Having only A-Z characters makes it easier for
+users to input their seed (especially on a mobile device).
+The seed is formatted for easy reading as 8 groups of 4, separated by dashes
+like so:
+
+	 ATXK-XGFG-TSPF-JSCG-KEMD-YTBJ-ZWEB-LDVW
+
+The A-Z encoding is one-way.  To convert the seed to bytes, hash
+it with sha256 (uppercase, without the dashes).
+
+This operation should only be done on a trusted computer.
+*/
+func CreateRandomSeed() (string, error) {
+	var err error
+	var b int
+	const A = 65  //'A'
+	const NUM_RAND_CHARS = SeedLength - 2
+	rawChars := make([]byte, SeedLength)
+	src := &fixedByteSource{
+		values: make([]byte, 128),
+	}
+
+	//This loop usually executes only once
+	i := 0
+	for i < NUM_RAND_CHARS {
+		//Get 128 secure-random bytes
+		_, err = rand.Read(src.values)
+		if err != nil {
+			return "", err
+		}
+		
+		//Convert each byte to A-Z
+		src.index = 0
+		for i < NUM_RAND_CHARS {
+			b, err = unbiased_rand_int8(src, 26)
+			if err != nil {
+				//we need more randomness
+				break
+			}
+			rawChars[i] = byte(A + b)
+			i++
+		}
+	}
+	
+	//Create the checksum characters
+	h := sha256.New()
+	h.Write(rawChars[0:SeedLength-2])
+	rawChk := h.Sum(nil)	
+	rawChars[NUM_RAND_CHARS] = A + (rawChk[0] % 26)  //modulo bias doesn't hurt for a checksum
+	rawChars[NUM_RAND_CHARS + 1] = A + (rawChk[1] % 26)
+
+	//Create 8 groups of 4 characters separated by dashes
+	compact := string(rawChars)
+	dashed := ""
+	i = 0
+	for i < len(compact) {
+		if i > 0 {
+			dashed += "-"
+		}
+		dashed += compact[i:i+4]
+		i += 4
+	}
+	
+	return dashed, nil
+}
+
+/**
+Convert the human readable seed, like "ATXK-XGFG-TSPF-JSCG-KEMD-YTBJ-ZWEB-LDVW",
+to bytes.  Returns an error if the seed is malformed or corrupt.  
+The seed is not case sensitive and dashes and spaces are ignored.*/
+func DigestSeed(seed string) ([]byte, error) {
+	//remove dashes and white space
+	seed = strings.Replace(seed, "-", "", -1)
+	seed = strings.Replace(seed, " ", "", -1)
+	seed = strings.Replace(seed, "\t", "", -1)
+	
+	if len(seed) != SeedLength {
+		return nil, errors.New("Wrong seed length")
+	}
+	
+	//force to upper case
+	seed = strings.ToUpper(seed)
+	
+	//Must be A-Z
+	const A = 65  //'A'
+	const Z = 91  //'Z'
+	for i := range seed {
+		if seed[i] < A || seed[i] > Z {
+			return nil, errors.New("Illegal character in seed")
+		}
+	}
+	
+	//digest and calc checksum
+	h := sha256.New()
+	h.Write([]byte(seed[0:SeedLength-2]))
+	digested := h.Sum(nil)	
+	chk1 := A + (digested[0] % 26)
+	chk2 := A + (digested[1] % 26)
+	
+	if seed[SeedLength - 2] != chk1 || seed[SeedLength - 1] != chk2 {
+		return nil, errors.New("Seed checksum fail")
+	}
+	
+	return digested, nil
+}
+
+type Card struct {
+	cardType string
+	grid [][]byte
+}
+
+func (self *Card) Erase() {
+	for row := range self.grid {
+		erase(self.grid[row])
+	}
+}
+
+/**Read from a row in the card.  Automatically wrap to the start of the row if necessary.*/
+func (self *Card) GetCharsAutoWrap(row, column, count int) string {
+	width := len(self.grid[0])
+	res := make([]byte, count)
+	
+	n1 := column + count
+	n2 := 0
+	if n1 >= width {
+		n1 -= width
+		n2 = count - n1
+	}
+	
+	copy(res, self.grid[row][column:column+n1])
+	if n2 > 0 {
+		copy(res[n1:], self.grid[row][0:n2])
+	}
+	
+	return string(res)
+}
+
+func (self *Card) String() string {
+	lines := make([]string, len(self.grid))
+	for row := range self.grid {
+		lines[row] = string(self.grid[row])
+		fmt.Println("line", row, lines[row])
+	}
+	
+	fmt.Println(len(lines))
+
+	return strings.Join(lines, "\n")
+}
+
+func repeatAlphabet(alphabet string, nTotalChars int, rng byte_source) ([]byte, error) {
+	//Repeat the alphabet nWhole times.
+	nWhole := nTotalChars / len(alphabet)
+	repeated := strings.Repeat(alphabet, nWhole)
+	
+	//For the remainder, shuffle the alphabet and take a slice of it
+	remainder := []byte(alphabet)
+	if len(remainder) != len(alphabet) {
+		panic("unicode alphabet not supported")
+	}
+	err := secureShuffleBytes(remainder, rng)
+	if err != nil {
+		return nil, err
+	}
+	
+	res := append([]byte(repeated), remainder[0:nTotalChars - len(repeated)]...)
+	erase(remainder)
+	return res, nil
+}
+
+func secureShuffleBytes(array []byte, rng byte_source) error {
+	return nil
+}
+
+
+func CreateCard(digestedSeed []byte, width, height int, cardType string) (*Card, error) {
+	if len(digestedSeed) != sha256.Size {
+		return nil, errors.New("wrong digestedSeed length")
+	}
+
+	if width < 1 || height < 1 || width > len(typeA_yNames) {
+		return nil, errors.New("width or height out of range")
+	}
+
+	n := width * height
+	rng := newSha256ByteSource(digestedSeed)
+
+	//I wish to have a roughly equal distribution of the letters A-Z.
+	//For example, 'a' should occur roughly the same number of times as 'b'.
+	// So instead of pulling letters out of a bag at random I'll start with
+	// an equal distribution and then shuffle them randomly.
+	//To use an extreme example, consider a card which had twice as many 'a'
+	// than other letters.  That means that passwords from this card
+	// would statistically have more 'a' characters.  This fact could
+	// be exploited by an adversary who obtained a handful of my plaintext
+	// passwords and noticed the statistical bias.
+
+	chars, err := repeatAlphabet(cardAlphabet, n, rng)
+	if err != nil {
+		return nil, err
+	}
+	
+	err = secureShuffleBytes(chars, rng)
+	if err != nil {
+		return nil, err
+	}
+
+	//Allocate card
+	card := &Card{
+		cardType: cardType,
+		grid: make([][]byte, height),
+	}
+	
+	//fill grid with shuffled characters
+	i := 0
+	for y := range card.grid {
+		card.grid[y] = make([]byte, width)
+		copy(card.grid[y], chars[i:i+width])
+		i += width
+	}
+	if i != n {
+		panic("assertion fail")
+	}
+	
+	erase(chars)
+	rng.erase()
+	
+	fmt.Println(hmacdrbg.MaxEntropyBytes)
+
+	return card, nil
+	
 }
