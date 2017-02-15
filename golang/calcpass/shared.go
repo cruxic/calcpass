@@ -11,6 +11,7 @@ import (
 	"errors"
 	"strings"
 	"strconv"
+	"sort"
 )
 
 const NumBcryptThreads = 4
@@ -33,8 +34,16 @@ type thread_result struct {
 	err error
 }
 
-type byte_source interface {
+type byteSource interface {
 	NextByte() (byte, error)
+}
+
+/**A deterministic byteSource from hmacdrbg.
+It uses HMAC/SHA-256 to generate the pseudo-random bytes
+from a 256bit seed.
+*/
+type hmacDrbgByteSource struct {
+	drbg *hmacdrbg.HmacDrbgReader
 }
 
 /**A coordinate on the card*/
@@ -55,64 +64,25 @@ func (self *CardCoord) String() string {
 
 type CoordinateNameFunc func(index int) string;
 
-/**Generate a short, deterministic stream of pseudo-random bytes
-using hmac-sha256.
 
-The source will return an error if more than
-8,192 bytes are requested (256 rehashes).  Given that most invokations
-of MakeCoordinates use less than 32 bytes, this is more than ample.
-*/
-type sha256ByteSource struct {
-	seed []byte
-	counter uint
-	nBytesUsed uint
-
-	curHash []byte
-	curIndex int
-}
-
-func newSha256ByteSource(seed []byte) *sha256ByteSource {
-	//require 256bit seed for now
-	if len(seed) != sha256.Size {
-		panic("Seed wrong size")
+func newHmacDrbgByteSource(seed32 []byte) *hmacDrbgByteSource {
+	if len(seed32) != 32 {
+		panic("bad seed length")
 	}
-
-	src := &sha256ByteSource{
-		curHash: make([]byte, 0),
-		seed: make([]byte, len(seed)),
-	}
-
-	copy(src.seed, seed)
 	
-	return src
+	return &hmacDrbgByteSource {
+		drbg: hmacdrbg.NewHmacDrbgReader(hmacdrbg.NewHmacDrbg(128, seed32, nil)),
+	}
 }
 
-func (self *sha256ByteSource) NextByte() (byte, error) {
-	if self.curIndex >= len(self.curHash) {
-		if self.counter > 0xFF {
-			return 0, errors.New("Counter limit reached")
-		}
-
-		erase(self.curHash)
-		oneByte := []byte{byte(self.counter)}
-		self.curHash = hmacSha256(self.seed, oneByte)
-		self.curIndex = 0
-		
-		self.counter++		
+func (self *hmacDrbgByteSource) NextByte() (byte, error) {
+	one := []byte{0}
+	_, err := self.drbg.Read(one)
+	if err != nil {
+		return 0, err
 	}
 
-	b := self.curHash[self.curIndex]
-	self.curIndex++
-	self.nBytesUsed++
-	return b, nil
-}
-
-func (self *sha256ByteSource) erase() {
-	erase(self.seed)
-	erase(self.curHash)
-	//force end-of-stream
-	self.counter = 256
-	self.curIndex = len(self.curHash)
+	return one[0], nil
 }
 
 //Constant salts for each thread (16 bytes each)
@@ -243,7 +213,7 @@ func typeA_yNameFunc(index int) string {
 	return typeA_yNames[index:index+1]
 }
 
-func makeCoordinatesFromSource(src byte_source, count, cardSizeX, cardSizeY int,
+func makeCoordinatesFromSource(src byteSource, count, cardSizeX, cardSizeY int,
 	xNameFunc, yNameFunc CoordinateNameFunc) ([]CardCoord, error) {
 		
 	coords := make([]CardCoord, count)
@@ -273,9 +243,7 @@ produced by xNameFunc and yNameFunc
 func MakeCoordinates(seed []byte, count, cardSizeX, cardSizeY int,
 	xNameFunc, yNameFunc CoordinateNameFunc) ([]CardCoord, error) {
 	
-	src := newSha256ByteSource(seed)
-	defer src.erase()
-
+	src := newHmacDrbgByteSource(seed)
 	return makeCoordinatesFromSource(src, count, cardSizeX, cardSizeY, xNameFunc, yNameFunc)	
 }
 
@@ -316,7 +284,7 @@ I am not using math/rand because Intn() consumes bits too quickly (64 at a time)
 
 Returns error if the random source is exhausted or n exceeds 256.
 */
-func unbiased_rand_int8(source byte_source, n int) (int, error) {
+func unbiased_rand_int8(source byteSource, n int) (int, error) {
 	//Solution from:
 	//  https://zuttobenkyou.wordpress.com/2012/10/18/generating-random-numbers-without-modulo-bias/
 
@@ -511,27 +479,67 @@ func (self *Card) String() string {
 	return strings.Join(lines, "\n")
 }
 
-func repeatAlphabet(alphabet string, nTotalChars int, rng byte_source) ([]byte, error) {
-	//Repeat the alphabet nWhole times.
-	nWhole := nTotalChars / len(alphabet)
-	repeated := strings.Repeat(alphabet, nWhole)
-	
-	//For the remainder, shuffle the alphabet and take a slice of it
-	remainder := []byte(alphabet)
-	if len(remainder) != len(alphabet) {
-		panic("unicode alphabet not supported")
-	}
-	err := secureShuffleBytes(remainder, rng)
-	if err != nil {
-		return nil, err
-	}
-	
-	res := append([]byte(repeated), remainder[0:nTotalChars - len(repeated)]...)
-	erase(remainder)
-	return res, nil
+type shuffleHelper struct {
+	rand []int
+	array []byte
 }
 
-func secureShuffleBytes(array []byte, rng byte_source) error {
+func (self *shuffleHelper) Len() int {
+	return len(self.array)
+}
+
+func (self *shuffleHelper) Less(i, j int) bool {
+	return self.rand[i] < self.rand[j]
+}
+
+func (self *shuffleHelper) Swap(i, j int) {
+	self.array[i], self.array[j] = self.array[j], self.array[i]
+	self.rand[i], self.rand[j] = self.rand[j], self.rand[i]	
+}
+
+func secureShuffleBytes(array []byte, rng byteSource) error {
+	n := len(array)
+	if n > 0x7fff {
+		return errors.New("secureShuffleBytes: array too large")
+	}
+
+	sh := shuffleHelper{
+		rand: make([]int, n),
+		array: array,
+	}
+
+	//Create a random integer for every element of the array.
+	//We must should duplicates to ensure predictable sorting.
+	var r int
+	var err error
+	var b1, b2 byte
+	used := make(map[int]bool)
+
+	for i := range array {
+		for {
+			b1, err = rng.NextByte()
+			if err != nil {
+				return err
+			}
+			
+			b2, err = rng.NextByte()
+			if err != nil {
+				return err
+			}
+
+			//combine 16bits
+			r = (int(b1) << 8) | int(b2)
+
+			if !used[r] {
+				used[r] = true
+				sh.rand[i] = r
+				break
+			}
+		}
+	}
+
+	sort.Sort(&sh)
+
 	return nil
 }
 
@@ -546,7 +554,6 @@ func CreateCard(digestedSeed []byte, width, height int, cardType string) (*Card,
 	}
 
 	n := width * height
-	rng := newSha256ByteSource(digestedSeed)
 
 	//I wish to have a roughly equal distribution of the letters A-Z.
 	//For example, 'a' should occur roughly the same number of times as 'b'.
@@ -558,12 +565,16 @@ func CreateCard(digestedSeed []byte, width, height int, cardType string) (*Card,
 	// be exploited by an adversary who obtained a handful of my plaintext
 	// passwords and noticed the statistical bias.
 
-	chars, err := repeatAlphabet(cardAlphabet, n, rng)
-	if err != nil {
-		return nil, err
+	//Repeat the cardAlphabet until we have at least n characters
+	repeated := cardAlphabet
+	for len(repeated) < n {
+		repeated += cardAlphabet
 	}
-	
-	err = secureShuffleBytes(chars, rng)
+
+	//Randomize the order using the seed
+	rng := newHmacDrbgByteSource(digestedSeed)
+	chars := []byte(repeated)	
+	err := secureShuffleBytes(chars, rng)
 	if err != nil {
 		return nil, err
 	}
@@ -586,7 +597,6 @@ func CreateCard(digestedSeed []byte, width, height int, cardType string) (*Card,
 	}
 	
 	erase(chars)
-	rng.erase()
 	
 	fmt.Println(hmacdrbg.MaxEntropyBytes)
 
