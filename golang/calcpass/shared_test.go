@@ -8,6 +8,7 @@ import (
 	"crypto/sha256"
 	"bytes"
 	"github.com/stretchr/testify/assert"
+	"strings"
 )
 
 /**Cycle through all byte values*/
@@ -554,19 +555,67 @@ func TestSecureShuffleBytes(t *testing.T) {
 	//The above result was verified with a simple python program.
 }
 
+func letterFrequency(text string) map[string]int {
+	m := make(map[string]int)
+
+	for i := range text {
+		c := string(text[i])
+		m[c] += 1
+	}
+
+	return m
+}
+
 func TestCreateCard(t *testing.T) {
+	assert := assert.New(t)
+	
 	seed := make([]byte, sha256.Size)
 	seed[0] = 1
 	seed[15] = 127
 	seed[31] = 255
 	
-	card, err := CreateCard(seed, 4, 3, "Z")
+	card, err := CreateCard(seed, 7, 4, "Z")  //28 chars total
 	if err != nil {
 		t.Error(err)
 		return
-	}	
+	}
+
+	chars := card.String()
+	chars = strings.Replace(chars, "\n", "", -1)
+
+	//Only 2 characters occur twice
+	freq := letterFrequency(chars)
+	nOnce := 0
+	nTwice := 0
+
+	assert.Equal(len(freq), 26)
 	
-	t.Log(card)
+	for c, count := range freq {
+		if count == 1 {
+			nOnce += 1
+		} else if count == 2 {
+			nTwice += 1
+		} else {
+			t.Error(c, count)
+		}
+	}
+
+	assert.Equal(24, nOnce)
+	assert.Equal(2, nTwice)
+
+	assert.Equal("fgychmlspjnodbaqukwztrgcxvei", chars)
+
+	//Different seed gives totally different shuffle
+	seed[0]++
+	card, err = CreateCard(seed, 7, 4, "Z")
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	chars = card.String()
+	chars = strings.Replace(chars, "\n", "", -1)
+	assert.Equal("yxljesvdfvabpmzlnktowurhigqc", chars)
 }
 
 func TestBcryptThread(t *testing.T) {

@@ -3,8 +3,6 @@ package calcpass
 import (
 	"golang.org/x/crypto/bcrypt"
 	"github.com/cruxic/go-hmac-drbg/hmacdrbg"
-	"fmt"
-	//"encoding/hex"
 	"crypto/hmac"
 	"crypto/sha256"
 	"crypto/rand"
@@ -471,11 +469,8 @@ func (self *Card) String() string {
 	lines := make([]string, len(self.grid))
 	for row := range self.grid {
 		lines[row] = string(self.grid[row])
-		fmt.Println("line", row, lines[row])
 	}
 	
-	fmt.Println(len(lines))
-
 	return strings.Join(lines, "\n")
 }
 
@@ -553,6 +548,8 @@ func CreateCard(digestedSeed []byte, width, height int, cardType string) (*Card,
 		return nil, errors.New("width or height out of range")
 	}
 
+	rng := newHmacDrbgByteSource(digestedSeed)
+
 	n := width * height
 
 	//I wish to have a roughly equal distribution of the letters A-Z.
@@ -565,19 +562,38 @@ func CreateCard(digestedSeed []byte, width, height int, cardType string) (*Card,
 	// be exploited by an adversary who obtained a handful of my plaintext
 	// passwords and noticed the statistical bias.
 
-	//Repeat the cardAlphabet until we have at least n characters
-	repeated := cardAlphabet
-	for len(repeated) < n {
+	//Repeat the cardAlphabet a whole number of times
+	repeated := ""
+	for len(repeated) + len(cardAlphabet) <= n {
 		repeated += cardAlphabet
 	}
 
+	//For the remainder, shuffle the alphabet and take the prefix
+	nMore := n - len(repeated)
+	if nMore > 0 {
+		mixedAlphabet := []byte(cardAlphabet)
+		err := secureShuffleBytes(mixedAlphabet, rng)
+		if err != nil {
+			return nil, err
+		}
+
+		repeated += string(mixedAlphabet[0:nMore])
+	}
+
+	//sanity
+	if len(repeated) != n {
+		return nil, errors.New("unicode problem")
+	}
+
 	//Randomize the order using the seed
-	rng := newHmacDrbgByteSource(digestedSeed)
 	chars := []byte(repeated)	
 	err := secureShuffleBytes(chars, rng)
 	if err != nil {
 		return nil, err
 	}
+
+	//Discard the excess chars
+	chars = chars[0:n]
 
 	//Allocate card
 	card := &Card{
@@ -597,8 +613,6 @@ func CreateCard(digestedSeed []byte, width, height int, cardType string) (*Card,
 	}
 	
 	erase(chars)
-	
-	fmt.Println(hmacdrbg.MaxEntropyBytes)
 
 	return card, nil
 	
