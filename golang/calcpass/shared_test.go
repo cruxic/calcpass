@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"crypto/sha256"
-	"bytes"
 	"github.com/stretchr/testify/assert"
 	"strings"
 )
@@ -38,20 +37,6 @@ func (self *cycle_byte_source) NextByte() (byte, error) {
 
 	return b, nil
 }
-
-/*func read_all_unbiased_rand_int8(src byteSource, n int) []int {
-	var values []int;
-	for i := 0; i < 9999; i++ {
-		b, err := unbiased_rand_int8(src, n);
-		if err != nil {
-			return values;
-		}
-
-		values = append(values, b);		
-	}
-
-	return nil;
-}*/
 
 type rand_int8_func func (byteSource, int)(int,error)
 
@@ -91,29 +76,6 @@ func hasGoodDistribution(src byteSource, fn rand_int8_func, n int) bool {
 	return false
 }
 
-
-func intSliceEq(a, b []int) bool {
-	if a == nil && b == nil { 
-		return true; 
-	}
-
-	if a == nil || b == nil { 
-		return false; 
-	}
-
-	if len(a) != len(b) {
-		return false
-	}
-
-	for i := range a {
-		if a[i] != b[i] {
-			return false
-		}
-	}
-
-	return true
-}
-
 func bad_rand_int8(source byteSource, n int) (int, error) {
 	b, err := source.NextByte();
 	if err != nil {
@@ -133,7 +95,7 @@ func baseline_rand_int8(source byteSource, n int) (int, error) {
 }
 
 func TestUnbiased_rand_int8(t *testing.T) {
-	//Test it against math/rand.Intn()
+	assert := assert.New(t)
 
 	src := &cycle_byte_source{
 		maxCycleCount: 9999,		
@@ -157,30 +119,27 @@ func TestUnbiased_rand_int8(t *testing.T) {
 	//n too large
 	src.reset()
 	_, err := unbiased_rand_int8(src, 257)
-	if err == nil {
-		t.Error("expected error but got none")
-	}
+	assert.NotNil(err)
 	
 	//souce exhausted
 	src.reset()
 	src.cycleCount = src.maxCycleCount + 1
 	_, err = unbiased_rand_int8(src, 26)
-	if err == nil {
-		t.Error("expected error but got none")
-	}
+	assert.NotNil(err)
 }
 
 //Make sure I'm using hmac and sha256 correctly
 func TestHmacSha256(t *testing.T) {
+	assert := assert.New(t)
+	
 	//I created this test vector from an online tool
 	hash := hex.EncodeToString(hmacSha256([]byte("SuperSecretPassword"), []byte("Hello World!")));
-	expect := "ea6c66229109f1321b0088c42111069e9794c3aed574e837b6e87c6d14931aef"
-	if hash != expect {
-		t.Errorf("Got %s but expected %s", hash, expect)
-	}
+	assert.Equal("ea6c66229109f1321b0088c42111069e9794c3aed574e837b6e87c6d14931aef", hash)
 }
 
 func TestConcatAll(t *testing.T) {
+	assert := assert.New(t)
+
 	slices := [][]byte{
 		[]byte{1,2,3},
 		[]byte{4,5,6,7},
@@ -188,15 +147,13 @@ func TestConcatAll(t *testing.T) {
 	}
 	
 	res := concatAll(slices)
-	got := hex.EncodeToString(res)
-	expect := "010203040506070809"
-	if got != expect {
-		t.Error("concatAll failed: ", got)
-	}
+	assert.Equal("010203040506070809", hex.EncodeToString(res))
 }
 
 
 func TestGetKeyForWebsite(t *testing.T) {
+	assert := assert.New(t)
+
 	passHash := make([]byte, sha256.Size)
 	passHash[0] = 1
 	passHash[15] = 127
@@ -204,29 +161,10 @@ func TestGetKeyForWebsite(t *testing.T) {
 	
 	res1 := hex.EncodeToString(GetKeyForWebsite(passHash, "ExAmPlE.CoM", "a", 3))	
 	res2 := hex.EncodeToString(hmacSha256(passHash, []byte("a3example.com")))
-	
-	if res1 != res2 {
-		t.Errorf("%s != %s", res1, res2)
-	}
 
-	if res1 != "50ba3f6d12fe8e51641aaee2c2b7749fedc77c9fbe122bdbddf337ef32752fc0" {
-		t.Error("Wrong output:", res1)
-	}
+	assert.Equal(res1, res2)
+	assert.Equal("50ba3f6d12fe8e51641aaee2c2b7749fedc77c9fbe122bdbddf337ef32752fc0", res1)
 }
-
-func readManyFromByteSource(src byteSource, count int) ([]byte, error) {
-	all := make([]byte, count)
-	for i := range all {
-		b, err := src.NextByte()
-		if err != nil {
-			return nil, err
-		}
-		all[i] = b
-	}
-	
-	return all, nil
-}
-
 
 func TestHmacDrbgByteSource(t *testing.T) {
 	assert := assert.New(t)
@@ -262,6 +200,7 @@ func TestHmacDrbgByteSource(t *testing.T) {
 func TestNameFuncs(t *testing.T) {
 	if typeA_xNameFunc(0) != "1" || typeA_xNameFunc(99) != "100" {
 		t.Fail()
+		return
 	}
 
 	if typeA_yNameFunc(0) != "A" || typeA_yNameFunc(1) != "B" {
@@ -280,6 +219,7 @@ func TestNameFuncs(t *testing.T) {
 }
 
 func TestMakeCoordinates(t *testing.T) {
+	assert := assert.New(t)
 
 	//Test against ascending byteSource
 	
@@ -288,15 +228,8 @@ func TestMakeCoordinates(t *testing.T) {
 	}
 
 	coords, err := makeCoordinatesFromSource(src, 20, 13, 17, typeA_xNameFunc, typeA_yNameFunc)
-	if err != nil {
-		t.Error(err)
-		return
-	}
-
-	if len(coords) != 20 {
-		t.Error("wrong len")
-		return
-	}
+	assert.Nil(err)
+	assert.Equal(20, len(coords))
 
 	r := 0
 	for _, coord := range coords {
@@ -320,15 +253,8 @@ func TestMakeCoordinates(t *testing.T) {
 	seed[31] = 255
 	
 	coords, err = MakeCoordinates(seed, 20, 13, 17, typeA_xNameFunc, typeA_yNameFunc)
-	if err != nil {
-		t.Error(err)
-		return
-	}
-
-	if len(coords) != 20 {
-		t.Error("wrong len")
-		return
-	}	
+	assert.Nil(err)
+	assert.Equal(20, len(coords))
 
 	rawXY := ""
 	human := ""
@@ -337,16 +263,8 @@ func TestMakeCoordinates(t *testing.T) {
 		human += coord.String() + " "
 	}
 
-	expectXY := "7,5 9,15 5,15 4,4 5,7 9,7 7,15 4,7 5,7 11,16 0,14 0,5 1,3 5,3 8,15 0,10 4,3 1,7 12,7 12,9 "
-	expectHuman := "8F 10P 6P 5E 6H 10H 8P 5H 6H 12Q 1O 1F 2D 6D 9P 1K 5D 2H 13H 13J "
-
-	if rawXY != expectXY {
-		t.Error(rawXY)
-	}
-
-	if human != expectHuman {
-		t.Error(human)
-	}
+	assert.Equal("7,5 9,15 5,15 4,4 5,7 9,7 7,15 4,7 5,7 11,16 0,14 0,5 1,3 5,3 8,15 0,10 4,3 1,7 12,7 12,9 ", rawXY)
+	assert.Equal("8F 10P 6P 5E 6H 10H 8P 5H 6H 12Q 1O 1F 2D 6D 9P 1K 5D 2H 13H 13J ", human)
 }
 
 func TestCreateRandomSeed(t *testing.T) {
@@ -371,58 +289,35 @@ func TestCreateRandomSeed(t *testing.T) {
 }
 
 func TestDigestSeed(t *testing.T) {
+	assert := assert.New(t)
+	
 	d, err := DigestSeed("ATXK-XGFG-TSPF-JSCG-KEMD-YTBJ-ZWEB-LDVW")
-	if err != nil {
-		t.Error(err)
-		return
-	}
-	
-	if len(d) != sha256.Size {
-		t.Fail()
-	}
-	
-	if hex.EncodeToString(d) != "7dcc2ef2201a22cedd07eb25459cb40b60115c0d104af8ab98f6a84cc6846344" {
-		t.Fail()
-	}
+	assert.Nil(err)
+	assert.Equal(sha256.Size, len(d))
+	assert.Equal("7dcc2ef2201a22cedd07eb25459cb40b60115c0d104af8ab98f6a84cc6846344", hex.EncodeToString(d))
 	
 	//verify correct digestion
 	h := sha256.New()
 	h.Write([]byte("ATXKXGFGTSPFJSCGKEMDYTBJZWEBLD"))
 	d2 := h.Sum(nil)
-	if !bytes.Equal(d, d2) {
-		t.Fail()
-	}
+	assert.Equal(d, d2)
 	
 	//case insenstive and white space and dashes are ignored
 	d, err = DigestSeed(" \t AtxK-XGFG-TSPF- - -JsCGKEMDYTBJ\t- ZWEB ---LDvw")
-	if err != nil {
-		t.Error(err)
-		return
-	}
-	if !bytes.Equal(d, d2) {
-		t.Fail()
-	}
+	assert.Nil(err)
+	assert.Equal(d, d2)
 
 	//too short
 	_, err = DigestSeed("TXK-XGFG-TSPF-JSCG-KEMD-YTBJ-ZWEB-LDVW")
-	if err == nil {
-		t.Fail()
-	}
+	assert.NotNil(err)
 	
 	//too long
 	_, err = DigestSeed("AATXK-XGFG-TSPF-JSCG-KEMD-YTBJ-ZWEB-LDVW")
-	if err == nil {
-		t.Fail()
-	}
+	assert.NotNil(err)
 	
 	//illegal character
 	_, err = DigestSeed("A9XK-XGFG-TSPF-JSCG-KEMD-YTBJ-ZWEB-LDVW")
-	if err == nil {
-		t.Fail()
-	}
-	
-	
-	
+	assert.NotNil(err)
 }
 
 func TestSecureShuffleBytes(t *testing.T) {
@@ -636,18 +531,14 @@ func TestBcryptThread(t *testing.T) {
 	}
 }
 
+const correctSuperSecretHash = "22e73674182a1d306fb0bdf79988557c9b20410040d0521461aab3897b729535"
+
 func TestHashCardLockPassword(t *testing.T) {
+	assert := assert.New(t)
+
 	hash, err := HashCardLockPassword([]byte("SuperSecretPassword"))
-	if err != nil {
-		t.Error(err);
-		return;
-	}
-	
-	got := hex.EncodeToString(hash);
-	expect := "22e73674182a1d306fb0bdf79988557c9b20410040d0521461aab3897b729535";
-	if got != expect {
-		t.Error("Wrong hash: ", got);
-	}
+	assert.Nil(err)
+	assert.Equal(correctSuperSecretHash, hex.EncodeToString(hash))
 }
 
 //A condensed version of HashCardLockPassword which does not use threads for acceleration
@@ -685,16 +576,13 @@ func singleCoreHashCardLockPassword(plaintextPassword []byte) ([]byte, error) {
 
 //Test for possible threading problems
 func TestHashCardLockPasswordSingleCore(t *testing.T) {
+	assert := assert.New(t)
+	
 	hash, err := singleCoreHashCardLockPassword([]byte("SuperSecretPassword"))
 	if err != nil {
 		t.Error(err);
 		return;
 	}
-	
-	got := hex.EncodeToString(hash);
-	//should have same output as TestHashCardLockPassword
-	expect := "22e73674182a1d306fb0bdf79988557c9b20410040d0521461aab3897b729535";
-	if got != expect {
-		t.Error("Wrong hash: ", got);
-	}
+
+	assert.Equal(correctSuperSecretHash, hex.EncodeToString(hash))
 }
