@@ -14,11 +14,15 @@ import (
 
 const NumBcryptThreads = 4
 const BcryptCost = 14
-const typeA_yNames = "ABCDEFGHIJKLMNOPQRSTUV"
 //The number of characters in a seed (after removing dashes and spaces)
 const SeedLength = 32
 
 const cardAlphabet = "abcdefghijklmnopqrstuvwxyz"
+
+const typeA_yNames = "ABCDEFGHIJKLMNOPQRSTUV"
+const typeAcardWidth = 22
+const typeAcardHeight = 15
+
 
 func erase(sensitive []byte) {
 	for i := range sensitive {
@@ -216,7 +220,7 @@ func makeCoordinatesFromSource(src byteSource, count, cardSizeX, cardSizeY int,
 		
 	coords := make([]CardCoord, count)
 	var err error
-	
+
 	for i := 0; i < count; i++ {
 		coords[i].X, err = unbiased_rand_int8(src, cardSizeX)
 		if err != nil {
@@ -226,7 +230,7 @@ func makeCoordinatesFromSource(src byteSource, count, cardSizeX, cardSizeY int,
 		if err != nil {
 			return nil, err
 		}
-		
+
 		coords[i].HumanX = xNameFunc(coords[i].X)
 		coords[i].HumanY = yNameFunc(coords[i].Y)
 	}
@@ -234,15 +238,20 @@ func makeCoordinatesFromSource(src byteSource, count, cardSizeX, cardSizeY int,
 	return coords, nil
 }
 
-/**Given the seed, deterministically generate `count` X,Y coordinates in the range
+/**Given the 32 byte key (from GetKeyForWebsite), deterministically generate `count` X,Y coordinates in the range
 [0,cardSizeX), [0,cardSizeY).  The human friendly names for the coordinates are 
 produced by xNameFunc and yNameFunc 
 */
-func MakeCoordinates(seed []byte, count, cardSizeX, cardSizeY int,
+func MakeCoordinates(key []byte, count, cardSizeX, cardSizeY int,
 	xNameFunc, yNameFunc CoordinateNameFunc) ([]CardCoord, error) {
 	
-	src := newHmacDrbgByteSource(seed)
+	src := newHmacDrbgByteSource(key)
 	return makeCoordinatesFromSource(src, count, cardSizeX, cardSizeY, xNameFunc, yNameFunc)	
+}
+
+/**Make coordinates for a type A card.*/
+func MakeTypeACoordinates(key []byte) ([]CardCoord, error) {
+	return MakeCoordinates(key, 4, typeAcardWidth, typeAcardHeight, typeA_xNameFunc, typeA_yNameFunc)
 }
 
 func concatAll(buffers [][]byte) []byte {
@@ -445,21 +454,22 @@ func (self *Card) Erase() {
 	}
 }
 
-/**Read from a row in the card.  Automatically wrap to the start of the row if necessary.*/
-func (self *Card) GetCharsAutoWrap(row, column, count int) string {
-	width := len(self.grid[0])
+/**Read the characters at a given coordinate.  Automatically wrap to the start of the row if necessary.
+This function panics if the coordinates are out of bounds or the count exceeds the length of a row.*/
+func (self *Card) GetCharsAtCoordinate(x, y, count int) string {
 	res := make([]byte, count)
-	
-	n1 := column + count
-	n2 := 0
-	if n1 >= width {
-		n1 -= width
-		n2 = count - n1
+	width := len(self.grid[0])
+
+	if count > width {
+		panic("count exceeds width")
 	}
-	
-	copy(res, self.grid[row][column:column+n1])
-	if n2 > 0 {
-		copy(res[n1:], self.grid[row][0:n2])
+
+	for i := 0; i < count; i++ {
+		res[i] = self.grid[y][x]
+		x++
+		if x >= width {
+			x = 0
+		}
 	}
 	
 	return string(res)
@@ -616,4 +626,13 @@ func CreateCard(digestedSeed []byte, width, height int, cardType string) (*Card,
 
 	return card, nil
 	
+}
+
+func CreateTypeACard(seedStr string) (*Card, error) {
+	rawSeed, err := DigestSeed(seedStr)
+	if err != nil {
+		return nil, err
+	}
+	
+	return CreateCard(rawSeed, typeAcardWidth, typeAcardHeight, "A")
 }

@@ -8,6 +8,7 @@ import (
 	"crypto/sha256"
 	"github.com/stretchr/testify/assert"
 	"strings"
+	"os"
 )
 
 /**Cycle through all byte values*/
@@ -159,11 +160,15 @@ func TestGetKeyForWebsite(t *testing.T) {
 	passHash[15] = 127
 	passHash[31] = 255
 	
-	res1 := hex.EncodeToString(GetKeyForWebsite(passHash, "ExAmPlE.CoM", "a", 3))	
-	res2 := hex.EncodeToString(hmacSha256(passHash, []byte("a3example.com")))
+	res1 := hex.EncodeToString(GetKeyForWebsite(passHash, "ExAmPlE.CoM", "A", 0))	
+	res2 := hex.EncodeToString(hmacSha256(passHash, []byte("a0example.com")))
 
 	assert.Equal(res1, res2)
-	assert.Equal("50ba3f6d12fe8e51641aaee2c2b7749fedc77c9fbe122bdbddf337ef32752fc0", res1)
+	assert.Equal("40e6c356472da457af893f662e070164e65142456932cb42e04811b0f5e003d6", res1)
+
+	//Change in revision gives completely different hash
+	res3 := hex.EncodeToString(GetKeyForWebsite(passHash, "example.com", "A", 1))
+	assert.Equal("c066f311170df52891a55dbc857b98bdb42df03c49684dd91df3a1c1a387c3cf", res3)
 }
 
 func TestHmacDrbgByteSource(t *testing.T) {
@@ -245,14 +250,14 @@ func TestMakeCoordinates(t *testing.T) {
 		r++
 	}
 
-	//Test against fixed seed
+	//Test against fixed key
 
-	seed := make([]byte, sha256.Size)
-	seed[0] = 1
-	seed[15] = 127
-	seed[31] = 255
+	key := make([]byte, sha256.Size)
+	key[0] = 1
+	key[15] = 127
+	key[31] = 255
 	
-	coords, err = MakeCoordinates(seed, 20, 13, 17, typeA_xNameFunc, typeA_yNameFunc)
+	coords, err = MakeCoordinates(key, 20, 13, 17, typeA_xNameFunc, typeA_yNameFunc)
 	assert.Nil(err)
 	assert.Equal(20, len(coords))
 
@@ -513,6 +518,272 @@ func TestCreateCard(t *testing.T) {
 	assert.Equal("yxljesvdfvabpmzlnktowurhigqc", chars)
 }
 
+func TestCardGetCharsAtCoordinate(t *testing.T) {
+	assert := assert.New(t)
+
+	seed := make([]byte, sha256.Size)
+	seed[0] = 1
+	seed[15] = 127
+	seed[31] = 255
+	
+	card, err := CreateCard(seed, 7, 4, "Z")  //28 chars total
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	assert.Equal("fgychml\nspjnodb\naqukwzt\nrgcxvei", card.String())
+
+	//1 char at a time
+	assert.Equal("f", card.GetCharsAtCoordinate(0, 0, 1))
+	assert.Equal("g", card.GetCharsAtCoordinate(1, 0, 1))
+	assert.Equal("y", card.GetCharsAtCoordinate(2, 0, 1))
+	assert.Equal("c", card.GetCharsAtCoordinate(3, 0, 1))
+	assert.Equal("h", card.GetCharsAtCoordinate(4, 0, 1))
+	assert.Equal("m", card.GetCharsAtCoordinate(5, 0, 1))
+	assert.Equal("l", card.GetCharsAtCoordinate(6, 0, 1))
+	assert.Panics(func() {
+		_ = card.GetCharsAtCoordinate(7, 0, 1)
+	})
+	
+
+	//2 chars at a time
+	assert.Equal("sp", card.GetCharsAtCoordinate(0, 1, 2))
+	assert.Equal("pj", card.GetCharsAtCoordinate(1, 1, 2))
+	assert.Equal("jn", card.GetCharsAtCoordinate(2, 1, 2))
+	assert.Equal("no", card.GetCharsAtCoordinate(3, 1, 2))
+	assert.Equal("od", card.GetCharsAtCoordinate(4, 1, 2))
+	assert.Equal("db", card.GetCharsAtCoordinate(5, 1, 2))
+	assert.Equal("bs", card.GetCharsAtCoordinate(6, 1, 2))
+
+	//3 chars at a time
+	assert.Equal("aqu", card.GetCharsAtCoordinate(0, 2, 3))
+	assert.Equal("quk", card.GetCharsAtCoordinate(1, 2, 3))
+	assert.Equal("ukw", card.GetCharsAtCoordinate(2, 2, 3))
+	assert.Equal("kwz", card.GetCharsAtCoordinate(3, 2, 3))
+	assert.Equal("wzt", card.GetCharsAtCoordinate(4, 2, 3))
+	assert.Equal("zta", card.GetCharsAtCoordinate(5, 2, 3))
+	assert.Equal("taq", card.GetCharsAtCoordinate(6, 2, 3))
+	
+	//6 chars at a time
+	assert.Equal("rgcxve", card.GetCharsAtCoordinate(0, 3, 6))
+	assert.Equal("gcxvei", card.GetCharsAtCoordinate(1, 3, 6))
+	assert.Equal("irgcxv", card.GetCharsAtCoordinate(6, 3, 6))
+
+	//7 chars at a time
+	assert.Equal("fgychml", card.GetCharsAtCoordinate(0, 0, 7))
+	assert.Equal("gychmlf", card.GetCharsAtCoordinate(1, 0, 7))
+
+	//8 panics
+	assert.Panics(func() {
+		_ = card.GetCharsAtCoordinate(0, 0, 8)
+	})
+	
+	
+}
+
+
+//Write a PPM image file
+func writePPMImage(fname string, imgW, imgH int, pixels []byte) {
+	//sanity
+	if len(pixels) != imgW * imgH * 3 {
+		panic("writePPMImage: bad argument")
+	}
+
+	fout, err := os.Create(fname)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+		
+	fmt.Fprintf(fout, "P6\n%d %d\n255\n", imgW, imgH)
+	fout.Write(pixels)
+	fout.Close()
+}
+
+func writeGrayPPMImage(fname string, imgW, imgH int, grayValues []byte) {
+	rgb := make([]byte, len(grayValues) * 3)
+
+	j := 0
+	for _, val := range grayValues {
+		rgb[j] = val
+		rgb[j+1] = val
+		rgb[j+2] = val
+		j += 3
+	}
+
+	writePPMImage(fname, imgW, imgH, rgb)
+}
+
+func createHistogramImage(fname string, values []int) {
+	//Create a sideways histogram where the number of white
+	//pixels in each row (left-to-right) shows the frequency
+	//of a that particular value.
+
+	//Find max frequency and use it for the image width
+	imgW := 0
+	for _, v := range values {
+		if v > imgW {
+			imgW = v
+		}
+	}
+
+	imgH := len(values)
+	pixels := make([]byte, imgW * imgH)
+
+	for y := 0; y < imgH; y++ {
+		freq := values[y]
+
+		for x := 0; x < freq; x++ {
+			pixels[y * imgW + x] = 0xFF
+		}
+	}
+
+	writeGrayPPMImage(fname, imgW, imgH, pixels)
+}
+
+
+func disabled_TestPlayground(t *testing.T) {
+	assert := assert.New(t)
+
+	//25 very popular websites
+	topSites := []string{
+		"google.com",
+		"youtube.com",
+		"facebook.com",
+		"yahoo.com",
+		"amazon.com",
+		"twitter.com",
+		"live.com",
+		"linkedin.com",
+		"instagram.com",
+		"ebay.com",
+		"reddit.com",
+		"pinterest.com",
+		"netflix.com",
+		"microsoft.com",
+		"wordpress.com",
+		"tumblr.com",
+		"paypal.com",
+		"stackoverflow.com",
+		"apple.com",
+		"github.com",
+		"craigslist.org",
+		"alibaba.com",
+		"ask.com",
+		"dropbox.com",
+		"cnn.com",
+	}	
+
+	/*passes := []string{
+		"SuperSecretPassword", 
+		"freshcheapfault",
+		"printfunhoney",
+		"clearroyal",
+		"crimejoints",
+		"alongnoblepi",
+		"snailchief",
+	}
+	for _, pass := range passes {
+		hash, _ := HashCardLockPassword([]byte(pass))
+		fmt.Printf("\"%s\",\n", hex.EncodeToString(hash))
+	}
+	*/
+
+	//For faster execution I'll use the pre-computed card-lock-password hashes.
+	//  Uncomment the above code to regenerate them
+	preComputedHashes := []string{
+		correctSuperSecretHash,
+		"9a08d3320b586c5fdaaf2bd54b61e4a30c61312b7eb9e44e8b23b2d1f694cdc4",
+		"e4ab4dfcb7eff8aac0b1924b1babf904327841c07c068cfcfd97ddefd3510c86",
+		"a29b2332af5a2fdcda4cfb7c9fc360136d3ae7f239d4f90c35fb97a3b8d06d04",
+		"3aac76d183b4b0154b31fa5b599ff190f67c293fe2ca10586dbca42932cd9ed4",
+		"b44a05ce3976faa90ce67583bb7e3b1323df213438e9814458cb57e3100fb44f",
+		"2b53a5b71cd734ab4341cf32ceaabc373ae381c6a3f5b4801cfa7b95f6b1e665",
+	}
+
+	coordFreq := make(map[string]int)
+
+	//img := make([]byte, typeAcardWidth * typeAcardHeight)
+	histogram := make([]int, typeAcardWidth * typeAcardHeight)
+
+	for _, h := range preComputedHashes {
+		passHash, err := hex.DecodeString(h)
+		if err != nil {
+			t.Error(err)
+			return
+		}
+
+		siteCoords := make(map[string][]CardCoord)
+
+		for _, site := range topSites {
+			key := GetKeyForWebsite(passHash, site, "A", 0)
+			coords, err := MakeTypeACoordinates(key)
+			if err != nil {
+				t.Error(err)
+				return
+			}
+
+			for _, coord := range coords {
+				//coordFreq[coord.String()]++
+
+				idx := coord.Y * typeAcardWidth + coord.X
+				histogram[idx]++
+			}
+
+			siteCoords[site] = coords
+		}
+
+		break
+	}
+
+	//writeGrayPPMImage("/tmp/dist.ppm", typeAcardWidth, typeAcardHeight, img)
+	createHistogramImage("/tmp/hist.ppm", histogram)
+
+	fmt.Println("Used", len(coordFreq), "distinct coordinates for", len(topSites), "sites")
+	for coord, count := range coordFreq {
+		if count > 1 {
+			fmt.Println(coord, count)
+		}
+	}
+
+	//10 randomly generated seeds
+	seeds := []string{
+		"MOSS-LOKG-PBUK-FTRY-HYLP-LGGY-CPVT-WIDD",
+		"SPFR-OFUG-DIED-LMGX-HRIX-IHNU-UOTF-FMAB",
+		"JUNU-OFGR-WVRV-ELYS-ADHO-WLWG-BCMP-FSHU",
+		"KACK-YRFW-SZPE-YQGG-GKFX-MFGU-TSLC-PZKN",
+		"ZQHG-DMRX-RJNJ-MCMD-VISM-OKHJ-CPVV-XDUZ",
+		"KUHB-IGDH-WCCS-LNSU-HKDD-ZQNO-LCHC-JQMZ",
+		"UCHJ-KCTF-MLPF-KTHA-MNPU-DVMQ-GHBH-HNAO",
+		"UELB-NVUH-YSBF-NXYV-AZPF-NFIO-CPAM-NQJZ",
+		"DCES-UNDD-TGBV-HYSE-GXGA-LUEV-PRQT-JMQR",
+		"UDEF-ZQBI-RXUZ-MMXV-CKHU-DSXS-APJJ-IQYU",
+	}
+
+	assert.Equal(10, len(seeds))
+
+	/*
+
+	for _, seed := range seeds {
+
+		card, err := CreateTypeACard(seed)
+		if err != nil {
+			t.Error(err)
+			return
+		}
+
+		for site, coords := range siteCoords {
+			pass
+			for coord := range coords {
+
+			}
+			
+
+		}
+	}*/
+}
+
 func TestBcryptThread(t *testing.T) {
 	pass := []byte("SuperSecretPassword");
 	salt := []byte{0x71,0xd7,0x9f,0x82,0x18,0xa3,0x92,0x59,0xa7,0xa2,0x9a,0xab,0xb2,0xdb,0xaf,0xc3};  //"abcdefghijklmnopqrstuu" as bcrypt-base64
@@ -571,8 +842,6 @@ func singleCoreHashCardLockPassword(plaintextPassword []byte) ([]byte, error) {
 	
 	return hmacSha256(passwordShadow, all), nil
 }
-
-
 
 //Test for possible threading problems
 func TestHashCardLockPasswordSingleCore(t *testing.T) {
