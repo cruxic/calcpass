@@ -4,6 +4,7 @@ import "net/http"
 import "path/filepath"
 import "os"
 import "log"
+import "fmt"
 
 func main() {
 	cwd, err := os.Getwd()
@@ -15,6 +16,9 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	listenOn := ":7777"
+	fmt.Println("Preparing to listen on", listenOn)
 	
-    panic(http.ListenAndServe(":8080", http.FileServer(http.Dir(thisDir))))
+    panic(http.ListenAndServe(listenOn, http.FileServer(http.Dir(thisDir))))
 }
