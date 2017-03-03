@@ -3,6 +3,7 @@ import assert_test from './assert_test'
 import utf8_test from  './utf8_test'
 import hex_test from './hex_test'
 import sha256_test from './sha256_test'
+import hmacdrbg_test from './hmacdrbg_test'
 
 function run_tests() {
 	assert_test();
@@ -16,6 +17,9 @@ function run_tests() {
 
 	sha256_test();
 	console.log('sha256_test PASS');
+
+	hmacdrbg_test();
+	console.log('hmacdrbg_test PASS');
 
 	console.log('\nAll tests PASS');
 }
