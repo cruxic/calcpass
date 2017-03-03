@@ -2,7 +2,7 @@
 import assert_test from './assert_test'
 import utf8_test from  './utf8_test'
 import hex_test from './hex_test'
-
+import sha256_test from './sha256_test'
 
 function run_tests() {
 	assert_test();
@@ -13,6 +13,9 @@ function run_tests() {
 
 	hex_test();
 	console.log('hex_test PASS');
+
+	sha256_test();
+	console.log('sha256_test PASS');
 
 	console.log('\nAll tests PASS');
 }

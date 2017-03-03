@@ -337,20 +337,21 @@ export function hash(data: Uint8Array): Uint8Array {
 export default hash;
 
 // Returns HMAC-SHA256 of data under the key.
-export function hmac(key: Uint8Array, data: Uint8Array) {
+export function hmac(key: Uint8Array, data: Uint8Array): Uint8Array {
     const h = (new HMAC(key)).update(data);
     const digest = h.digest();
     h.clean();
     return digest;
 }
 
+//adamb: this is commented out because I don't need it for calcpass and want to minimise footprint
 // Derives a key from password and salt using PBKDF2-HMAC-SHA256
 // with the given number of iterations.
 //
 // The number of bytes returned is equal to dkLen.
 //
 // (For better security, avoid dkLen greater than hash length - 32 bytes).
-export function pbkdf2(password: Uint8Array, salt: Uint8Array, iterations: number, dkLen: number) {
+/*export function pbkdf2(password: Uint8Array, salt: Uint8Array, iterations: number, dkLen: number) {
     const prf = new HMAC(password);
     const len = prf.digestLength;
     const ctr = new Uint8Array(4);
@@ -390,4 +391,4 @@ export function pbkdf2(password: Uint8Array, salt: Uint8Array, iterations: numbe
     }
     prf.clean();
     return dk;
-}
+}*/
