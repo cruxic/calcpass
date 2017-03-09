@@ -59,23 +59,22 @@ export function rawBcrypt(pass: Uint8Array, salt: Uint8Array, cost:number): Uint
 
 	let rounds:number = (1 << cost) >>> 0;
 
-	let P = new Int32Array(P_ORIG);
-	let S = new Int32Array(S_ORIG);
-
 	//the original bcrypt implementation always included the null terminator
 	let passWithNull = new Uint8Array(pass.length + 1);
 	passWithNull.set(pass);
 	passWithNull[pass.length] = 0;
 	pass = null;
-	
+
+	let P = new Int32Array(P_ORIG);
+	let S = new Int32Array(S_ORIG);
 	_ekskey(salt, passWithNull, P, S);
 		
-	let bWords = key2words(passWithNull, P);
+	let pWords = key2words(passWithNull, P);
 	let saltWords = key2words(salt, P);
 
 	let i:number, j:number;
 	for (i = 0; i < rounds; i++) {
-		_key(bWords, P, S);
+		_key(pWords, P, S);
 		_key(saltWords, P, S);
 	}
 
@@ -84,7 +83,7 @@ export function rawBcrypt(pass: Uint8Array, salt: Uint8Array, cost:number): Uint
 	
 	for (i = 0; i < 64; i++) {
 		for (j = 0; j < (clen >> 1); j++)
-			_encipher(cdata, j << 1, P, S);
+			_encipherOffset(cdata, j << 1, P, S);
 	}
 
 	//convert cdata words to 24 bytes
@@ -167,11 +166,11 @@ export function bcrypt(pass: Uint8Array, salt: Uint8Array, cost:number, algorith
 }
 
 
-function key2words(key, P): Array<number> {
+function key2words(key:Uint8Array, P:Int32Array): Int32Array {
 	let plen = P.length;
 	let offp = [0];
 
-	let res = new Array<number>(plen);
+	let res = new Int32Array(plen);
 	for (let i = 0; i < plen; i++) {
 		res[i] = nextWord(key, offp);
 	}
@@ -179,7 +178,7 @@ function key2words(key, P): Array<number> {
 	return res;
 }
 
-function _key(keyWords, P, S) {
+function _key(keyWords:Int32Array, P:Int32Array, S:Int32Array) {
 	let lr = [0, 0];
 	let plen = P.length;
 	let slen = S.length;
@@ -191,21 +190,21 @@ function _key(keyWords, P, S) {
 	
 	i = 0;
 	while (i < plen) {
-		_encipher(lr, 0, P, S);
+		_encipher(lr, P, S);
 		P[i++] = lr[0];
 		P[i++] = lr[1];
 	}
 		
 	i = 0;
 	while (i < slen) {
-		_encipher(lr, 0, P, S);
+		_encipher(lr, P, S);
 		S[i++] = lr[0];
 		S[i++] = lr[1];
 	}
 }
 
 /**Read a 32bit big-endian word and advance the offset by 4 (modulo data length)*/
-function nextWord(data, offsetRef:Array<number>): number {
+function nextWord(data:Uint8Array, offsetRef:Array<number>): number {
 	let dlen:number = data.length;
 	let offp = offsetRef[0];
 	
@@ -220,18 +219,11 @@ function nextWord(data, offsetRef:Array<number>): number {
 
 /**
  * Expensive key schedule Blowfish.
- * @param {Array.<number>} data
- * @param {Array.<number>} key
- * @param {Array.<number>} P
- * @param {Array.<number>} S
- * @inner
  */
-function _ekskey(data, key, P, S) {
-	var
-		lr = [0, 0],
-		plen = P.length,
-		slen = S.length,
-		sw;
+function _ekskey(data:Uint8Array, key:Uint8Array, P:Int32Array, S:Int32Array) {
+	let lr = [0, 0];
+	let plen = P.length;
+	let slen = S.length;
 
 	let offp:Array<number> = [0];
 		
@@ -243,7 +235,7 @@ function _ekskey(data, key, P, S) {
 		lr[0] ^= nextWord(data, offp);
 		lr[1] ^= nextWord(data, offp);
 		
-		_encipher(lr, 0, P, S);
+		_encipher(lr, P, S);
 		P[i] = lr[0];
 		P[i + 1] = lr[1];
 	}
@@ -252,18 +244,27 @@ function _ekskey(data, key, P, S) {
 		lr[0] ^= nextWord(data, offp);
 		lr[1] ^= nextWord(data, offp);
 
-		_encipher(lr, 0, P, S);
+		_encipher(lr, P, S);
 		S[i] = lr[0];
 		S[i + 1] = lr[1];
 	}
 }
 
-function _encipher(lr, off, P, S) {
+function _encipherOffset(lr:Array<number>, offset:number, P:Int32Array, S:Int32Array) {
+	let tmp = [lr[offset], lr[offset+1]];
+	
+	_encipher(tmp, P, S);
+	
+	lr[offset] = tmp[0];
+	lr[offset + 1] = tmp[1];
+}
+
+function _encipher(lr:Array<number>, P:Int32Array, S:Int32Array) {
 	const BLOWFISH_NUM_ROUNDS:number = 16;
 	
-	var n,
-		l = lr[off],
-		r = lr[off + 1];
+	let n:number;
+	let l = lr[0];
+	let r = lr[1];
 
 	l ^= P[0];
 
@@ -374,16 +375,11 @@ function _encipher(lr, off, P, S) {
 		l ^= n ^ P[++i];
 	}*/
 		
-	lr[off] = r ^ P[BLOWFISH_NUM_ROUNDS + 1];
-	lr[off + 1] = l;
+	lr[0] = r ^ P[BLOWFISH_NUM_ROUNDS + 1];
+	lr[1] = l;
 }
 
 
-/**
- * @type {Array.<number>}
- * @const
- * @inner
- */
 const P_ORIG = [
 	0x243f6a88, 0x85a308d3, 0x13198a2e, 0x03707344, 0xa4093822,
 	0x299f31d0, 0x082efa98, 0xec4e6c89, 0x452821e6, 0x38d01377,
@@ -391,11 +387,6 @@ const P_ORIG = [
 	0xb5470917, 0x9216d5d9, 0x8979fb1b
 ];
 
-/**
- * @type {Array.<number>}
- * @const
- * @inner
- */
 const S_ORIG = [
 	0xd1310ba6, 0x98dfb5ac, 0x2ffd72db, 0xd01adfb7, 0xb8e1afed,
 	0x6a267e96, 0xba7c9045, 0xf12c7f99, 0x24a19947, 0xb3916cf7,
@@ -604,11 +595,6 @@ const S_ORIG = [
 	0xb74e6132, 0xce77e25b, 0x578fdfe3, 0x3ac372e6
 ];
 
-/**
- * @type {Array.<number>}
- * @const
- * @inner
- */
 const C_ORIG = [
 	0x4f727068, 0x65616e42, 0x65686f6c, 0x64657253, 0x63727944,
 	0x6f756274

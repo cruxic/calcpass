@@ -44,10 +44,8 @@ export default function bcrypt_test() {
 	str = bcrypt.bcrypt(pass, salt, 5);
 	assert.equal(str, "$2a$05$PD9rIAVA5BdjS8qWAY.NKuO7LX8Qaar1KUIhU.PAm3HUsbk5E2WmG");
 
-	//str = bcrypt.bcrypt(pass, salt, 14);
-
 	let t2 = performance.now();
-	console.log("bcrypt took " + (t2 - t1) + "ms");
+	console.log("bcrypt_test took " + (t2 - t1) + "ms");
 }
 
 
