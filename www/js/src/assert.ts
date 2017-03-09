@@ -55,7 +55,7 @@ export function equalArray(got, expect) {
 
 export function equal(value, expect) {
 	if (value !== expect) {
-		let msg = "assert.equal FAILED: " + value2str(expect) + " !== " + value2str(value);
+		let msg = "assert.equal FAILED: " + value2str(value) + " !== " + value2str(expect);
 		fail(msg);
 	}
 
