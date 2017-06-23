@@ -136,8 +136,12 @@ export class Hash {
 
     // Cleans internal buffers and re-initializes hash state.
     clean() {
-        for (let i = 0; i < this.buffer.length; i++) this.buffer[i] = 0;
-        for (let i = 0; i < this.temp.length; i++) this.temp[i] = 0;
+        for (let i = 0; i < this.buffer.length; i++) {
+            this.buffer[i] = 0;
+        }
+        for (let i = 0; i < this.temp.length; i++) {
+            this.temp[i] = 0;
+        }
         this.reset();
     }
 
@@ -222,14 +226,14 @@ export class Hash {
     }
 
     // Internal function for use in HMAC for optimization.
-    _saveState(out: Uint8Array) {
+    _saveState(out: Uint32Array) {
         for (let i = 0; i < this.state.length; i++) {
             out[i] = this.state[i];
         }
     }
 
     // Internal function for use in HMAC for optimization.
-    _restoreState(from: Uint8Array, bytesHashed: number) {
+    _restoreState(from: Uint32Array, bytesHashed: number) {
         for (let i = 0; i < this.state.length; i++) {
             this.state[i] = from[i];
         }
@@ -271,8 +275,8 @@ export class HMAC {
         }
         this.outer.update(pad);
 
-        this.istate = new Uint32Array(this.digestLength / 4);
-        this.ostate = new Uint32Array(this.digestLength / 4);
+        this.istate = new Uint32Array(8);
+        this.ostate = new Uint32Array(8);
 
         this.inner._saveState(this.istate);
         this.outer._saveState(this.ostate);
@@ -333,11 +337,11 @@ export function hash(data: Uint8Array): Uint8Array {
     return digest;
 }
 
-// Function hash is both available as module.hash and as default export. 
+// Function hash is both available as module.hash and as default export.
 export default hash;
 
 // Returns HMAC-SHA256 of data under the key.
-export function hmac(key: Uint8Array, data: Uint8Array): Uint8Array {
+export function hmac(key: Uint8Array, data: Uint8Array) {
     const h = (new HMAC(key)).update(data);
     const digest = h.digest();
     h.clean();
