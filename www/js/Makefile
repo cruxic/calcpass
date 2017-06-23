@@ -2,31 +2,15 @@ TEMPDIR := /tmp/calcpass-build
 DIRFILE := $(TEMPDIR)/.placeholder
 
 
-
-#TODO: expand js/*.js to $(DEST)/js/a.js $(DEST)/js/b.js ...
 all: main-bundle.js tests-bundle.js
 
-main-bundle.js: $(TEMPDIR)/main.js src/*.ts
+main-bundle.js: src/*.ts
+	tsc --outDir "$(TEMPDIR)" --project ./src
 	browserify $(TEMPDIR)/main.js --outfile $@
 
-tests-bundle.js: $(TEMPDIR)/tests.js src/*.ts
+#main-bundle.js dependency ensures all typescript gets compiled
+tests-bundle.js: main-bundle.js
 	browserify $(TEMPDIR)/tests.js --outfile $@
-
-#all: $(DIRFILE) $(TEMPDIR)/main.js
-
-$(TEMPDIR)/main.js: src/*.ts
-	tsc --outDir "$(TEMPDIR)" src/main.ts
-
-$(TEMPDIR)/tests.js: src/*.ts
-	tsc --outDir "$(TEMPDIR)" src/tests.ts
-	
-
-#$(TEMPDIR)/%.js: src/%.ts
-#	tsc --outDir "$(TEMPDIR)" "$^"
-
-
-#this command is not smart
-#flow-remove-types --out-dir $(DEST)/js/ js/
 
 
 #Make TEMPDIR
