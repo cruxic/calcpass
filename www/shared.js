@@ -198,7 +198,7 @@ AES128_DRBG.selftest = function() {
 };
 
 function setElmText(elementOrId, text) {
-	var elm = null;
+	var elm = elementOrId;
 	if (typeof(elementOrId) == 'string')
 		elm = document.getElementById(elementOrId);
 		

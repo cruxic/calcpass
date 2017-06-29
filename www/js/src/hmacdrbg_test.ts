@@ -1,7 +1,7 @@
 import {HmacDrbg, MaxBytesPerGenerate} from './hmacdrbg'
 import * as sha256 from './sha256'
 import * as assert from './assert'
-import {stringToUTF8} from './utf8'
+//import {stringToUTF8} from './utf8'
 import * as hex from './hex'
 
 //This test suite was ported from go-hmac-drbg
