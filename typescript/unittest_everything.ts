@@ -1,4 +1,3 @@
-//import sha256_test from './sha256_test'
 import assert_test from './assert_test'
 import utf8_test from  './utf8_test'
 import hex_test from './hex_test'
