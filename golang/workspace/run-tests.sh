@@ -13,5 +13,7 @@ export GOPATH=`pwd`
 #go test -v github.com/cruxic/go-hmac-drbg/hmacdrbg
 #go test -v golang.org/x/crypto/bcrypt
 
-go test -v github.com/cruxic/calcpass/golang/calcpass
+PKG=github.com/cruxic/calcpass/golang/calcpass
+
+go test -v $PKG/util $PKG/card $PKG/parallel_bcrypt $PKG
 

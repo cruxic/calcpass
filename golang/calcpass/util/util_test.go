@@ -1,14 +1,11 @@
-package calcpass
+package util
 
 import (
 	"testing"
-	"encoding/hex"
-	"errors"
-	"fmt"
-	"crypto/sha256"
 	"github.com/stretchr/testify/assert"
-	"strings"
-	"os"
+	"io"
+	"encoding/hex"
+
 )
 
 /**Cycle through all byte values*/
@@ -25,7 +22,7 @@ func (self *cycle_byte_source) reset() {
 
 func (self *cycle_byte_source) NextByte() (byte, error) {
 	if self.cycleCount > self.maxCycleCount {
-		return 0, errors.New("END")
+		return 0, io.EOF
 	}
 
 	b := byte(self.nextVal)
@@ -39,9 +36,9 @@ func (self *cycle_byte_source) NextByte() (byte, error) {
 	return b, nil
 }
 
-type rand_int8_func func (byteSource, int)(int,error)
+type rand_int8_func func (ByteSource, int)(int,error)
 
-func hasGoodDistribution(src byteSource, fn rand_int8_func, n int) bool {
+func hasGoodDistribution(src ByteSource, fn rand_int8_func, n int) bool {
 	counts := make([]int, n)
 	
 	iterations := 3 * 256  //do at least 3 cycles of 0-255 from the byteSource
@@ -77,7 +74,7 @@ func hasGoodDistribution(src byteSource, fn rand_int8_func, n int) bool {
 	return false
 }
 
-func bad_rand_int8(source byteSource, n int) (int, error) {
+func bad_rand_int8(source ByteSource, n int) (int, error) {
 	b, err := source.NextByte();
 	if err != nil {
 		return -1, err;
@@ -86,7 +83,7 @@ func bad_rand_int8(source byteSource, n int) (int, error) {
 	}
 }
 
-func baseline_rand_int8(source byteSource, n int) (int, error) {
+func baseline_rand_int8(source ByteSource, n int) (int, error) {
 	b, err := source.NextByte();
 	if err != nil {
 		return -1, err;
@@ -95,7 +92,7 @@ func baseline_rand_int8(source byteSource, n int) (int, error) {
 	}
 }
 
-func TestUnbiased_rand_int8(t *testing.T) {
+func TestUnbiasedSmallInt(t *testing.T) {
 	assert := assert.New(t)
 
 	src := &cycle_byte_source{
@@ -108,10 +105,10 @@ func TestUnbiased_rand_int8(t *testing.T) {
 		return
 	}
 	
-	//Test unbiased_rand_int8 with all possible N
+	//Test UnbiasedSmallInt with all possible N
 	for n := 1; n <= 256; n++ {
 		src.reset()
-		if !hasGoodDistribution(src, unbiased_rand_int8, n) {
+		if !hasGoodDistribution(src, UnbiasedSmallInt, n) {
 			t.Errorf("unbiased_rand_int8 is non-uniform with n=%d", n)
 			return
 		}
@@ -119,13 +116,13 @@ func TestUnbiased_rand_int8(t *testing.T) {
 	
 	//n too large
 	src.reset()
-	_, err := unbiased_rand_int8(src, 257)
+	_, err := UnbiasedSmallInt(src, 257)
 	assert.NotNil(err)
 	
 	//souce exhausted
 	src.reset()
 	src.cycleCount = src.maxCycleCount + 1
-	_, err = unbiased_rand_int8(src, 26)
+	_, err = UnbiasedSmallInt(src, 26)
 	assert.NotNil(err)
 }
 
@@ -134,42 +131,10 @@ func TestHmacSha256(t *testing.T) {
 	assert := assert.New(t)
 	
 	//I created this test vector from an online tool
-	hash := hex.EncodeToString(hmacSha256([]byte("SuperSecretPassword"), []byte("Hello World!")));
+	hash := hex.EncodeToString(HmacSha256([]byte("SuperSecretPassword"), []byte("Hello World!")));
 	assert.Equal("ea6c66229109f1321b0088c42111069e9794c3aed574e837b6e87c6d14931aef", hash)
 }
 
-func TestConcatAll(t *testing.T) {
-	assert := assert.New(t)
-
-	slices := [][]byte{
-		[]byte{1,2,3},
-		[]byte{4,5,6,7},
-		[]byte{8,9},
-	}
-	
-	res := concatAll(slices)
-	assert.Equal("010203040506070809", hex.EncodeToString(res))
-}
-
-
-func TestGetKeyForWebsite(t *testing.T) {
-	assert := assert.New(t)
-
-	passHash := make([]byte, sha256.Size)
-	passHash[0] = 1
-	passHash[15] = 127
-	passHash[31] = 255
-	
-	res1 := hex.EncodeToString(GetKeyForWebsite(passHash, "ExAmPlE.CoM", "A", 0))	
-	res2 := hex.EncodeToString(hmacSha256(passHash, []byte("a0example.com")))
-
-	assert.Equal(res1, res2)
-	assert.Equal("40e6c356472da457af893f662e070164e65142456932cb42e04811b0f5e003d6", res1)
-
-	//Change in revision gives completely different hash
-	res3 := hex.EncodeToString(GetKeyForWebsite(passHash, "example.com", "A", 1))
-	assert.Equal("c066f311170df52891a55dbc857b98bdb42df03c49684dd91df3a1c1a387c3cf", res3)
-}
 
 func TestHmacDrbgByteSource(t *testing.T) {
 	assert := assert.New(t)
@@ -180,7 +145,7 @@ func TestHmacDrbgByteSource(t *testing.T) {
 		seed32[i] = 97  //'a'
 	}
 
-	rng := newHmacDrbgByteSource(seed32)
+	rng := NewHmacDrbgByteSource(seed32)
 
 	//seed has been copied so this has no effect
 	seed32[0]++
@@ -202,134 +167,12 @@ func TestHmacDrbgByteSource(t *testing.T) {
 }
 
 
-func TestNameFuncs(t *testing.T) {
-	if typeA_xNameFunc(0) != "1" || typeA_xNameFunc(99) != "100" {
-		t.Fail()
-		return
-	}
-
-	if typeA_yNameFunc(0) != "A" || typeA_yNameFunc(1) != "B" {
-		t.Fail()
-		return
-	}
-
-	var expect string
-	for i := 0; i < len(typeA_yNames); i++ {
-		expect = typeA_yNames[i:i+1]
-		if typeA_yNameFunc(i) != expect {
-			t.Error(i)
-			return
-		}
-	}
-}
-
-func TestMakeCoordinates(t *testing.T) {
-	assert := assert.New(t)
-
-	//Test against ascending byteSource
-	
-	src := &cycle_byte_source{
-		maxCycleCount: 9999,		
-	}
-
-	coords, err := makeCoordinatesFromSource(src, 20, 13, 17, typeA_xNameFunc, typeA_yNameFunc)
-	assert.Nil(err)
-	assert.Equal(20, len(coords))
-
-	r := 0
-	for _, coord := range coords {
-		if coord.X != (r % 13) {
-			t.Error(coord.X, r)
-			return
-		}
-		r++
-		if coord.Y != (r % 17) {
-			t.Error(coord.Y, r)
-			return
-		}
-		r++
-	}
-
-	//Test against fixed key
-
-	key := make([]byte, sha256.Size)
-	key[0] = 1
-	key[15] = 127
-	key[31] = 255
-	
-	coords, err = MakeCoordinates(key, 20, 13, 17, typeA_xNameFunc, typeA_yNameFunc)
-	assert.Nil(err)
-	assert.Equal(20, len(coords))
-
-	rawXY := ""
-	human := ""
-	for _, coord := range coords {
-		rawXY += fmt.Sprintf("%d,%d ", coord.X, coord.Y)
-		human += coord.String() + " "
-	}
-
-	assert.Equal("7,5 9,15 5,15 4,4 5,7 9,7 7,15 4,7 5,7 11,16 0,14 0,5 1,3 5,3 8,15 0,10 4,3 1,7 12,7 12,9 ", rawXY)
-	assert.Equal("8F 10P 6P 5E 6H 10H 8P 5H 6H 12Q 1O 1F 2D 6D 9P 1K 5D 2H 13H 13J ", human)
-}
-
-func TestCreateRandomSeed(t *testing.T) {
-	//Different result upon every invokation
-	s1, err1 := CreateRandomSeed()
-	s2, err2 := CreateRandomSeed()
-	if err1 != nil || err2 != nil {
-		t.Error(err1, err2)
-	}
-	
-	if s1 == s2 {
-		t.Error(s1)
-		return
-	}
-	
-	//Properly formatted and checksumed
-	_, err1 = DigestSeed(s1)
-	_, err2 = DigestSeed(s2)
-	if err1 != nil || err2 != nil {
-		t.Error(err1, err2)
-	}
-}
-
-func TestDigestSeed(t *testing.T) {
-	assert := assert.New(t)
-	
-	d, err := DigestSeed("ATXK-XGFG-TSPF-JSCG-KEMD-YTBJ-ZWEB-LDVW")
-	assert.Nil(err)
-	assert.Equal(sha256.Size, len(d))
-	assert.Equal("7dcc2ef2201a22cedd07eb25459cb40b60115c0d104af8ab98f6a84cc6846344", hex.EncodeToString(d))
-	
-	//verify correct digestion
-	h := sha256.New()
-	h.Write([]byte("ATXKXGFGTSPFJSCGKEMDYTBJZWEBLD"))
-	d2 := h.Sum(nil)
-	assert.Equal(d, d2)
-	
-	//case insenstive and white space and dashes are ignored
-	d, err = DigestSeed(" \t AtxK-XGFG-TSPF- - -JsCGKEMDYTBJ\t- ZWEB ---LDvw")
-	assert.Nil(err)
-	assert.Equal(d, d2)
-
-	//too short
-	_, err = DigestSeed("TXK-XGFG-TSPF-JSCG-KEMD-YTBJ-ZWEB-LDVW")
-	assert.NotNil(err)
-	
-	//too long
-	_, err = DigestSeed("AATXK-XGFG-TSPF-JSCG-KEMD-YTBJ-ZWEB-LDVW")
-	assert.NotNil(err)
-	
-	//illegal character
-	_, err = DigestSeed("A9XK-XGFG-TSPF-JSCG-KEMD-YTBJ-ZWEB-LDVW")
-	assert.NotNil(err)
-}
 
 func TestSecureShuffleBytes(t *testing.T) {
 	assert := assert.New(t)
 
-	src := &fixedByteSource{
-		values: []byte{
+	src := &FixedByteSource{
+		Bytes: []byte{
 			0x01,0x09,  //a
 			0x01,0x06,  //b
 			0x01,0xA1,  //c
@@ -343,7 +186,7 @@ func TestSecureShuffleBytes(t *testing.T) {
 	}
 
 	a := []byte("abcdefg")
-	err := secureShuffleBytes(a, src)
+	err := SecureShuffleBytes(a, src)
 	assert.Nil(err)
 	assert.Equal("gebafcd", string(a))
 
@@ -367,8 +210,8 @@ func TestSecureShuffleBytes(t *testing.T) {
 	// 256,298,161,114,57,79,115,156,0,190,277,26,188,230,266,112,260,155,73,128
 
 	//This is the big-endian representation of the above bytes.
-	src.index = 0
-	src.values = []byte{
+	src.Index = 0
+	src.Bytes = []byte{
 		0x00,0xfa, 0x00,0x64, 0x01,0x05, 0x00,0x87, 0x00,0x61, 0x00,0x29, 0x00,0x50, 0x00,0xf2, 0x01,0x1f, 0x00,0x1c, 0x00,0x5f, 0x00,0x15, 0x00,0xe8, 0x00,0x5d, 0x01,0x00, 0x00,0xda, 
 		0x00,0xff, 0x00,0x85, 0x01,0x29, 0x00,0x17, 0x01,0x01, 0x00,0xda, 0x01,0x03, 0x00,0xb8, 0x00,0x12, 0x00,0x75, 0x00,0xaa, 0x00,0x6a, 0x01,0x2e, 0x00,0x77, 0x01,0x0d, 0x00,0xd9, 
 		0x00,0x77, 0x00,0xe7, 0x00,0x75, 0x01,0x0e, 0x00,0xd1, 0x00,0x4b, 0x00,0xc8, 0x00,0xab, 0x01,0x3e, 0x00,0x2c, 0x00,0x4c, 0x00,0xa0, 0x00,0x47, 0x00,0xdd, 0x00,0x5d, 0x01,0x34, 
@@ -448,410 +291,10 @@ func TestSecureShuffleBytes(t *testing.T) {
 
 	a = []byte("abcdefghijklmnopqrstuvwxzyABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefghijklmnopqrstuvwxzyABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefghijklmnopqrstuvwxzyABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefghijklmnopqrstuvwxzyABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefghijklmnopqrstuvwxzyABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789")
 	assert.Equal(310, len(a))
-	err = secureShuffleBytes(a, src)
+	err = SecureShuffleBytes(a, src)
 	assert.Nil(err)
 	expect := "ymQiZwbuqOHULwYjzvxCWl3tTfBzjaSY0GUdkj0CfP2M05SQybRJWV8YAhBZwxLRoeEOPqVtINKfUgJH4bTThYh0plnokeB7bzQIFXALmNn5iKea8zYCltDaX4rN9ifuUrMdHTZxnArqR6s6349vIgnrfhWOESGyg2lt8yK4275AVkMHd8PwCGg20kXT1wISqsyJijumSaJUHOzn3teVEpbmQR1dxKDj9FmMkusIQ2FhoW5pvxEaVXP6qouXvFcpvc6pMDG7Ko9EN83cZL9173licNeA761GWsFgZBsJPDORCrB5d4c1LD"
 	assert.Equal(expect, string(a))
 	//The above result was verified with a simple python program.
 }
 
-func letterFrequency(text string) map[string]int {
-	m := make(map[string]int)
-
-	for i := range text {
-		c := string(text[i])
-		m[c] += 1
-	}
-
-	return m
-}
-
-func TestCreateCard(t *testing.T) {
-	assert := assert.New(t)
-	
-	seed := make([]byte, sha256.Size)
-	seed[0] = 1
-	seed[15] = 127
-	seed[31] = 255
-	
-	card, err := CreateCard(seed, 7, 4, "Z")  //28 chars total
-	if err != nil {
-		t.Error(err)
-		return
-	}
-
-	chars := card.String()
-	chars = strings.Replace(chars, "\n", "", -1)
-
-	//Only 2 characters occur twice
-	freq := letterFrequency(chars)
-	nOnce := 0
-	nTwice := 0
-
-	assert.Equal(len(freq), 26)
-	
-	for c, count := range freq {
-		if count == 1 {
-			nOnce += 1
-		} else if count == 2 {
-			nTwice += 1
-		} else {
-			t.Error(c, count)
-		}
-	}
-
-	assert.Equal(24, nOnce)
-	assert.Equal(2, nTwice)
-
-	assert.Equal("fgychmlspjnodbaqukwztrgcxvei", chars)
-
-	//Different seed gives totally different shuffle
-	seed[0]++
-	card, err = CreateCard(seed, 7, 4, "Z")
-	if err != nil {
-		t.Error(err)
-		return
-	}
-
-	chars = card.String()
-	chars = strings.Replace(chars, "\n", "", -1)
-	assert.Equal("yxljesvdfvabpmzlnktowurhigqc", chars)
-}
-
-func TestCardGetCharsAtCoordinate(t *testing.T) {
-	assert := assert.New(t)
-
-	seed := make([]byte, sha256.Size)
-	seed[0] = 1
-	seed[15] = 127
-	seed[31] = 255
-	
-	card, err := CreateCard(seed, 7, 4, "Z")  //28 chars total
-	if err != nil {
-		t.Error(err)
-		return
-	}
-
-	assert.Equal("fgychml\nspjnodb\naqukwzt\nrgcxvei", card.String())
-
-	//1 char at a time
-	assert.Equal("f", card.GetCharsAtCoordinate(0, 0, 1))
-	assert.Equal("g", card.GetCharsAtCoordinate(1, 0, 1))
-	assert.Equal("y", card.GetCharsAtCoordinate(2, 0, 1))
-	assert.Equal("c", card.GetCharsAtCoordinate(3, 0, 1))
-	assert.Equal("h", card.GetCharsAtCoordinate(4, 0, 1))
-	assert.Equal("m", card.GetCharsAtCoordinate(5, 0, 1))
-	assert.Equal("l", card.GetCharsAtCoordinate(6, 0, 1))
-	assert.Panics(func() {
-		_ = card.GetCharsAtCoordinate(7, 0, 1)
-	})
-	
-
-	//2 chars at a time
-	assert.Equal("sp", card.GetCharsAtCoordinate(0, 1, 2))
-	assert.Equal("pj", card.GetCharsAtCoordinate(1, 1, 2))
-	assert.Equal("jn", card.GetCharsAtCoordinate(2, 1, 2))
-	assert.Equal("no", card.GetCharsAtCoordinate(3, 1, 2))
-	assert.Equal("od", card.GetCharsAtCoordinate(4, 1, 2))
-	assert.Equal("db", card.GetCharsAtCoordinate(5, 1, 2))
-	assert.Equal("bs", card.GetCharsAtCoordinate(6, 1, 2))
-
-	//3 chars at a time
-	assert.Equal("aqu", card.GetCharsAtCoordinate(0, 2, 3))
-	assert.Equal("quk", card.GetCharsAtCoordinate(1, 2, 3))
-	assert.Equal("ukw", card.GetCharsAtCoordinate(2, 2, 3))
-	assert.Equal("kwz", card.GetCharsAtCoordinate(3, 2, 3))
-	assert.Equal("wzt", card.GetCharsAtCoordinate(4, 2, 3))
-	assert.Equal("zta", card.GetCharsAtCoordinate(5, 2, 3))
-	assert.Equal("taq", card.GetCharsAtCoordinate(6, 2, 3))
-	
-	//6 chars at a time
-	assert.Equal("rgcxve", card.GetCharsAtCoordinate(0, 3, 6))
-	assert.Equal("gcxvei", card.GetCharsAtCoordinate(1, 3, 6))
-	assert.Equal("irgcxv", card.GetCharsAtCoordinate(6, 3, 6))
-
-	//7 chars at a time
-	assert.Equal("fgychml", card.GetCharsAtCoordinate(0, 0, 7))
-	assert.Equal("gychmlf", card.GetCharsAtCoordinate(1, 0, 7))
-
-	//8 panics
-	assert.Panics(func() {
-		_ = card.GetCharsAtCoordinate(0, 0, 8)
-	})
-	
-	
-}
-
-
-//Write a PPM image file
-func writePPMImage(fname string, imgW, imgH int, pixels []byte) {
-	//sanity
-	if len(pixels) != imgW * imgH * 3 {
-		panic("writePPMImage: bad argument")
-	}
-
-	fout, err := os.Create(fname)
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-		
-	fmt.Fprintf(fout, "P6\n%d %d\n255\n", imgW, imgH)
-	fout.Write(pixels)
-	fout.Close()
-}
-
-func writeGrayPPMImage(fname string, imgW, imgH int, grayValues []byte) {
-	rgb := make([]byte, len(grayValues) * 3)
-
-	j := 0
-	for _, val := range grayValues {
-		rgb[j] = val
-		rgb[j+1] = val
-		rgb[j+2] = val
-		j += 3
-	}
-
-	writePPMImage(fname, imgW, imgH, rgb)
-}
-
-func createHistogramImage(fname string, values []int) {
-	//Create a sideways histogram where the number of white
-	//pixels in each row (left-to-right) shows the frequency
-	//of a that particular value.
-
-	//Find max frequency and use it for the image width
-	imgW := 0
-	for _, v := range values {
-		if v > imgW {
-			imgW = v
-		}
-	}
-
-	imgH := len(values)
-	pixels := make([]byte, imgW * imgH)
-
-	for y := 0; y < imgH; y++ {
-		freq := values[y]
-
-		for x := 0; x < freq; x++ {
-			pixels[y * imgW + x] = 0xFF
-		}
-	}
-
-	writeGrayPPMImage(fname, imgW, imgH, pixels)
-}
-
-
-func disabled_TestPlayground(t *testing.T) {
-	assert := assert.New(t)
-
-	//25 very popular websites
-	topSites := []string{
-		"google.com",
-		"youtube.com",
-		"facebook.com",
-		"yahoo.com",
-		"amazon.com",
-		"twitter.com",
-		"live.com",
-		"linkedin.com",
-		"instagram.com",
-		"ebay.com",
-		"reddit.com",
-		"pinterest.com",
-		"netflix.com",
-		"microsoft.com",
-		"wordpress.com",
-		"tumblr.com",
-		"paypal.com",
-		"stackoverflow.com",
-		"apple.com",
-		"github.com",
-		"craigslist.org",
-		"alibaba.com",
-		"ask.com",
-		"dropbox.com",
-		"cnn.com",
-	}	
-
-	/*passes := []string{
-		"SuperSecretPassword", 
-		"freshcheapfault",
-		"printfunhoney",
-		"clearroyal",
-		"crimejoints",
-		"alongnoblepi",
-		"snailchief",
-	}
-	for _, pass := range passes {
-		hash, _ := HashCardLockPassword([]byte(pass))
-		fmt.Printf("\"%s\",\n", hex.EncodeToString(hash))
-	}
-	*/
-
-	//For faster execution I'll use the pre-computed card-lock-password hashes.
-	//  Uncomment the above code to regenerate them
-	preComputedHashes := []string{
-		correctSuperSecretHash,
-		"9a08d3320b586c5fdaaf2bd54b61e4a30c61312b7eb9e44e8b23b2d1f694cdc4",
-		"e4ab4dfcb7eff8aac0b1924b1babf904327841c07c068cfcfd97ddefd3510c86",
-		"a29b2332af5a2fdcda4cfb7c9fc360136d3ae7f239d4f90c35fb97a3b8d06d04",
-		"3aac76d183b4b0154b31fa5b599ff190f67c293fe2ca10586dbca42932cd9ed4",
-		"b44a05ce3976faa90ce67583bb7e3b1323df213438e9814458cb57e3100fb44f",
-		"2b53a5b71cd734ab4341cf32ceaabc373ae381c6a3f5b4801cfa7b95f6b1e665",
-	}
-
-	coordFreq := make(map[string]int)
-
-	//img := make([]byte, typeAcardWidth * typeAcardHeight)
-	histogram := make([]int, typeAcardWidth * typeAcardHeight)
-
-	for _, h := range preComputedHashes {
-		passHash, err := hex.DecodeString(h)
-		if err != nil {
-			t.Error(err)
-			return
-		}
-
-		siteCoords := make(map[string][]CardCoord)
-
-		for _, site := range topSites {
-			key := GetKeyForWebsite(passHash, site, "A", 0)
-			coords, err := MakeTypeACoordinates(key)
-			if err != nil {
-				t.Error(err)
-				return
-			}
-
-			for _, coord := range coords {
-				//coordFreq[coord.String()]++
-
-				idx := coord.Y * typeAcardWidth + coord.X
-				histogram[idx]++
-			}
-
-			siteCoords[site] = coords
-		}
-
-		break
-	}
-
-	//writeGrayPPMImage("/tmp/dist.ppm", typeAcardWidth, typeAcardHeight, img)
-	createHistogramImage("/tmp/hist.ppm", histogram)
-
-	fmt.Println("Used", len(coordFreq), "distinct coordinates for", len(topSites), "sites")
-	for coord, count := range coordFreq {
-		if count > 1 {
-			fmt.Println(coord, count)
-		}
-	}
-
-	//10 randomly generated seeds
-	seeds := []string{
-		"MOSS-LOKG-PBUK-FTRY-HYLP-LGGY-CPVT-WIDD",
-		"SPFR-OFUG-DIED-LMGX-HRIX-IHNU-UOTF-FMAB",
-		"JUNU-OFGR-WVRV-ELYS-ADHO-WLWG-BCMP-FSHU",
-		"KACK-YRFW-SZPE-YQGG-GKFX-MFGU-TSLC-PZKN",
-		"ZQHG-DMRX-RJNJ-MCMD-VISM-OKHJ-CPVV-XDUZ",
-		"KUHB-IGDH-WCCS-LNSU-HKDD-ZQNO-LCHC-JQMZ",
-		"UCHJ-KCTF-MLPF-KTHA-MNPU-DVMQ-GHBH-HNAO",
-		"UELB-NVUH-YSBF-NXYV-AZPF-NFIO-CPAM-NQJZ",
-		"DCES-UNDD-TGBV-HYSE-GXGA-LUEV-PRQT-JMQR",
-		"UDEF-ZQBI-RXUZ-MMXV-CKHU-DSXS-APJJ-IQYU",
-	}
-
-	assert.Equal(10, len(seeds))
-
-	/*
-
-	for _, seed := range seeds {
-
-		card, err := CreateTypeACard(seed)
-		if err != nil {
-			t.Error(err)
-			return
-		}
-
-		for site, coords := range siteCoords {
-			pass
-			for coord := range coords {
-
-			}
-			
-
-		}
-	}*/
-}
-
-func TestBcryptThread(t *testing.T) {
-	pass := []byte("SuperSecretPassword");
-	salt := []byte{0x71,0xd7,0x9f,0x82,0x18,0xa3,0x92,0x59,0xa7,0xa2,0x9a,0xab,0xb2,0xdb,0xaf,0xc3};  //"abcdefghijklmnopqrstuu" as bcrypt-base64
-	resultChan := make(chan *thread_result);
-	go bcryptThread(pass, salt, 123, resultChan);
-
-	tr := <-resultChan
-
-	//this hash was generated with PHP's password_hash() function (prefix and salt removed)
-	expect := "knzXDUqgULdKteKc82qv7Ng4eidGTQW"
-
-	if tr.err != nil {
-		t.Error(tr.err);
-	} else if string(tr.bcryptHash) != expect {
-		t.Error("Wrong hash: ", string(tr.bcryptHash), "  Did you change the cost?");
-	}
-}
-
-const correctSuperSecretHash = "22e73674182a1d306fb0bdf79988557c9b20410040d0521461aab3897b729535"
-
-func TestHashCardLockPassword(t *testing.T) {
-	assert := assert.New(t)
-
-	hash, err := HashCardLockPassword([]byte("SuperSecretPassword"))
-	assert.Nil(err)
-	assert.Equal(correctSuperSecretHash, hex.EncodeToString(hash))
-}
-
-//A condensed version of HashCardLockPassword which does not use threads for acceleration
-func singleCoreHashCardLockPassword(plaintextPassword []byte) ([]byte, error) {
-	var sha = sha256.New()
-	sha.Write(plaintextPassword)
-	passwordShadow := sha.Sum(nil)
-	
-	salts := getThreadSalts()
-	
-	keys := [NumBcryptThreads][]byte{}
-	for i, salt := range salts {
-		keys[i] = hmacSha256(passwordShadow, salt)
-	}
-	
-	resultChan := make(chan *thread_result, 1)
-	all := make([]byte, 0)
-	for i := range keys {
-		bcryptThread(keys[i], salts[i], i, resultChan)
-		res := <-resultChan
-		if res.err != nil {
-			return nil, res.err
-		}
-		if res.threadIndex != i {
-			return nil, errors.New("bad threadIndex")
-		}
-		
-		all = append(all, res.bcryptHash...)
-	}
-	
-	return hmacSha256(passwordShadow, all), nil
-}
-
-//Test for possible threading problems
-func TestHashCardLockPasswordSingleCore(t *testing.T) {
-	assert := assert.New(t)
-	
-	hash, err := singleCoreHashCardLockPassword([]byte("SuperSecretPassword"))
-	if err != nil {
-		t.Error(err);
-		return;
-	}
-
-	assert.Equal(correctSuperSecretHash, hex.EncodeToString(hash))
-}
