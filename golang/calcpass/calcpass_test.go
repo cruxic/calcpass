@@ -3,7 +3,86 @@ package calcpass
 import (
 	"testing"
 	"github.com/stretchr/testify/assert"
+//	"fmt"
+	"strings"
+	"crypto/sha256"
+	"encoding/hex"
+	//"github.com/cruxic/calcpass/golang/calcpass/util"
+
 )
+
+func Test_MakeFriendlyPassword12a(t *testing.T) {
+	assert := assert.New(t)
+
+	//seed too short
+	pass, err := MakeFriendlyPassword12a(make([]byte, 31))
+	assert.True(err != nil)
+
+	seed := make([]byte, 32)  //all zeros
+	pass, err = MakeFriendlyPassword12a(seed)
+	assert.Nil(err)
+	assert.Equal(12, len(pass))
+	assert.Equal("Hgrhurhafud7", pass)
+
+	//changing last byte of seed gives totally different password
+	seed[31]++
+	pass, err = MakeFriendlyPassword12a(seed)
+	assert.Nil(err)
+	assert.Equal("Narexwmhpba7", pass)
+
+	//
+	// Verify that all characters are possible (a-z, 0-9)
+
+	need := "abcdefghijklmnopqrstuvwxyz0123456789"
+	charCounts := make(map[byte]int)
+	sha := sha256.New()
+	foundAll := false
+	j := 0
+	
+	for !foundAll {
+		if j > 100 {
+			t.Error("Unable to find all needed characters after", j, "iterations")
+			return
+		}
+
+		//modify seed
+		seed[j % 32]++
+		j++
+
+
+		//create pass
+		pass, err = MakeFriendlyPassword12a(seed)
+		assert.Nil(err)
+
+		sha.Write([]byte(pass))
+		pass = strings.ToLower(pass)
+
+		//count characters used
+		for i := range pass {
+			charCounts[pass[i]]++
+		}
+
+		//found all needed characters?
+		foundAll = true
+		for i := range need {
+			if charCounts[need[i]] == 0 {
+				foundAll = false
+				break
+			}
+		}
+	}
+
+	assert.True(foundAll)
+	assert.Equal(40, j)
+
+	//verify hash of all passwords
+	assert.Equal("b28ca1ea0fdffa4af8ffb5842059d15fde68a7b8d255de89147e3ae76e9c5779", hex.EncodeToString(sha.Sum(nil)))
+
+	//Print character frequency
+	//for i := range need {
+	//	fmt.Printf("%s: %d\n", string([]byte{need[i]}), charCounts[need[i]])
+	//}
+}
 
 func Test_CalcPass_2017a(t *testing.T) {
 	assert := assert.New(t)
@@ -13,9 +92,7 @@ func Test_CalcPass_2017a(t *testing.T) {
 		return
 	}
 
-	t.Log("TODO: finish Test_CalcPass_2017a", len(pass))
-
-	//assert.Equal([]byte("foo"), string(pass))
+	assert.Equal("Ehngowgxuty0", pass)
 }
 
 /*
