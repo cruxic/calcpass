@@ -17,6 +17,24 @@ export function encode(octetArray): string {
 	return s;
 }
 
+/**Return a byte array of ASCII character values instead of a string.*/
+export function encodeToUint8Array(octets:Uint8Array): Uint8Array {
+	//ASCII 0-9 a-f	
+	let chars = [0x30,0x31,0x32,0x33,0x34,0x35,0x36,0x37,0x38,0x39,0x61,0x62,0x63,0x64,0x65,0x66];
+
+	let res = new Uint8Array(octets.length * 2);
+	
+	let j = 0;
+	let b:number;
+	for (let i = 0; i < octets.length; i++) {
+		b = octets[i];
+		res[j++] = chars[b >> 4]
+		res[j++] = chars[b & 0x0f]
+	}
+	
+	return res;
+}
+
 export function decode(str): Uint8Array {
 	if (typeof(str) !== 'string')
 		throw new Error('expected string');

@@ -729,7 +729,7 @@ function byteSeq(n) {
     return res;
 }
 
-},{"./assert":1,"./bcrypt":3,"./hex":5,"./utf8":12}],5:[function(require,module,exports){
+},{"./assert":1,"./bcrypt":3,"./hex":5,"./utf8":14}],5:[function(require,module,exports){
 /**Convert arrays of octets to and from hex strings*/
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
@@ -748,6 +748,21 @@ function encode(octetArray) {
     return s;
 }
 exports.encode = encode;
+/**Return a byte array of ASCII character values instead of a string.*/
+function encodeToUint8Array(octets) {
+    //ASCII 0-9 a-f	
+    var chars = [0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37, 0x38, 0x39, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66];
+    var res = new Uint8Array(octets.length * 2);
+    var j = 0;
+    var b;
+    for (var i = 0; i < octets.length; i++) {
+        b = octets[i];
+        res[j++] = chars[b >> 4];
+        res[j++] = chars[b & 0x0f];
+    }
+    return res;
+}
+exports.encodeToUint8Array = encodeToUint8Array;
 function decode(str) {
     if (typeof (str) !== 'string')
         throw new Error('expected string');
@@ -770,6 +785,13 @@ exports.decode = decode;
 Object.defineProperty(exports, "__esModule", { value: true });
 var hex = require("./hex");
 var assert = require("./assert");
+function byteSeq(n) {
+    var res = new Uint8Array(n);
+    for (var i = 0; i < n; i++) {
+        res[i] = i & 0xFF;
+    }
+    return res;
+}
 function hex_test() {
     var ar = hex.decode('5A');
     assert.equalArray(ar, [0x5a]);
@@ -783,11 +805,18 @@ function hex_test() {
     assert.throws(function () { return hex.decode('5A '); });
     //0-255
     var allStr = "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f404142434445464748494a4b4c4d4e4f505152535455565758595a5b5c5d5e5f606162636465666768696a6b6c6d6e6f707172737475767778797a7b7c7d7e7f808182838485868788898a8b8c8d8e8f909192939495969798999a9b9c9d9e9fa0a1a2a3a4a5a6a7a8a9aaabacadaeafb0b1b2b3b4b5b6b7b8b9babbbcbdbebfc0c1c2c3c4c5c6c7c8c9cacbcccdcecfd0d1d2d3d4d5d6d7d8d9dadbdcdddedfe0e1e2e3e4e5e6e7e8e9eaebecedeeeff0f1f2f3f4f5f6f7f8f9fafbfcfdfeff";
-    var all = [];
-    for (var i = 0; i < 256; i++)
-        all[i] = i;
+    var all = byteSeq(256);
     assert.equalArray(hex.decode(allStr), all);
     assert.equal(hex.encode(all), allStr);
+    //test encodeToUint8Array
+    var allRaw = hex.encodeToUint8Array(all);
+    var i;
+    assert.equal(allRaw.length, 512);
+    var s = '';
+    for (i = 0; i < allRaw.length; i++) {
+        s += String.fromCharCode(allRaw[i]);
+    }
+    assert.equal(s, allStr);
 }
 exports.default = hex_test;
 
@@ -960,7 +989,7 @@ func (self *HmacDrbgReader) Read(b []byte) (n int, err error) {
 }
 */
 
-},{"./sha256":9}],8:[function(require,module,exports){
+},{"./sha256":11}],8:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 var hmacdrbg_1 = require("./hmacdrbg");
@@ -1042,7 +1071,128 @@ function TestAllGenerationLengths() {
     assert.equalArray(got, expect);
 }
 
-},{"./assert":1,"./hex":5,"./hmacdrbg":7,"./sha256":9}],9:[function(require,module,exports){
+},{"./assert":1,"./hex":5,"./hmacdrbg":7,"./sha256":11}],9:[function(require,module,exports){
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+var bcrypt = require("./bcrypt");
+var utf8_1 = require("./utf8");
+var sha256 = require("./sha256");
+var hex = require("./hex");
+function erase(data) {
+    var i;
+    for (i = 0; i < data.length; i++) {
+        data[i] = 0;
+    }
+}
+function checkParams(plaintextPassword, salt, cost) {
+    if (!plaintextPassword.length)
+        throw new Error("parallel_bcrypt: empty password!");
+    if (salt.length != bcrypt.saltSize)
+        throw new Error("parallel_bcrypt: wrong salt length. bcrypt requires " + bcrypt.saltSize + " bytes");
+    if (cost < 4 || cost > 32)
+        throw new Error("parallel_bcrypt: bcrypt cost must be between 4 and 32.");
+}
+function hashThread(threadIndex, plaintextPassword, salt, cost) {
+    checkParams(plaintextPassword, salt, cost);
+    //Derive a distinct password for this thread to work on:
+    //  eg: sha256(plaintextPassword + 0x01)
+    var sha = new sha256.Hash();
+    sha.update(plaintextPassword);
+    sha.update(new Uint8Array([threadIndex + 1]));
+    var threadPassword = sha.digest();
+    sha.clean();
+    sha = null;
+    //Some bcrypt implementations are broken (eg PHP) because they truncate
+    // the password at the first null byte!  Therefore I'll pass 64 hex characters.
+    //(bcrypt can handle up to 72 bytes)
+    var hexPass = hex.encodeToUint8Array(threadPassword);
+    erase(threadPassword);
+    threadPassword = null;
+    //Hash it!
+    var hash64 = bcrypt.bcrypt(hexPass, salt, cost);
+    if (hash64.length != 60)
+        throw new Error("bcrypt returned wrong size");
+    //remove the salt and cost prefix (first 29 chars)
+    hash64 = hash64.substring(29);
+    return hash64;
+}
+exports.hashThread = hashThread;
+/**
+@param hashes the hash result from each thread, sorted by thread index ascending.
+Always returns 32 bytes.
+*/
+function combineThreadHashes(hashes) {
+    if (!hashes.length) {
+        throw new Error("parallel_bcrypt: empty array!");
+    }
+    var sha = new sha256.Hash();
+    var i;
+    for (i = 0; i < hashes.length; i++) {
+        if (hashes[i].length != 31)
+            throw new Error("parallel_bcrypt: wrong hash string length.");
+        sha.update(utf8_1.stringToUTF8(hashes[i]));
+    }
+    var res = sha.digest();
+    sha.clean();
+    return res;
+}
+exports.combineThreadHashes = combineThreadHashes;
+/**Compute the full hash using only a single thread (slow!).  This is mainly for unit testing - normally
+you will want to spawn Web Workers which call hashThread().
+*/
+function hashWithSingleThread(numSimulatedThreads, plaintextPassword, salt, cost) {
+    checkParams(plaintextPassword, salt, cost);
+    if (numSimulatedThreads < 1 || numSimulatedThreads > 64)
+        throw new Error("parallel_bcrypt: numSimulatedThreads out of range.");
+    var hashes = new Array(numSimulatedThreads);
+    for (var n = 0; n < numSimulatedThreads; n++) {
+        hashes[n] = hashThread(n, plaintextPassword, salt, cost);
+    }
+    return combineThreadHashes(hashes);
+}
+exports.hashWithSingleThread = hashWithSingleThread;
+
+},{"./bcrypt":3,"./hex":5,"./sha256":11,"./utf8":14}],10:[function(require,module,exports){
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+var assert = require("./assert");
+var bcrypt = require("./bcrypt");
+var parallel_bcrypt = require("./parallel_bcrypt");
+var utf8_1 = require("./utf8");
+var hex = require("./hex");
+function test_bcrypt_implementation() {
+    //"abcdefghijklmnopqrstuu" as bcrypt-base64
+    var salt = new Uint8Array([0x71, 0xd7, 0x9f, 0x82, 0x18, 0xa3, 0x92, 0x59, 0xa7, 0xa2, 0x9a, 0xab, 0xb2, 0xdb, 0xaf, 0xc3]);
+    //parallel_bcrypt avoids sending 0x00 bytes to bcrypt because some
+    // implementations truncate upon the first null byte! (eg PHP)
+    //Verify that the bcrypt implementation can handle non-printable bytes
+    var pass = new Uint8Array([0x01, 0x02, 0x03, 0x7f, 0x80, 0x81, 0xAB, 0xCD, 0xef, 0xff]);
+    var hash = bcrypt.bcrypt(pass, salt, 5);
+    assert.equal(hash, "$2a$05$abcdefghijklmnopqrstuuu18bGopDo9r1tDNZl2p2xd1YzcTrTp6");
+    //parallel_bcrypt sends up to 64 bytes to bcrypt.  Prove that the
+    // implementation does not truncate it.
+    pass = utf8_1.stringToUTF8("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
+    hash = bcrypt.bcrypt(pass, salt, 5);
+    assert.equal(hash, "$2a$05$abcdefghijklmnopqrstuusN64mi0Q3MHT4E2PLNsVMiw2Jh1hNE6");
+    pass = utf8_1.stringToUTF8("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaab");
+    hash = bcrypt.bcrypt(pass, salt, 5);
+    assert.equal(hash, "$2a$05$abcdefghijklmnopqrstuulBPHoU3/c65NkXOJMDkVnN3KklTvm1a");
+    //the above results were verified with PHP's bcrypt
+}
+function parallel_bcrypt_test() {
+    test_bcrypt_implementation();
+    //"abcdefghijklmnopqrstuu" as bcrypt-base64
+    var salt = new Uint8Array([0x71, 0xd7, 0x9f, 0x82, 0x18, 0xa3, 0x92, 0x59, 0xa7, 0xa2, 0x9a, 0xab, 0xb2, 0xdb, 0xaf, 0xc3]);
+    //this result was verified with PHP's bcrypt
+    var expect = "e9d2a6e99bf7f33f5b3857e27594723e161b48e06139500080333c6f2540c0a0";
+    var pass = utf8_1.stringToUTF8("Super Secret Password");
+    var hash = parallel_bcrypt.hashWithSingleThread(4, pass, salt, 5);
+    assert.equal(hash.length, 32);
+    assert.equal(hex.encode(hash), expect);
+}
+exports.default = parallel_bcrypt_test;
+
+},{"./assert":1,"./bcrypt":3,"./hex":5,"./parallel_bcrypt":9,"./utf8":14}],11:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 //Copied from: https://github.com/dchest/fast-sha256-js
@@ -1403,7 +1553,7 @@ exports.hmac = hmac;
     return dk;
 }*/
 
-},{}],10:[function(require,module,exports){
+},{}],12:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 var sha256 = require("./sha256");
@@ -1521,7 +1671,7 @@ if __name__ == '__main__':
 
 */
 
-},{"./assert":1,"./hex":5,"./sha256":9,"./utf8":12}],11:[function(require,module,exports){
+},{"./assert":1,"./hex":5,"./sha256":11,"./utf8":14}],13:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 var assert_test_1 = require("./assert_test");
@@ -1530,6 +1680,7 @@ var hex_test_1 = require("./hex_test");
 var sha256_test_1 = require("./sha256_test");
 var hmacdrbg_test_1 = require("./hmacdrbg_test");
 var bcrypt_test_1 = require("./bcrypt_test");
+var parallel_bcrypt_test_1 = require("./parallel_bcrypt_test");
 function run_tests() {
     assert_test_1.default();
     console.log('assert_test PASS');
@@ -1543,11 +1694,13 @@ function run_tests() {
     console.log('hmacdrbg_test PASS');
     bcrypt_test_1.default();
     console.log('bcrypt_test PASS');
+    parallel_bcrypt_test_1.default();
+    console.log('parallel_bcrypt_test PASS');
     console.log('\nAll tests PASS');
 }
 window.addEventListener("load", function (e) { run_tests(); });
 
-},{"./assert_test":2,"./bcrypt_test":4,"./hex_test":6,"./hmacdrbg_test":8,"./sha256_test":10,"./utf8_test":13}],12:[function(require,module,exports){
+},{"./assert_test":2,"./bcrypt_test":4,"./hex_test":6,"./hmacdrbg_test":8,"./parallel_bcrypt_test":10,"./sha256_test":12,"./utf8_test":15}],14:[function(require,module,exports){
 /**Convert a unicode string to a Uint8Array of UTF-8 octets.*/
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
@@ -1578,7 +1731,7 @@ function selfTest() {
 }
 exports.selfTest = selfTest;
 
-},{}],13:[function(require,module,exports){
+},{}],15:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 var utf8 = require("./utf8");
@@ -1595,4 +1748,4 @@ function stringToUTF8_test() {
 }
 exports.default = stringToUTF8_test;
 
-},{"./assert":1,"./utf8":12}]},{},[11]);
+},{"./assert":1,"./utf8":14}]},{},[13]);

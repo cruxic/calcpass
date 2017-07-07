@@ -4,6 +4,7 @@ import hex_test from './hex_test'
 import sha256_test from './sha256_test'
 import hmacdrbg_test from './hmacdrbg_test'
 import bcrypt_test from './bcrypt_test'
+import parallel_bcrypt_test from './parallel_bcrypt_test'
 
 function run_tests() {
 	assert_test();
@@ -24,6 +25,8 @@ function run_tests() {
 	bcrypt_test();
 	console.log('bcrypt_test PASS');
 	
+	parallel_bcrypt_test();
+	console.log('parallel_bcrypt_test PASS');
 
 	console.log('\nAll tests PASS');
 }

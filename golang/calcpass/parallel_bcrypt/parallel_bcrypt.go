@@ -74,12 +74,7 @@ func Hash(nThreads int, plaintextPassword []byte, salt []byte, cost int) ([]byte
 	//Combine all the base64 bcrypt hashes with sha256
 	var sha = sha256.New()
 	for i := range bcryptHashes {
-		//fmt.Println(i, "bcrypt: " + string(bcryptHashes[i]))
-	
-		//skip the salt and cost prefix (first 29 chars)
-		uniquePart := bcryptHashes[i][29:]
-		sha.Write(uniquePart)
-
+		sha.Write(bcryptHashes[i])
 		util.Erase(bcryptHashes[i])
 	}
 	
@@ -126,6 +121,12 @@ func bcryptThread(plaintextPassword, salt []byte, cost, threadIndex int, result 
 	var tr thread_result
 	tr.threadIndex = threadIndex
 	tr.bcryptHash, tr.err = bcrypt.GenerateFromPasswordAndSalt(hexPass, salt, cost)
+
+	//remove the salt and cost prefix (first 29 chars)
+	if tr.err == nil {
+		util.Erase(tr.bcryptHash[0:29])
+		tr.bcryptHash = tr.bcryptHash[29:]
+	}
 
 	util.Erase(threadPassword)
 	util.Erase(hexPass)
