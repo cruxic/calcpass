@@ -106,12 +106,7 @@ func bytesToHex(data []byte) []byte {
 func bcryptThread(plaintextPassword, salt []byte, cost, threadIndex int, result chan *thread_result) {
 
 	//Derive a distinct password for this thread to work on:
-	//  eg: sha256(plaintextPassword + 0x01)
-	var sha = sha256.New()
-	sha.Write(plaintextPassword)
-	sha.Write([]byte{byte(threadIndex + 1)})
-	threadPassword := sha.Sum(nil)
-	sha.Reset()
+	threadPassword := util.HmacSha256(plaintextPassword, []byte{byte(threadIndex + 1)})
 
 	//Some bcrypt implementations are broken (eg PHP) because they truncate
 	// the password at the first null byte!  Therefore I'll pass 64 hex characters.

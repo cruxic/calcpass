@@ -27,7 +27,7 @@ func Test_StretchMasterPassword(t *testing.T) {
 	stretched, err := StretchMasterPassword(pass, "a@b.c")
 	assert.Nil(err)
 	assert.Equal(32, len(stretched))
-	assert.Equal("3f2994230b6140ffeee6b69f60ea4fc26bb4ac37943e8f51652d23fc14cb9dc1", hex.EncodeToString(stretched))
+	assert.Equal("f60f7cd075e3242879d04f3f10546f2cd5c2c1ab7790d466f9bca47864dfcce0", hex.EncodeToString(stretched))
 	
 }
 
@@ -167,7 +167,7 @@ func Test_StretchSiteCardMix(t *testing.T) {
 	mixed := SiteCardMix(tmp)
 
 	pwseed := StretchSiteCardMix(mixed)
-	assert.Equal("612164d39b6fd2d7dbf3b2946afbfba5f43778e223206236acb37d39e5bcc385",
+	assert.Equal("0fb2c41f1a71834186bc515889f881d892efcd248eabf88ff68abfa7afdc6df7",
 		hex.EncodeToString([]byte(pwseed)))
 }
 
