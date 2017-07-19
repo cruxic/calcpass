@@ -11,7 +11,6 @@ import (
 	"crypto/sha256"
 	"strings"
 	"errors"
-	"strconv"
 )
 
 //The number of characters in a seed (after removing dashes and spaces)
@@ -19,10 +18,6 @@ const SeedLength = 32
 
 
 const cardAlphabet = "abcdefghijklmnopqrstuvwxyz"
-
-const typeA_yNames = "ABCDEFGHIJKLMNOPQRSTUV"
-const typeAcardWidth = 22
-const typeAcardHeight = 15
 
 
 /**Generate a new seed from a secure-random source (crypto/rand).
@@ -135,7 +130,7 @@ func DigestSeed(seed string) ([]byte, error) {
 }
 
 type Card struct {
-	cardType string
+	//cardType string
 	grid [][]byte
 }
 
@@ -175,12 +170,12 @@ func (self *Card) String() string {
 	return strings.Join(lines, "\n")
 }
 
-func CreateCard(digestedSeed []byte, width, height int, cardType string) (*Card, error) {
+func CreateCard(digestedSeed []byte, width, height int) (*Card, error) {
 	if len(digestedSeed) != sha256.Size {
 		return nil, errors.New("wrong digestedSeed length")
 	}
 
-	if width < 1 || height < 1 || width > len(typeA_yNames) {
+	if width < 1 || height < 1 {
 		return nil, errors.New("width or height out of range")
 	}
 
@@ -233,7 +228,6 @@ func CreateCard(digestedSeed []byte, width, height int, cardType string) (*Card,
 
 	//Allocate card
 	card := &Card{
-		cardType: cardType,
 		grid: make([][]byte, height),
 	}
 	
@@ -254,17 +248,8 @@ func CreateCard(digestedSeed []byte, width, height int, cardType string) (*Card,
 	
 }
 
-func CreateTypeACard(seedStr string) (*Card, error) {
-	rawSeed, err := DigestSeed(seedStr)
-	if err != nil {
-		return nil, err
-	}
-	
-	return CreateCard(rawSeed, typeAcardWidth, typeAcardHeight, "A")
-}
-
 /**A coordinate on the card*/
-type CardCoord struct {
+type Coord struct {
 	//Horizontal coordinate index, starting at 0
 	X int
 	//Vertical coordinate index, starting at 0
@@ -275,29 +260,19 @@ type CardCoord struct {
 	HumanY string
 }
 
-func (self *CardCoord) String() string {
+func (self Coord) String() string {
 	return self.HumanX + self.HumanY
 }
 
 type CoordinateNameFunc func(index int) string;
 
 
-func typeA_xNameFunc(index int) string {
-	return strconv.Itoa(index + 1)	
-}
 
-func typeA_yNameFunc(index int) string {
-	if index >= len(typeA_yNames) {
-		panic("index out of range")
-	}
-	
-	return typeA_yNames[index:index+1]
-}
 
 func makeCoordinatesFromSource(src util.ByteSource, count, cardSizeX, cardSizeY int,
-	xNameFunc, yNameFunc CoordinateNameFunc) ([]CardCoord, error) {
+	xNameFunc, yNameFunc CoordinateNameFunc) ([]Coord, error) {
 		
-	coords := make([]CardCoord, count)
+	coords := make([]Coord, count)
 	var err error
 
 	for i := 0; i < count; i++ {
@@ -317,18 +292,14 @@ func makeCoordinatesFromSource(src util.ByteSource, count, cardSizeX, cardSizeY 
 	return coords, nil
 }
 
-/**Given the 32 byte key (from GetKeyForWebsite), deterministically generate `count` X,Y coordinates in the range
+/**Given the 32 byte secret key, deterministically generate `count` X,Y coordinates in the range
 [0,cardSizeX), [0,cardSizeY).  The human friendly names for the coordinates are 
 produced by xNameFunc and yNameFunc 
 */
 func MakeCoordinates(key []byte, count, cardSizeX, cardSizeY int,
-	xNameFunc, yNameFunc CoordinateNameFunc) ([]CardCoord, error) {
+	xNameFunc, yNameFunc CoordinateNameFunc) ([]Coord, error) {
 	
 	src := util.NewHmacDrbgByteSource(key)
 	return makeCoordinatesFromSource(src, count, cardSizeX, cardSizeY, xNameFunc, yNameFunc)	
 }
 
-/**Make coordinates for a type A card.*/
-func MakeTypeACoordinates(key []byte) ([]CardCoord, error) {
-	return MakeCoordinates(key, 4, typeAcardWidth, typeAcardHeight, typeA_xNameFunc, typeA_yNameFunc)
-}

@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"encoding/hex"
 	"strings"
+	"strconv"
 
 )
 
@@ -39,26 +40,19 @@ func (self *cycle_byte_source) NextByte() (byte, error) {
 	return b, nil
 }
 
-func TestNameFuncs(t *testing.T) {
-	if typeA_xNameFunc(0) != "1" || typeA_xNameFunc(99) != "100" {
-		t.Fail()
-		return
-	}
-
-	if typeA_yNameFunc(0) != "A" || typeA_yNameFunc(1) != "B" {
-		t.Fail()
-		return
-	}
-
-	var expect string
-	for i := 0; i < len(typeA_yNames); i++ {
-		expect = typeA_yNames[i:i+1]
-		if typeA_yNameFunc(i) != expect {
-			t.Error(i)
-			return
-		}
-	}
+func xNameFunc(index int) string {
+	return strconv.Itoa(index + 1)	
 }
+
+func yNameFunc(index int) string {
+	const yNames = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+	if index >= len(yNames) {
+		panic("index out of range")
+	}
+	
+	return yNames[index:index+1]
+}
+
 
 func TestMakeCoordinates(t *testing.T) {
 	assert := assert.New(t)
@@ -69,7 +63,7 @@ func TestMakeCoordinates(t *testing.T) {
 		maxCycleCount: 9999,		
 	}
 
-	coords, err := makeCoordinatesFromSource(src, 20, 13, 17, typeA_xNameFunc, typeA_yNameFunc)
+	coords, err := makeCoordinatesFromSource(src, 20, 13, 17, xNameFunc, yNameFunc)
 	assert.Nil(err)
 	assert.Equal(20, len(coords))
 
@@ -94,7 +88,7 @@ func TestMakeCoordinates(t *testing.T) {
 	key[15] = 127
 	key[31] = 255
 	
-	coords, err = MakeCoordinates(key, 20, 13, 17, typeA_xNameFunc, typeA_yNameFunc)
+	coords, err = MakeCoordinates(key, 20, 13, 17, xNameFunc, yNameFunc)
 	assert.Nil(err)
 	assert.Equal(20, len(coords))
 
@@ -170,7 +164,7 @@ func TestCreateCard(t *testing.T) {
 	seed[15] = 127
 	seed[31] = 255
 	
-	card, err := CreateCard(seed, 7, 4, "Z")  //28 chars total
+	card, err := CreateCard(seed, 7, 4)  //28 chars total
 	if err != nil {
 		t.Error(err)
 		return
@@ -203,7 +197,7 @@ func TestCreateCard(t *testing.T) {
 
 	//Different seed gives totally different shuffle
 	seed[0]++
-	card, err = CreateCard(seed, 7, 4, "Z")
+	card, err = CreateCard(seed, 7, 4)
 	if err != nil {
 		t.Error(err)
 		return
@@ -234,7 +228,7 @@ func TestCardGetCharsAtCoordinate(t *testing.T) {
 	seed[15] = 127
 	seed[31] = 255
 	
-	card, err := CreateCard(seed, 7, 4, "Z")  //28 chars total
+	card, err := CreateCard(seed, 7, 4)  //28 chars total
 	if err != nil {
 		t.Error(err)
 		return
