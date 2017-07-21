@@ -42,12 +42,16 @@ thus retains the original copyright notice:
 export const saltSize:number = 16;
 export const rawHashSize:number = 23;
 
+function nop_progress_callback(percent:number) {
+}
+
+
 /**Hash the given password using the bcrypt algorithm.  Use this function
 if you desire the bcrypt output without base64 encoding.
 It returns 23 bytes (not base 64 encoded).
 Salt must be exactly 16 bytes.
 */
-export function rawBcrypt(pass: Uint8Array, salt: Uint8Array, cost:number): Uint8Array {
+export function rawBcrypt(pass: Uint8Array, salt: Uint8Array, cost:number, progressCallback?:(percent:number)=>void): Uint8Array {
 	if (!pass || pass.length == 0)
 		throw new Error('Invalid pass');
 
@@ -56,6 +60,9 @@ export function rawBcrypt(pass: Uint8Array, salt: Uint8Array, cost:number): Uint
 
 	if (!cost || cost < 4 || cost > 31)
 		throw new Error('Invalid cost');
+
+	if (!progressCallback)
+		progressCallback = nop_progress_callback;
 
 	let rounds:number = (1 << cost) >>> 0;
 
@@ -72,15 +79,23 @@ export function rawBcrypt(pass: Uint8Array, salt: Uint8Array, cost:number): Uint
 	let pWords = key2words(passWithNull, P);
 	let saltWords = key2words(salt, P);
 
-	let i:number, j:number;
+	//The slow loop!
+	let i:number;
 	for (i = 0; i < rounds; i++) {
 		_key(pWords, P, S);
 		_key(saltWords, P, S);
+		
+		//report progress every 1024 rounds.
+		if (((i+1) & 0x3ff) === 0) {
+			//reserve the last 2% for finalization
+			progressCallback(i / (rounds * 1.02));
+		}
 	}
 
 	let cdata = C_ORIG.slice();
 	let clen:number = cdata.length;
-	
+
+	let j:number;
 	for (i = 0; i < 64; i++) {
 		for (j = 0; j < (clen >> 1); j++)
 			_encipherOffset(cdata, j << 1, P, S);
@@ -94,6 +109,8 @@ export function rawBcrypt(pass: Uint8Array, salt: Uint8Array, cost:number): Uint
 		ret.push(((cdata[i] >> 8) & 0xff) >>> 0);
 		ret.push((cdata[i] & 0xff) >>> 0);
 	}
+
+	progressCallback(1.0);
 
 	//keep only the first 23
 	return new Uint8Array(ret.slice(0, rawHashSize));
@@ -141,13 +158,14 @@ export function encodeBcrypt64(data: Uint8Array): string {
 /**Hash the given password with given random salt and return a canonical bcrypt string.
 algorithmId should be something like "2a", "2b" or "2y" but it has no influence on the actual hashing.
 */
-export function bcrypt(pass: Uint8Array, salt: Uint8Array, cost:number, algorithmId?:string): string {
+export function bcrypt(pass: Uint8Array, salt: Uint8Array, cost:number, progressCallback?:(percent:number)=>void,
+	algorithmId?:string): string {
 	if (!algorithmId)
 		algorithmId = "2a";
 	if (algorithmId.length != 2)
 		throw new Error("Invalid algorithmId");
 
-	let raw = rawBcrypt(pass, salt, cost);
+	let raw = rawBcrypt(pass, salt, cost, progressCallback);
 
 	let costStr = "" + cost;
 	if (costStr.length < 2)
@@ -170,24 +188,23 @@ function key2words(key:Uint8Array, P:Int32Array): Int32Array {
 }
 
 function _key(keyWords:Int32Array, P:Int32Array, S:Int32Array) {
-	let lr = [0, 0];
-	let plen = P.length;
-	let slen = S.length;
-
 	let i:number;
-	for (i = 0; i < plen; i++) {
+	let lr = [0,0];
+	let n = P.length;
+	for (i = 0; i < n; i++) {
 		P[i] ^= keyWords[i];
 	}
 	
 	i = 0;
-	while (i < plen) {
+	while (i < n) {
 		_encipher(lr, P, S);
 		P[i++] = lr[0];
 		P[i++] = lr[1];
 	}
 		
 	i = 0;
-	while (i < slen) {
+	n = S.length;
+	while (i < n) {
 		_encipher(lr, P, S);
 		S[i++] = lr[0];
 		S[i++] = lr[1];

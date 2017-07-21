@@ -3,13 +3,6 @@ import {stringToUTF8} from './utf8'
 import * as sha256 from './sha256'
 import * as hex from './hex'
 
-function erase(data:Uint8Array) {
-	let i:number;
-	for (i = 0; i < data.length; i++) {
-		data[i] = 0;
-	}
-}
-
 function checkParams(plaintextPassword:Uint8Array, salt:Uint8Array, cost:number) {
 	if (!plaintextPassword.length)
 		throw new Error("parallel_bcrypt: empty password!");
@@ -19,27 +12,23 @@ function checkParams(plaintextPassword:Uint8Array, salt:Uint8Array, cost:number)
 		throw new Error("parallel_bcrypt: bcrypt cost must be between 4 and 32.");
 }
 
-export function hashThread(threadIndex:number, plaintextPassword:Uint8Array, salt:Uint8Array, cost:number): string {
-	checkParams(plaintextPassword, salt, cost);
+/**Derive a distinct password for each thread to work on.  This
+returns a 64 character hex string.*/
+export function createDistinctThreadPassword(threadIndex:number, plaintextPassword:Uint8Array): string {
+	if (!plaintextPassword.length)
+		throw new Error("parallel_bcrypt: empty password!");
+	let threadPassword = sha256.hmac(plaintextPassword, new Uint8Array([threadIndex + 1]));
+	return hex.encode(threadPassword);
+}
 
-	//Derive a distinct password for this thread to work on:
-	//  eg: sha256(plaintextPassword + 0x01)
-	let sha = new sha256.Hash();
-	sha.update(plaintextPassword);
-	sha.update(new Uint8Array([threadIndex + 1]));
-	let threadPassword = sha.digest();
-	sha.clean();
-	sha = null;
-
-	//Some bcrypt implementations are broken (eg PHP) because they truncate
-	// the password at the first null byte!  Therefore I'll pass 64 hex characters.
-	//(bcrypt can handle up to 72 bytes)
-	let hexPass = hex.encodeToUint8Array(threadPassword);
-	erase(threadPassword);
-	threadPassword = null;
+export function bcryptDistinctHex(distinctThreadPasswordAsHex:string, salt:Uint8Array, cost:number,
+	progressCallback?:(percent:number)=>void): string {
+	checkParams(new Uint8Array([1]), salt, cost);
+	if (distinctThreadPasswordAsHex.length !== 64)
+		throw new Error('Invalid distinctThreadPasswordAsHex');
 
 	//Hash it!
-	let hash64 = bcrypt.bcrypt(hexPass, salt, cost);
+	let hash64 = bcrypt.bcrypt(stringToUTF8(distinctThreadPasswordAsHex), salt, cost, progressCallback);
 
 	if (hash64.length != 60)
 		throw new Error("bcrypt returned wrong size");
@@ -49,6 +38,19 @@ export function hashThread(threadIndex:number, plaintextPassword:Uint8Array, sal
 
 	return hash64;
 }
+
+/**Do both createDistinctThreadPassword() and bcryptDistinctHex()*/
+export function hashThread(threadIndex:number, plaintextPassword:Uint8Array, salt:Uint8Array, cost:number): string {
+	checkParams(plaintextPassword, salt, cost);
+	if (threadIndex < 0)
+		throw new Error('Negative threadIndex');
+
+	let threadPasswordHex = createDistinctThreadPassword(threadIndex, plaintextPassword);
+
+	return bcryptDistinctHex(threadPasswordHex, salt, cost);
+}
+
+
 
 /**
 @param hashes the hash result from each thread, sorted by thread index ascending.
