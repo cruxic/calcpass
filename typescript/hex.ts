@@ -1,10 +1,14 @@
 /**Convert arrays of octets to and from hex strings*/
 
-export function encode(octetArray): string {
+export function encode(octetArray:Uint8Array): string {
+	return _encode(octetArray);
+}
+
+export function _encode(anyArray:any): string {
 	let s = '';
 	let tmp, b;
-	for (let i = 0; i < octetArray.length; i++) {
-		b = octetArray[i];
+	for (let i = 0; i < anyArray.length; i++) {
+		b = anyArray[i];
 		if (typeof(b) !== 'number' || b < 0 || b > 255)
 			throw new Error('Invalid octet at index ' + i);
 

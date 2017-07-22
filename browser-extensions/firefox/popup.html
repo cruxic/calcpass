@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="UTF-8">
+	<title>popup</title>
+	<link rel="stylesheet" type="text/css" href="popup.css"/>
+</head>
+<body>
+<div id="content">...</div>
+
+<div id="unexpected_error">
+	<h3>Something went wrong :(</h3>
+	<p>
+	Please email the following error to <span id="unexpected_error_email">?</span>.
+	Make sure to describe the steps which led to the error.
+	<p>
+	<textarea id="unexpected_error_text" rows="5" cols="60">?</textarea>	
+</div> <!-- shown upon an uncaught exception -->
+
+<script src="popup-bundle.js"></script>
+</body>
+</html>

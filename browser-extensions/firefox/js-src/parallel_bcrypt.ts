@@ -1,0 +1,1 @@
+../../../typescript/parallel_bcrypt.ts

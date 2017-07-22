@@ -1,3 +1,41 @@
+/*
+The type 2017a password is calculated like so (pseudo-code):
+
+	stretchedmaster = StretchMasterPassword(yourMasterPassword, yourEmailAddress)
+	
+	sitekey = MakeSiteKey(stretchedmaster, 'example.com', 0)  //revision 0
+	
+	cardCoordinate1, cardCoordinate2 = MakeSiteCoordinates(sitekey, 2)
+	
+	eightCharsFromCard = youGoLookup(cardCoordinate1, cardCoordinate2)
+
+	finalSeed = StretchSiteCardMix(MixSiteAndCard(sitekey, eightCharsFromCard))
+
+	finalPassword = MakeFriendlyPassword12a(finalSeed)
+
+This construction achieves these goals:
+
+1. If your master password is compromised you're safe because they don't have your card.
+2. If your card is compromised you're safe because they don't know the master password.
+3. Master password is very expensive to brute force (effectively bcrypt 15).
+4. The eight card characters are very expensive to brute force (effectively bcrypt 15).
+5. A verifier hash for the stretched master password can be stored to check for typos.
+6. Uses only 3 cryptograhic primitives: SHA-256, HMAC and bcrypt.
+7. Good performance when implemented in JavaScript.
+8. In the future, an embedded device with a secure element could store the stretched master
+   password and the entire card.  These secrets would never leave secure memory.  The
+   device can compute everything up to StretchSiteCardMix().
+
+The bcrypt algorithm is used as the slow hash for the two key stretching steps.  bcrypt was chosen because
+it has a proven track record.  The stretching uses 4 invokations of bcrypt with cost 13.  Each invokation
+runs in a separate thread.  Since many modern computers have 4 cores this means we are doing 4X more work
+in the same amount of time.  This yields an effective bcrypt cost of 15 (each increment of cost doubles the
+calculation time).  For perspective, the Ashley Madison leak of 36 million bcrypt 12 hashes has mostly stymied
+crackers. (https://arstechnica.com/security/2015/08/cracking-all-hacked-ashley-madison-passwords-could-take-a-lifetime/)
+
+Argon2 would have been even better but it requires a lot of 64bit integer math
+and thread synchronization, neither of which work well in JavaScript.
+*/
 package type2017a
 
 import (

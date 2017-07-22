@@ -1,144 +1,4 @@
 (function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);var f=new Error("Cannot find module '"+o+"'");throw f.code="MODULE_NOT_FOUND",f}var l=n[o]={exports:{}};t[o][0].call(l.exports,function(e){var n=t[o][1][e];return s(n?n:e)},l,l.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.config = {
-    logToConsole: true,
-};
-function fail(msg) {
-    if (exports.config.logToConsole) {
-        console.log(msg);
-        console.trace();
-        throw Error('Assertion failed.  See trace in console.');
-    }
-    else {
-        throw Error('Assertion failed: ' + msg);
-    }
-}
-exports.fail = fail;
-function value2str(value, asHex) {
-    var type = typeof value;
-    if (type == 'string' || (type == 'object' && type !== null))
-        return JSON.stringify(value);
-    else if (asHex && type == 'number' && Math.floor(value) === value) {
-        var hex = value.toString(16).toUpperCase();
-        if (hex.length == 1)
-            return '0x0' + hex;
-        else
-            return '0x' + hex;
-    }
-    else
-        return "" + value;
-}
-/**Test array-like values for strict equality.*/
-function equalArray(got, expect) {
-    if (typeof (got.length) != 'number')
-        fail("equalArray: value was not an array.");
-    if (got.length != expect.length) {
-        fail("equalArray: length was " + value2str(got.length) + ", expected " + value2str(expect.length) + '.');
-    }
-    for (var i = 0; i < expect.length; i++) {
-        if (got[i] !== expect[i]) {
-            //If one of the involved arrays is a Uint8Array then print values as hex
-            var asHex = got instanceof Uint8Array || expect instanceof Uint8Array;
-            var msg = 'equalArray: arrays differ at index ' + i +
-                ' (' + value2str(got[i], asHex) + ' !== ' + value2str(expect[i], asHex) + ')';
-            fail(msg);
-        }
-    }
-    return got;
-}
-exports.equalArray = equalArray;
-function equal(value, expect) {
-    if (value !== expect) {
-        var msg = "assert.equal FAILED: " + value2str(value) + " !== " + value2str(expect);
-        fail(msg);
-    }
-    return value;
-}
-exports.equal = equal;
-/**Throw if value is not "true-ish"*/
-function isTrue(condition) {
-    if (!condition) {
-        fail("assert.isTrue FAILED: expected true-ish but got " + value2str(condition));
-    }
-    return condition;
-}
-exports.isTrue = isTrue;
-/**Throw if value is not "false-ish"*/
-function isFalse(condition) {
-    if (condition) {
-        fail("assert.isFalse FAILED: expected false-ish but got " + value2str(condition));
-    }
-    return condition;
-}
-exports.isFalse = isFalse;
-function throws(func) {
-    try {
-        func();
-        fail("assert.throws FAILED: function did not throw anything as expected.");
-    }
-    catch (e) {
-        //pass
-    }
-}
-exports.throws = throws;
-
-},{}],2:[function(require,module,exports){
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-var assert = require("./assert");
-function throwsAssertionFailure(func) {
-    assert.config.logToConsole = false;
-    try {
-        func();
-        assert.config.logToConsole = true;
-        throw Error('Function did not throw');
-    }
-    catch (e) {
-        //pass
-        assert.config.logToConsole = true;
-    }
-}
-function assert_test() {
-    //
-    // assert.equal
-    assert.equal(5 - 3, 7 - 5);
-    var undef1, undef2;
-    assert.equal(undef1, undef2);
-    assert.equal(null, null);
-    throwsAssertionFailure(function () { return assert.equal(1, 2); });
-    //
-    // assert.isTrue
-    assert.isTrue(true);
-    assert.isTrue(3);
-    assert.isTrue("hello");
-    throwsAssertionFailure(function () { return assert.isTrue(false); });
-    //
-    // assert.isFalse
-    assert.isFalse(false);
-    assert.isFalse(0);
-    assert.isFalse("");
-    throwsAssertionFailure(function () { return assert.isFalse(true); });
-    //
-    // assert.fail()
-    throwsAssertionFailure(function () { return assert.fail('darn'); });
-    //
-    // assert.equalArray
-    assert.equalArray([2 - 1, 1 + 1, 2 + 1], [1, 2, 3]);
-    assert.equalArray([], []);
-    assert.equalArray('a,b,c'.split(','), ['a', 'b', 'c']);
-    //normal array can be compared to TypedArray
-    var a = [1, 2, 3, 127, 128, 255];
-    assert.equalArray(new Uint8Array(a), a);
-    throwsAssertionFailure(function () { return assert.equalArray(new Uint8Array(a), [1, 2, 3, 4, 5, 6]); });
-    //wrong length
-    throwsAssertionFailure(function () { return assert.equalArray([1, 2, 3], [1, 2, 3, 4]); });
-    //strict equality
-    throwsAssertionFailure(function () { return assert.equalArray([1, 0], [1, null]); });
-}
-exports.default = assert_test;
-
-},{"./assert":1}],3:[function(require,module,exports){
 /*The following is a bcrypt implementation which implements the bare minimum necessary
 for calcpass.  It is mostly a simplification of bcrypt.js (https://github.com/dcodeIO/bcrypt.js).
 Because much of the interals are copy/paste (with minor tweaks) it is a derived work and
@@ -692,56 +552,7 @@ var C_ORIG = [
     0x6f756274
 ];
 
-},{}],4:[function(require,module,exports){
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-var assert = require("./assert");
-var bcrypt = require("./bcrypt");
-var utf8_1 = require("./utf8");
-var hex = require("./hex");
-function bcrypt_test() {
-    //These values were verified with a Go program
-    var data = hex.decode("445fed2825c2ec37e553eb1809a00f33");
-    assert.equal(bcrypt.encodeBcrypt64(data), "PD9rIAVA5BdjS8qWAY.NKu");
-    assert.equal(bcrypt.encodeBcrypt64(byteSeq(256)), "..CA.uOD/eaGAOmJB.yMBv.PCfKSDPWVE/iYEvubFf6eGQGhHASkHwenIgqqJQ2tKBCwKxOzLha2MRm5NBy8Ny//OiLCPSXFQCjIQyvLRi7OSTHRTDTUTzfXUjraVT3dWEDgW0PjXkbmYUnpZEzsZ1/valLybVX1cFj4c1v7dl8.eWIBfGUEf2gHgmsKhW4NiHEQi3QTjncWkXoZlH0cl4AfmoMinYYloIkoo4wrpo8uqZIxrJU0r5g3sps6tZ49uKFAu6RDvqdGwapJxK1Mx7BPyrNSzbZV0LlY07xb1r9e2cJh3MVk38hn4stq5c5t6NFw69Rz7td28dp59N189u");
-    var pass = utf8_1.stringToUTF8("a");
-    var salt = hex.decode("0123456789abcdef0123456789abcdef");
-    //raw
-    var raw = bcrypt.rawBcrypt(pass, salt, 5);
-    assert.equal('60aae91e8f1f09cb912890beacc63141243ac3015b63c2', hex.encode(raw));
-    //encoded
-    var str = bcrypt.bcrypt(pass, salt, 5);
-    assert.equal(str, "$2a$05$.QLDX2kpxc6/GyTlgYtL5uWIpnFm6dAasPIHA8pKWvOQO4uuDZW6G");
-    var t1 = performance.now();
-    //same inputs, higher cost
-    str = bcrypt.bcrypt(pass, salt, 6);
-    assert.equal(str, "$2a$06$.QLDX2kpxc6/GyTlgYtL5ukdWCkLLQzVwdT2ZlSdURju9tgHT77rK");
-    //"abc"
-    pass = utf8_1.stringToUTF8("abc");
-    str = bcrypt.bcrypt(pass, salt, 5);
-    assert.equal(str, "$2a$05$.QLDX2kpxc6/GyTlgYtL5u8Mo3drJBnT.VV.KJw7oKFBNcZ6aNZ6m");
-    //"LuckyThirteen"
-    pass = utf8_1.stringToUTF8("LuckyThirteen");
-    str = bcrypt.bcrypt(pass, salt, 5);
-    assert.equal(str, "$2a$05$.QLDX2kpxc6/GyTlgYtL5uWSLjcofsRF47iQRWuvuljFr5nM8f7MW");
-    //random (with all possible nibbles)
-    salt = hex.decode("445fed2825c2ec37e553eb1809a00f33");
-    pass = hex.decode("ac5b90636c3d805df5efbbd6281a72e4e361cf1d049a7cef24879a728b049153");
-    str = bcrypt.bcrypt(pass, salt, 5);
-    assert.equal(str, "$2a$05$PD9rIAVA5BdjS8qWAY.NKuO7LX8Qaar1KUIhU.PAm3HUsbk5E2WmG");
-    var t2 = performance.now();
-    console.log("bcrypt_test took " + (t2 - t1) + "ms");
-}
-exports.default = bcrypt_test;
-function byteSeq(n) {
-    var res = new Uint8Array(n);
-    for (var i = 0; i < n; i++) {
-        res[i] = i & 0xFF;
-    }
-    return res;
-}
-
-},{"./assert":1,"./bcrypt":3,"./hex":9,"./utf8":18}],5:[function(require,module,exports){
+},{}],2:[function(require,module,exports){
 "use strict";
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
     return new (P || (P = Promise))(function (resolve, reject) {
@@ -939,141 +750,38 @@ export function MakeFriendlyPassword12a(seed:PasswordSeed):string {
     return s, nil
 }*/
 
-},{"./sha256":15,"./utf8":18,"./util":20}],6:[function(require,module,exports){
+},{"./sha256":9,"./utf8":10,"./util":11}],3:[function(require,module,exports){
 "use strict";
-var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : new P(function (resolve) { resolve(result.value); }).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
-var __generator = (this && this.__generator) || function (thisArg, body) {
-    var _ = { label: 0, sent: function() { if (t[0] & 1) throw t[1]; return t[1]; }, trys: [], ops: [] }, f, y, t;
-    return { next: verb(0), "throw": verb(1), "return": verb(2) };
-    function verb(n) { return function (v) { return step([n, v]); }; }
-    function step(op) {
-        if (f) throw new TypeError("Generator is already executing.");
-        while (_) try {
-            if (f = 1, y && (t = y[op[0] & 2 ? "return" : op[0] ? "throw" : "next"]) && !(t = t.call(y, op[1])).done) return t;
-            if (y = 0, t) op = [0, t.value];
-            switch (op[0]) {
-                case 0: case 1: t = op; break;
-                case 4: _.label++; return { value: op[1], done: false };
-                case 5: _.label++; y = op[1]; op = [0]; continue;
-                case 7: op = _.ops.pop(); _.trys.pop(); continue;
-                default:
-                    if (!(t = _.trys, t = t.length > 0 && t[t.length - 1]) && (op[0] === 6 || op[0] === 2)) { _ = 0; continue; }
-                    if (op[0] === 3 && (!t || (op[1] > t[0] && op[1] < t[3]))) { _.label = op[1]; break; }
-                    if (op[0] === 6 && _.label < t[1]) { _.label = t[1]; t = op; break; }
-                    if (t && _.label < t[2]) { _.label = t[2]; _.ops.push(op); break; }
-                    if (t[2]) _.ops.pop();
-                    _.trys.pop(); continue;
-            }
-            op = body.call(thisArg, _);
-        } catch (e) { op = [6, e]; y = 0; } finally { f = t = 0; }
-        if (op[0] & 5) throw op[1]; return { value: op[0] ? op[1] : void 0, done: true };
-    }
-};
 Object.defineProperty(exports, "__esModule", { value: true });
-var assert = require("./assert");
-var hex = require("./hex");
-var utf8_1 = require("./utf8");
-var calcpass2017a = require("./calcpass2017a");
-var execute_parallel_bcrypt_webworkers_1 = require("./execute_parallel_bcrypt_webworkers");
-function emptyPromise() {
-    return new Promise(function (resolve) { resolve(true); });
-}
-//returns a ParallelBcrypt object
-function setup_bcrypt() {
-    var pbcrypt = new calcpass2017a.ParallelBcrypt();
-    pbcrypt.execute = execute_parallel_bcrypt_webworkers_1.execute_parallel_bcrypt_webworkers;
-    var lastPercent = 0.0;
-    pbcrypt.progressCallback = function (percent) {
-        if ((percent - lastPercent) >= 0.25 || percent == 1.0) {
-            lastPercent = percent;
-            console.log('  ' + Math.floor(percent * 100.0) + '%');
+//TODO: unit test this
+function removeSubdomains(hostname) {
+    //For MOST websites using the top and second-level domain name is the best
+    // choice.  For example, the login page of homedepot.com appears to
+    // be a load-balanced subdomain like (secure2.homedepot.com).
+    // Similarly, newegg.com has their login page on secure.newegg.com.
+    //
+    // However, using the 2nd level domain is not always the best choice.
+    // For  example, universities like oregonstate.edu have
+    // many subdomains such as osulibrary.oregonstate.edu.
+    // Perhaps future versions should allow the user to choose?
+    //No IPv6.  This also filters out port numbers however those are not
+    // supposed to make it into this function anyway.
+    if (hostname.indexOf(':') == -1) {
+        var parts = hostname.split('.');
+        if (parts.length > 1) {
+            // Don't process IPv4 addresses
+            var re = new RegExp('[0-9]+');
+            if (!re.test(parts[parts.length - 1])) {
+                //second-level.top-level
+                return parts.slice(parts.length - 2).join('.');
+            }
         }
-    };
-    return pbcrypt;
-}
-function Test_StretchMasterPassword() {
-    return __awaiter(this, void 0, void 0, function () {
-        var pass, sm;
-        return __generator(this, function (_a) {
-            switch (_a.label) {
-                case 0:
-                    pass = utf8_1.stringToUTF8('Hello World');
-                    console.log('  stretching...');
-                    return [4 /*yield*/, calcpass2017a.StretchMasterPassword(pass, 'a@b.c', setup_bcrypt())];
-                case 1:
-                    sm = _a.sent();
-                    assert.equal(hex.encode(sm.bytes), "f60f7cd075e3242879d04f3f10546f2cd5c2c1ab7790d466f9bca47864dfcce0");
-                    return [2 /*return*/, emptyPromise()];
-            }
-        });
-    });
-}
-function byteSeq(start, count) {
-    var res = new Uint8Array(count);
-    for (var i = 0; i < count; i++) {
-        res[i] = (start + i) & 0xFF;
     }
-    return res;
+    return hostname;
 }
-function Test_MakeSiteKey() {
-    var stretchedMaster = new calcpass2017a.StretchedMaster();
-    stretchedMaster.bytes = byteSeq(1, 32);
-    var sitekey = calcpass2017a.MakeSiteKey(stretchedMaster, " \t\nExAmPle.CoM \r", 0);
-    assert.equal(hex.encode(sitekey.bytes), "6c95536db40ee491011c5159a5990e39a5ff09dae396559fe7b2413c4308bc62");
-}
-function Test_MixSiteAndCard() {
-    var sitekey = new calcpass2017a.SiteKey();
-    sitekey.bytes = byteSeq(1, 32);
-    var mixed = calcpass2017a.MixSiteAndCard(sitekey, " \n\tQwErTyUi \r\t");
-    assert.equal(hex.encode(mixed.bytes), "6e8c0b5448f31396a04b1139b0ec43308e55192340610a564107bfde8dccc8dc");
-}
-function Test_StretchSiteCardMix() {
-    return __awaiter(this, void 0, void 0, function () {
-        var mixed, pwseed;
-        return __generator(this, function (_a) {
-            switch (_a.label) {
-                case 0:
-                    mixed = new calcpass2017a.SiteCardMix();
-                    mixed.bytes = byteSeq(1, 32);
-                    console.log('  stretching...');
-                    return [4 /*yield*/, calcpass2017a.StretchSiteCardMix(mixed, setup_bcrypt())];
-                case 1:
-                    pwseed = _a.sent();
-                    assert.equal(hex.encode(pwseed.bytes), "0fb2c41f1a71834186bc515889f881d892efcd248eabf88ff68abfa7afdc6df7");
-                    return [2 /*return*/, emptyPromise()];
-            }
-        });
-    });
-}
-function calcpass2017a_test() {
-    return __awaiter(this, void 0, void 0, function () {
-        return __generator(this, function (_a) {
-            switch (_a.label) {
-                case 0:
-                    assert.isTrue(calcpass2017a.isSaneEmail('a@b.c'));
-                    return [4 /*yield*/, Test_StretchMasterPassword()];
-                case 1:
-                    _a.sent();
-                    Test_MakeSiteKey();
-                    Test_MixSiteAndCard();
-                    return [4 /*yield*/, Test_StretchSiteCardMix()];
-                case 2:
-                    _a.sent();
-                    return [2 /*return*/, emptyPromise()];
-            }
-        });
-    });
-}
-exports.calcpass2017a_test = calcpass2017a_test;
+exports.removeSubdomains = removeSubdomains;
 
-},{"./assert":1,"./calcpass2017a":5,"./execute_parallel_bcrypt_webworkers":7,"./hex":9,"./utf8":18}],7:[function(require,module,exports){
+},{}],4:[function(require,module,exports){
 /**Spawn Web Worker threads to compute part of the parallel bcrypt hash.*/
 "use strict";
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
@@ -1222,7 +930,7 @@ function execute_parallel_bcrypt_webworkers(numThreads, plaintextPassword, salt,
 }
 exports.execute_parallel_bcrypt_webworkers = execute_parallel_bcrypt_webworkers;
 
-},{"./hex":9,"./parallel_bcrypt":13}],8:[function(require,module,exports){
+},{"./hex":6,"./parallel_bcrypt":7}],5:[function(require,module,exports){
 "use strict";
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
     return new (P || (P = Promise))(function (resolve, reject) {
@@ -1260,35 +968,92 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
     }
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-var assert = require("./assert");
-var hex = require("./hex");
-var utf8_1 = require("./utf8");
-var execute_parallel_bcrypt_webworkers_1 = require("./execute_parallel_bcrypt_webworkers");
-function execute_parallel_bcrypt_webworkers_test() {
+//read from non-synchronized persistent storage
+function localGet(key) {
     return __awaiter(this, void 0, void 0, function () {
-        var salt, pass, lastPercent, progFunc, hash;
+        var obj;
         return __generator(this, function (_a) {
             switch (_a.label) {
-                case 0:
-                    salt = new Uint8Array([0x71, 0xd7, 0x9f, 0x82, 0x18, 0xa3, 0x92, 0x59, 0xa7, 0xa2, 0x9a, 0xab, 0xb2, 0xdb, 0xaf, 0xc3]);
-                    pass = utf8_1.stringToUTF8("Super Secret Password");
-                    lastPercent = 0.0;
-                    progFunc = function (percent) {
-                        lastPercent = percent;
-                    };
-                    return [4 /*yield*/, execute_parallel_bcrypt_webworkers_1.execute_parallel_bcrypt_webworkers(4, pass, salt, 5, progFunc)];
+                case 0: return [4 /*yield*/, browser.storage.local.get(key)];
                 case 1:
-                    hash = _a.sent();
-                    assert.equal(hex.encode(hash), "2c70a99f125eaa36561e97f0c9d215e099ab991116ceda19b7c3c93c669ebe7e");
-                    assert.equal(1.0, lastPercent);
+                    obj = _a.sent();
+                    return [2 /*return*/, new Promise(function (resolve) {
+                            if (obj.hasOwnProperty(key)) {
+                                resolve(obj[key]);
+                            }
+                            else {
+                                resolve(null);
+                            }
+                        })];
+            }
+        });
+    });
+}
+exports.localGet = localGet;
+//write to non-synchronized persistent storage
+function localSet(obj) {
+    return __awaiter(this, void 0, void 0, function () {
+        return __generator(this, function (_a) {
+            return [2 /*return*/, browser.storage.local.set(obj)];
+        });
+    });
+}
+exports.localSet = localSet;
+function getActiveTab() {
+    return __awaiter(this, void 0, void 0, function () {
+        var tabs;
+        return __generator(this, function (_a) {
+            switch (_a.label) {
+                case 0: return [4 /*yield*/, browser.tabs.query({ active: true, currentWindow: true })];
+                case 1:
+                    tabs = _a.sent();
+                    if (tabs && tabs.length > 0)
+                        return [2 /*return*/, tabs[0]];
+                    else
+                        throw new Error('getActiveTab failed');
+                    return [2 /*return*/];
+            }
+        });
+    });
+}
+function getActiveTabURL() {
+    return __awaiter(this, void 0, void 0, function () {
+        var tab;
+        return __generator(this, function (_a) {
+            switch (_a.label) {
+                case 0: return [4 /*yield*/, getActiveTab()];
+                case 1:
+                    tab = _a.sent();
+                    return [2 /*return*/, tab.url];
+            }
+        });
+    });
+}
+exports.getActiveTabURL = getActiveTabURL;
+function addOnMessageListener(callback) {
+    browser.runtime.onMessage.addListener(function (msg, sender, sendResponseFunc) {
+        callback(msg, sender);
+    });
+}
+exports.addOnMessageListener = addOnMessageListener;
+function loadContentScriptIntoActiveTab() {
+    return __awaiter(this, void 0, void 0, function () {
+        return __generator(this, function (_a) {
+            switch (_a.label) {
+                case 0: return [4 /*yield*/, browser.tabs.executeScript(null, {
+                        file: "/content-script-bundle.js",
+                        allFrames: false,
+                    })];
+                case 1:
+                    _a.sent();
                     return [2 /*return*/, new Promise(function (resolve) { resolve(true); })];
             }
         });
     });
 }
-exports.execute_parallel_bcrypt_webworkers_test = execute_parallel_bcrypt_webworkers_test;
+exports.loadContentScriptIntoActiveTab = loadContentScriptIntoActiveTab;
 
-},{"./assert":1,"./execute_parallel_bcrypt_webworkers":7,"./hex":9,"./utf8":18}],9:[function(require,module,exports){
+},{}],6:[function(require,module,exports){
 /**Convert arrays of octets to and from hex strings*/
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
@@ -1343,298 +1108,7 @@ function decode(str) {
 }
 exports.decode = decode;
 
-},{}],10:[function(require,module,exports){
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-var hex = require("./hex");
-var assert = require("./assert");
-function byteSeq(n) {
-    var res = new Uint8Array(n);
-    for (var i = 0; i < n; i++) {
-        res[i] = i & 0xFF;
-    }
-    return res;
-}
-function hex_test() {
-    var ar = hex.decode('5A');
-    assert.equalArray(ar, [0x5a]);
-    assert.equal(hex.encode(ar), '5a');
-    //empty is valid
-    assert.equalArray(hex.decode(''), []);
-    assert.equal(hex.encode(new Uint8Array(0)), '');
-    assert.throws(function () { return hex.decode('a'); });
-    assert.throws(function () { return hex.decode('aaa'); });
-    assert.throws(function () { return hex.decode('a?'); });
-    assert.throws(function () { return hex.decode('5A '); });
-    //0-255
-    var allStr = "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f404142434445464748494a4b4c4d4e4f505152535455565758595a5b5c5d5e5f606162636465666768696a6b6c6d6e6f707172737475767778797a7b7c7d7e7f808182838485868788898a8b8c8d8e8f909192939495969798999a9b9c9d9e9fa0a1a2a3a4a5a6a7a8a9aaabacadaeafb0b1b2b3b4b5b6b7b8b9babbbcbdbebfc0c1c2c3c4c5c6c7c8c9cacbcccdcecfd0d1d2d3d4d5d6d7d8d9dadbdcdddedfe0e1e2e3e4e5e6e7e8e9eaebecedeeeff0f1f2f3f4f5f6f7f8f9fafbfcfdfeff";
-    var all = byteSeq(256);
-    assert.equalArray(hex.decode(allStr), all);
-    assert.equal(hex.encode(all), allStr);
-    //test encodeToUint8Array
-    var allRaw = hex.encodeToUint8Array(all);
-    var i;
-    assert.equal(allRaw.length, 512);
-    var s = '';
-    for (i = 0; i < allRaw.length; i++) {
-        s += String.fromCharCode(allRaw[i]);
-    }
-    assert.equal(s, allStr);
-}
-exports.default = hex_test;
-
-},{"./assert":1,"./hex":9}],11:[function(require,module,exports){
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-/*This Implements HMAC_DRBG in TypeScript, as per NIST Special Publication 800-90A.
-It is a port of my Go implementation https://github.com/cruxic/go-hmac-drbg which
- was in turn ported from https://github.com/fpgaminer/python-hmac-drbg
-*/
-var sha256 = require("./sha256");
-/**937 bytes (~7500 bits) as per the spec.*/
-exports.MaxBytesPerGenerate = 937; // ~ 7500bits/8
-/**Entropy for NewHmacDrbg() and Reseed() must never exceed this number of bytes.*/
-exports.MaxEntropyBytes = 125; // = 1000bits
-exports.MaxPersonalizationBytes = 32; // = 256bits
-function _hmac(key, message) {
-    return sha256.hmac(key, message);
-}
-//Because TypedArray.fill() is not supported by older browsers.
-function fill(data, value) {
-    for (var i = 0; i < data.length; i++)
-        data[i] = value;
-}
-var HmacDrbg = (function () {
-    /**Create a new DRBG.
-    desiredSecurityLevelBits must be one of 112, 128, 192, 256.
-
-    entropy length (in bits) must be at least 1.5 times securityLevelBits.
-    entropy byte length cannot exceed MaxEntropyBytes.
-
-    The personalization can be nil.  If non-nil, it's byte length cannot exceed MaxPersonalizationBytes.
-
-    If any of the parameters are out-of-range this function will panic.
-    */
-    function HmacDrbg(securityLevelBits, entropy, personalization) {
-        if (securityLevelBits != 112 &&
-            securityLevelBits != 128 &&
-            securityLevelBits != 192 &&
-            securityLevelBits != 256) {
-            throw new Error("Illegal desiredSecurityLevelBits");
-        }
-        if (entropy.length > exports.MaxEntropyBytes) {
-            throw new Error("Input entropy too large");
-        }
-        if ((entropy.length * 8 * 2) < (securityLevelBits * 3)) {
-            throw new Error("Insufficient entropy for security level");
-        }
-        if (personalization !== null && personalization.length > exports.MaxPersonalizationBytes) {
-            throw new Error("Personalization too long");
-        }
-        this.SecurityLevelBits = securityLevelBits;
-        this.k = new Uint8Array(32);
-        this.v = new Uint8Array(32);
-        this.reseedCounter = 1;
-        //Instantiate
-        //k already holds 0x00.
-        //Fill v with 0x01.
-        fill(this.v, 0x01);
-        var nPers = (personalization !== null) ? personalization.length : 0;
-        var seed = new Uint8Array(entropy.length + nPers);
-        seed.set(entropy, 0); //copy from entropy to seed
-        if (personalization !== null) {
-            //append personalization
-            seed.set(personalization, entropy.length);
-        }
-        this.update(seed);
-    }
-    HmacDrbg.prototype.update = function (providedData) {
-        var nProvided = (providedData !== null) ? providedData.length : 0;
-        var msg = new Uint8Array(this.v.length + 1 + nProvided);
-        msg.set(this.v); //copy v to msg
-        //leave hole with 0x00 at msg[len(this.v)]
-        if (providedData != null) {
-            msg.set(providedData, this.v.length + 1);
-        }
-        this.k = _hmac(this.k, msg);
-        this.v = _hmac(this.k, this.v);
-        if (providedData != null) {
-            msg.set(this.v);
-            msg[this.v.length] = 0x01;
-            msg.set(providedData, this.v.length + 1);
-            this.k = _hmac(this.k, msg);
-            this.v = _hmac(this.k, this.v);
-        }
-    };
-    HmacDrbg.prototype.Reseed = function (entropy) {
-        if (entropy.length * 8 < this.SecurityLevelBits) {
-            throw new Error("Reseed entropy is less than security-level");
-        }
-        if (entropy.length > exports.MaxEntropyBytes) {
-            throw new Error("Reseed entropy exceeds MaxEntropyBytes");
-        }
-        this.update(entropy);
-        this.reseedCounter = 1;
-    };
-    /**Fill the given byte array with random bytes.
-    Returns false if a reseed is necessary first.
-    This function will panic if the array is larger than MaxBytesPerGenerate.*/
-    HmacDrbg.prototype.Generate = function (outputBytes) {
-        var nWanted = outputBytes.length;
-        if (nWanted > exports.MaxBytesPerGenerate) {
-            throw new Error("HmacDrbg: generate request too large.");
-        }
-        if (this.reseedCounter >= 10000) {
-            //set all bytes to zero, just to be clear
-            fill(outputBytes, 0);
-            return false;
-        }
-        var nGen = 0;
-        var n;
-        while (nGen < nWanted) {
-            this.v = _hmac(this.k, this.v);
-            n = nWanted - nGen;
-            if (n >= this.v.length) {
-                n = this.v.length;
-                outputBytes.set(this.v, nGen);
-                nGen += this.v.length;
-            }
-            else {
-                for (var i = 0; i < n; i++)
-                    outputBytes[nGen++] = this.v[i];
-            }
-        }
-        this.update(null);
-        this.reseedCounter++;
-        return true;
-    };
-    return HmacDrbg;
-}());
-exports.HmacDrbg = HmacDrbg;
-/**Read from an arbitrary number of bytes from HmacDrbg efficiently.
-Internally it generates blocks of MaxBytesPerGenerate.  It then
-serves these out through the standard `Read` function.  Read returns
-an error if reseed becomes is necessary.
-*/
-/*
-type HmacDrbgReader struct {
-    Drbg *HmacDrbg
-    buffer []byte //size MaxBytesPerGenerate
-    offset int
-}
-
-
-func NewHmacDrbgReader(drbg *HmacDrbg) *HmacDrbgReader {
-    return &HmacDrbgReader{
-        Drbg: drbg,
-        buffer: make([]byte, MaxBytesPerGenerate),
-        offset: MaxBytesPerGenerate,
-    }
-}
-
-func (self *HmacDrbgReader) Read(b []byte) (n int, err error) {
-    nRead := 0
-    nWanted := len(b)
-    for nRead < nWanted {
-        if this.offset >= MaxBytesPerGenerate {
-            if !this.Drbg.Generate(this.buffer) {
-                return nRead, errors.New("MUST_RESEED")
-            }
-            this.offset = 0
-        }
-        
-        b[nRead] = this.buffer[this.offset]
-        nRead++
-        this.offset++
-    }
-    
-    return nRead, nil
-}
-*/
-
-},{"./sha256":15}],12:[function(require,module,exports){
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-var hmacdrbg_1 = require("./hmacdrbg");
-var sha256 = require("./sha256");
-var assert = require("./assert");
-//import {stringToUTF8} from './utf8'
-var hex = require("./hex");
-//This test suite was ported from go-hmac-drbg
-function hmacdrbg_test() {
-    TestBasic();
-    TestNIST1();
-    TestAllGenerationLengths();
-}
-exports.default = hmacdrbg_test;
-function TestBasic() {
-    //These test vectors generated with https://github.com/fpgaminer/python-hmac-drbg
-    var seed48 = hex.decode("b0a1f6d9707cc52b876d4a0ed0dd11718827f86f2c2405f7f9e068d9f5439e48531655d5b0d8170a389d9c176748f3f5");
-    var e1 = hex.decode("550a8ad9e22d359c31e356efda");
-    var e2 = hex.decode("16610f2eb23ccfde34fda35458cdeafc661ea67eb89c19223a28aab8353f322c7c");
-    var e3 = hex.decode("e16bd5223256eab3f11ead68fa217e529307f5553ceecbfe96d8e2963d0d3f4b8588dec6d7d9410f1b4e3441c088e5a4d4441b8b74e23ad7f3c5312df3211601c79ee27a09dd0fc75f60d760b5c0ac0d72dd51161cb210703f0b5a307e62a14479d895c1ae73b8e3a694d8ec3d6655b949ea46b9ec07f3212de636ea717d6bb48ea5792534d1c42abaab79a761ef6b4f658d0b0c780f224a447ba63962c2943b721a44402fe1ffa667d3dbca7166aa356eba8d1fe1b5f5a5eed3c2d5139381b3ce12a3d11a3714e41639bf315810b3fd2ce5ab4086a1ea6827fb4c9d9680625f46858cf76d0622a4e9faf2507483208b632cd30817d459c4135d815f3c642188bee0eabd86f5c3faf622a5406873378eb6f59bd8fce24d3c17397af919f3f60d2b7f45fbccc205b477f38df6b0861bd155fbbdc11ea48dda7a1762b4133035b7a95b6becb17b4cdda86eed667c");
-    var rng = new hmacdrbg_1.HmacDrbg(256, seed48, null);
-    var got = new Uint8Array(e1.length);
-    assert.isTrue(rng.Generate(got));
-    assert.equalArray(got, e1);
-    got = new Uint8Array(e2.length);
-    assert.isTrue(rng.Generate(got));
-    assert.equalArray(got, e2);
-    got = new Uint8Array(e3.length);
-    assert.isTrue(rng.Generate(got));
-    assert.equalArray(got, e3);
-    //With personalization string and reseed
-    seed48 = hex.decode("c081232e6627b050e05a34cba6de97f6410a5e52739316443026cb2a40b5fe7648cea25464a79226bf97ef626a1a2579");
-    var pers = hex.decode("d5ae166c587fd664e1a9e32b29");
-    var reseed43 = hex.decode("a7428e1be103930fed246c5e934a4bf5685a340e16db08c0ffef857332f1d96464f12f8da7a5ddfcb76cb6");
-    e1 = hex.decode("52292951368094b5a6c4af0346");
-    e2 = hex.decode("1371416f080b0b0471678e80f4a5c23f614a1937c45f1eb7a60b7cc13a03af4579");
-    rng = new hmacdrbg_1.HmacDrbg(256, seed48, pers);
-    got = new Uint8Array(e1.length);
-    assert.isTrue(rng.Generate(got));
-    assert.equalArray(got, e1);
-    rng.Reseed(reseed43);
-    got = new Uint8Array(e2.length);
-    assert.isTrue(rng.Generate(got));
-    assert.equalArray(got, e2);
-}
-function TestNIST1() {
-    //I think these are official test vectors from NIST.  I got them from:
-    // https://github.com/fpgaminer/python-hmac-drbg/blob/master/HMAC_DRBG.rsp
-    var EntropyInput = "fa0ee1fe39c7c390aa94159d0de97564342b591777f3e5f6a4ba2aea342ec840";
-    var Nonce = "dd0820655cb2ffdb0da9e9310a67c9e5";
-    var PersonalizationString = hex.decode("f2e58fe60a3afc59dad37595415ffd318ccf69d67780f6fa0797dc9aa43e144c");
-    var EntropyInputReseed = hex.decode("e0629b6d7975ddfa96a399648740e60f1f9557dc58b3d7415f9ba9d4dbb501f6");
-    var ReturnedBits = hex.decode("f92d4cf99a535b20222a52a68db04c5af6f5ffc7b66a473a37a256bd8d298f9b4aa4af7e8d181e02367903f93bdb744c6c2f3f3472626b40ce9bd6a70e7b8f93992a16a76fab6b5f162568e08ee6c3e804aefd952ddd3acb791c50f2ad69e9a04028a06a9c01d3a62aca2aaf6efe69ed97a016213a2dd642b4886764072d9cbe");
-    var seed48 = hex.decode(EntropyInput + Nonce);
-    var rng = new hmacdrbg_1.HmacDrbg(256, seed48, PersonalizationString);
-    rng.Reseed(EntropyInputReseed);
-    var got = new Uint8Array(ReturnedBits.length);
-    assert.isTrue(rng.Generate(got));
-    //yes, ignore the first batch of generated data
-    assert.isTrue(rng.Generate(got));
-    assert.equalArray(got, ReturnedBits);
-}
-function TestAllGenerationLengths() {
-    //I created this test vector with https://github.com/fpgaminer/python-hmac-drbg
-    var seed48 = new Uint8Array(48);
-    for (var i = 0; i < seed48.length; i++) {
-        seed48[i] = 97; //'a'
-    }
-    var rng = new hmacdrbg_1.HmacDrbg(256, seed48, null);
-    var h = new sha256.Hash();
-    //Test all valid Generate lengths
-    for (var n = 1; n <= hmacdrbg_1.MaxBytesPerGenerate; n++) {
-        var buf = new Uint8Array(n);
-        assert.isTrue(rng.Generate(buf));
-        h.update(buf);
-    }
-    var got = h.digest();
-    var expect = hex.decode("ee5fb7498d044ad52dac5a4e6446da71a253d024985f4969dad8590e93890be3");
-    assert.equalArray(got, expect);
-}
-
-},{"./assert":1,"./hex":9,"./hmacdrbg":11,"./sha256":15}],13:[function(require,module,exports){
+},{}],7:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 var bcrypt = require("./bcrypt");
@@ -1715,47 +1189,375 @@ function hashWithSingleThread(numSimulatedThreads, plaintextPassword, salt, cost
 }
 exports.hashWithSingleThread = hashWithSingleThread;
 
-},{"./bcrypt":3,"./hex":9,"./sha256":15,"./utf8":18}],14:[function(require,module,exports){
+},{"./bcrypt":1,"./hex":6,"./sha256":9,"./utf8":10}],8:[function(require,module,exports){
 "use strict";
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : new P(function (resolve) { resolve(result.value); }).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
+var __generator = (this && this.__generator) || function (thisArg, body) {
+    var _ = { label: 0, sent: function() { if (t[0] & 1) throw t[1]; return t[1]; }, trys: [], ops: [] }, f, y, t;
+    return { next: verb(0), "throw": verb(1), "return": verb(2) };
+    function verb(n) { return function (v) { return step([n, v]); }; }
+    function step(op) {
+        if (f) throw new TypeError("Generator is already executing.");
+        while (_) try {
+            if (f = 1, y && (t = y[op[0] & 2 ? "return" : op[0] ? "throw" : "next"]) && !(t = t.call(y, op[1])).done) return t;
+            if (y = 0, t) op = [0, t.value];
+            switch (op[0]) {
+                case 0: case 1: t = op; break;
+                case 4: _.label++; return { value: op[1], done: false };
+                case 5: _.label++; y = op[1]; op = [0]; continue;
+                case 7: op = _.ops.pop(); _.trys.pop(); continue;
+                default:
+                    if (!(t = _.trys, t = t.length > 0 && t[t.length - 1]) && (op[0] === 6 || op[0] === 2)) { _ = 0; continue; }
+                    if (op[0] === 3 && (!t || (op[1] > t[0] && op[1] < t[3]))) { _.label = op[1]; break; }
+                    if (op[0] === 6 && _.label < t[1]) { _.label = t[1]; t = op; break; }
+                    if (t && _.label < t[2]) { _.label = t[2]; _.ops.push(op); break; }
+                    if (t[2]) _.ops.pop();
+                    _.trys.pop(); continue;
+            }
+            op = body.call(thisArg, _);
+        } catch (e) { op = [6, e]; y = 0; } finally { f = t = 0; }
+        if (op[0] & 5) throw op[1]; return { value: op[0] ? op[1] : void 0, done: true };
+    }
+};
 Object.defineProperty(exports, "__esModule", { value: true });
-var assert = require("./assert");
-var bcrypt = require("./bcrypt");
-var parallel_bcrypt = require("./parallel_bcrypt");
+var firefox = require("./firefox");
+var calcpass2017a = require("./calcpass2017a");
+var execute_parallel_bcrypt_webworkers_1 = require("./execute_parallel_bcrypt_webworkers");
 var utf8_1 = require("./utf8");
-var hex = require("./hex");
-function test_bcrypt_implementation() {
-    //"abcdefghijklmnopqrstuu" as bcrypt-base64
-    var salt = new Uint8Array([0x71, 0xd7, 0x9f, 0x82, 0x18, 0xa3, 0x92, 0x59, 0xa7, 0xa2, 0x9a, 0xab, 0xb2, 0xdb, 0xaf, 0xc3]);
-    //parallel_bcrypt avoids sending 0x00 bytes to bcrypt because some
-    // implementations truncate upon the first null byte! (eg PHP)
-    //Verify that the bcrypt implementation can handle non-printable bytes
-    var pass = new Uint8Array([0x01, 0x02, 0x03, 0x7f, 0x80, 0x81, 0xAB, 0xCD, 0xef, 0xff]);
-    var hash = bcrypt.bcrypt(pass, salt, 5);
-    assert.equal(hash, "$2a$05$abcdefghijklmnopqrstuuu18bGopDo9r1tDNZl2p2xd1YzcTrTp6");
-    //parallel_bcrypt sends up to 64 bytes to bcrypt.  Prove that the
-    // implementation does not truncate it.
-    pass = utf8_1.stringToUTF8("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
-    hash = bcrypt.bcrypt(pass, salt, 5);
-    assert.equal(hash, "$2a$05$abcdefghijklmnopqrstuusN64mi0Q3MHT4E2PLNsVMiw2Jh1hNE6");
-    pass = utf8_1.stringToUTF8("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaab");
-    hash = bcrypt.bcrypt(pass, salt, 5);
-    assert.equal(hash, "$2a$05$abcdefghijklmnopqrstuulBPHoU3/c65NkXOJMDkVnN3KklTvm1a");
-    //the above results were verified with PHP's bcrypt
+var util_1 = require("./util");
+//import * as hex from './hex'
+var calcpass_misc = require("./calcpass_misc");
+function setContent(html) {
+    document.getElementById('content').innerHTML = html;
 }
-function parallel_bcrypt_test() {
-    test_bcrypt_implementation();
-    //"abcdefghijklmnopqrstuu" as bcrypt-base64
-    var salt = new Uint8Array([0x71, 0xd7, 0x9f, 0x82, 0x18, 0xa3, 0x92, 0x59, 0xa7, 0xa2, 0x9a, 0xab, 0xb2, 0xdb, 0xaf, 0xc3]);
-    //this result was verified with PHP's bcrypt
-    var expect = "2c70a99f125eaa36561e97f0c9d215e099ab991116ceda19b7c3c93c669ebe7e";
-    var pass = utf8_1.stringToUTF8("Super Secret Password");
-    var hash = parallel_bcrypt.hashWithSingleThread(4, pass, salt, 5);
-    assert.equal(hash.length, 32);
-    assert.equal(hex.encode(hash), expect);
+function setScreen(screen) {
+    if (typeof (screen['html']) != 'string') {
+        throw new Error('screen object missing `html` member.');
+    }
+    setContent(screen['html']);
+    //Connect all "event_*" methods to the corresponding document elements
+    var k, eventType, elmId, m, elm, func;
+    var re_event = /^event_([a-z]+)_(.+)$/;
+    var re_elm = /^elm_(.+)$/;
+    for (k in screen) {
+        if (k.indexOf('event_') == 0) {
+            m = re_event.exec(k);
+            if (!m || !m[1] || !m[2]) {
+                throw new Error('screen object has invalid event method name: ' + k);
+            }
+            eventType = m[1];
+            elmId = m[2];
+            elm = document.getElementById(elmId);
+            if (!elm) {
+                throw new Error("screen object has method \"" + k + "\" but document has no element \"" + elmId + "\"");
+            }
+            func = screen[k].bind(screen);
+            elm.addEventListener(eventType, func);
+            console.log("Connected " + k);
+        }
+        else if (k.indexOf('elm_') == 0) {
+            m = re_elm.exec(k);
+            if (!m || !m[1]) {
+                throw new Error('screen object has invalid elm field name: ' + k);
+            }
+            elmId = m[1];
+            elm = document.getElementById(elmId);
+            if (!elm) {
+                throw new Error("screen object has field \"" + k + "\" but document has no element \"" + elmId + "\"");
+            }
+            screen[k] = elm;
+            //console.log(`set elm ${k}`);
+        }
+    }
+    //Call onScreenReady if provided
+    if (screen['onScreenReady']) {
+        screen['onScreenReady']();
+    }
 }
-exports.default = parallel_bcrypt_test;
+function setElmText(elementOrId, text) {
+    var elm = elementOrId;
+    if (typeof (elementOrId) == 'string')
+        elm = document.getElementById(elementOrId);
+    if (!elm || !elm.firstChild) {
+        console.log('setElmText: ' + elementOrId + ' is missing or has no firstChild');
+        return;
+    }
+    elm.firstChild.nodeValue = text;
+}
+/*
+class WelcomeScreen {
+    html:string;
+    
+    constructor() {
+        this.html = `
+        <b>Welcome to CalcPass!</b>
+        <p>
+        <button id="btnCreate">Create a new wallet card.</button>
+        <button id="btnAlready">I already have a card.</button>
+        `;
+    }
 
-},{"./assert":1,"./bcrypt":3,"./hex":9,"./parallel_bcrypt":13,"./utf8":18}],15:[function(require,module,exports){
+    event_click_btnCreate(e) {
+        console.log('on create!');
+        
+    }
+
+    event_click_btnAlready(e) {
+        console.log('on already!');
+    }
+}
+*/
+/**Called upon an uncaught exception or other fatal error.
+Shows a friendly message to the user.
+*/
+function showUnexpectedError(info) {
+    console.log('showUnexpectedError was called:');
+    console.log(info);
+    if (!info)
+        info = "?";
+    var infoStr = '' + info;
+    //fill the <textarea>
+    var elm = document.getElementById('unexpected_error_text');
+    if (elm)
+        elm.firstChild.nodeValue = infoStr;
+    //set the support email
+    elm = document.getElementById('unexpected_error_email');
+    if (elm) {
+        var noSpamPlease = 'cruxic' + '@' + 'gmail' + '.' + 'com';
+        elm.firstChild.nodeValue = noSpamPlease;
+    }
+    //show the <div>
+    elm = document.getElementById('unexpected_error');
+    if (elm)
+        elm.style.display = 'block';
+    //hide all other content
+    elm = document.getElementById('content');
+    if (elm)
+        elm.innerHTML = ' ';
+}
+function showErr(text) {
+    var elm = document.getElementById('err');
+    if (!elm) {
+        showUnexpectedError('Screen has no #err element.');
+        return;
+    }
+    setElmText(elm, text);
+    elm.style.display = 'block';
+}
+var MasterPassPrompt = (function () {
+    function MasterPassPrompt(ctx) {
+        this.elm_pass = null;
+        this.ctx = ctx;
+        this.html = "\n\t\t<input id=\"pass\" type=\"password\" placeholder=\"Master Password\" size=\"20\"/>\n\t\t<button id=\"btnOK\">OK</button>\n\t\t<div id=\"err\">?</div>\n\t\t";
+    }
+    MasterPassPrompt.prototype.event_click_btnOK = function (e) {
+        var pass = this.elm_pass.value.trim();
+        if (pass.length < 8) {
+            console.log('here');
+            showErr('Password must be at least 8 characters.');
+            return;
+        }
+        var rawPlain = utf8_1.stringToUTF8(pass);
+        setScreen(new StretchingMasterPass(this.ctx, rawPlain));
+    };
+    MasterPassPrompt.prototype.onScreenReady = function () {
+        return __awaiter(this, void 0, void 0, function () {
+            return __generator(this, function (_a) {
+                this.elm_pass.focus();
+                return [2 /*return*/];
+            });
+        });
+    };
+    return MasterPassPrompt;
+}());
+var Context = (function () {
+    function Context() {
+    }
+    return Context;
+}());
+var StretchingMasterPass = (function () {
+    function StretchingMasterPass(ctx, plaintext) {
+        this.elm_progBar = null;
+        this.elm_progPercent = null;
+        this.ctx = ctx;
+        this.plaintext = plaintext;
+        this.html = "\n\t\t<div class=\"progressBar\">\n\t\t\t<div id=\"progBar\">Stretching password. <span id=\"progPercent\">0%</span></div>\n\t\t</div>\n\t\t";
+    }
+    StretchingMasterPass.prototype.setProgressBar = function (percent) {
+        if (percent < 0.0)
+            percent = 0.0;
+        if (percent > 1.0)
+            percent = 1.0;
+        var percentStr = '' + Math.floor(percent * 100.0);
+        this.elm_progBar.style.width = percentStr + '%';
+        setElmText(this.elm_progPercent, percentStr + '%');
+    };
+    StretchingMasterPass.prototype.onScreenReady = function () {
+        return __awaiter(this, void 0, void 0, function () {
+            var _this = this;
+            var userEmail, pass, pbc, t1, _a, t2;
+            return __generator(this, function (_b) {
+                switch (_b.label) {
+                    case 0:
+                        console.log("TODO: get salt from local storage");
+                        userEmail = "a@b.c";
+                        pass = this.plaintext;
+                        pbc = new calcpass2017a.ParallelBcrypt();
+                        pbc.execute = execute_parallel_bcrypt_webworkers_1.execute_parallel_bcrypt_webworkers;
+                        pbc.progressCallback = function (percent) {
+                            _this.setProgressBar(percent);
+                        };
+                        t1 = performance.now();
+                        _a = this.ctx;
+                        return [4 /*yield*/, calcpass2017a.StretchMasterPassword(pass, userEmail, pbc)];
+                    case 1:
+                        _a.stretchedMaster = _b.sent();
+                        t2 = performance.now();
+                        this.ctx.stretchTookMillis = Math.ceil(t2 - t1);
+                        util_1.erase(this.plaintext);
+                        this.plaintext = null;
+                        setScreen(new ShowCoordinates(this.ctx));
+                        return [2 /*return*/];
+                }
+            });
+        });
+    };
+    return StretchingMasterPass;
+}());
+var ShowCoordinates = (function () {
+    function ShowCoordinates(ctx) {
+        this.elm_chars = null;
+        this.ctx = ctx;
+        //TODO: calculate coordinates from ctx.stretchedMaster and ctx.sitename and ctx.revision
+        this.html = "\n\t\t<h2>Enter Coordinates</h2>\n\t\t<p>\n\t\t<b>7P</b>&nbsp;&nbsp;<b>13Q</b>\n\t\t<p>\n\t\t<input id=\"chars\" type=\"password\" size=\"8\" maxlength=\"8\"/><button>*</button>\n\t\t<p>\n\t\t<button id=\"next\">OK</button>\n\t\t<div id=\"err\">?</div>\n\t\t";
+    }
+    ShowCoordinates.prototype.onScreenReady = function () {
+        return __awaiter(this, void 0, void 0, function () {
+            return __generator(this, function (_a) {
+                this.elm_chars.focus();
+                return [2 /*return*/];
+            });
+        });
+    };
+    ShowCoordinates.prototype.event_click_next = function (e) {
+        var chars = this.elm_chars.value.trim();
+        if (chars.length != 8) {
+            showErr("Please enter 8 characters.");
+            return;
+        }
+    };
+    return ShowCoordinates;
+}());
+function escapeHTML(text) {
+    //TODO
+    return text;
+}
+var SelectSiteName = (function () {
+    function SelectSiteName(scheme, hostname) {
+        this.elm_shortDomain = null;
+        this.elm_other = null;
+        this.elm_txtOther = null;
+        this.elm_otherOK = null;
+        this.html = "<h2>Verify Website Name:</h2>";
+        hostname = hostname.toLowerCase();
+        //TODO: show warning if not HTTPS
+        //let isHTTPS = scheme.toLowerCase() === 'https';
+        this.shortDomain = calcpass_misc.removeSubdomains(hostname);
+        this.fullDomain = hostname;
+        this.html += "\n\t\t<button id=\"shortDomain\" style=\"font-weight:bold\">" + escapeHTML(this.shortDomain) + "</button>\n\t\t<br/>\n\t\t";
+        if (this.shortDomain != this.fullDomain) {
+            this.html += "\n\t\t\t<button id=\"fullDomain\">" + escapeHTML(this.fullDomain) + "</button>\n\t\t\t<br/>\n\t\t\t";
+        }
+        this.html += "\n\t\t<button id=\"other\">Other</button>\n\t\t<input id=\"txtOther\" type=\"text\" value=\"" + escapeHTML(this.fullDomain) + "\" size=\"20\" style=\"display:none\"/>\n\t\t<button id=\"otherOK\" style=\"display:none\">OK</button>\n\t\t<br/>\n\t\t<div id=\"err\">?</div>\n\t\t";
+    }
+    SelectSiteName.prototype.proceed = function (hostname) {
+        var ctx = new Context();
+        ctx.sitename = hostname;
+        setScreen(new MasterPassPrompt(ctx));
+    };
+    SelectSiteName.prototype.event_click_shortDomain = function (e) {
+        this.proceed(this.shortDomain);
+    };
+    SelectSiteName.prototype.event_click_fullDomain = function (e) {
+        this.proceed(this.fullDomain);
+    };
+    SelectSiteName.prototype.event_click_otherOK = function (e) {
+        var other = this.elm_txtOther.value.trim().toLowerCase();
+        //TODO: better to just disable the OK button when empty?
+        if (other.length == 0) {
+            showErr('Empty not allowed');
+            return;
+        }
+        this.proceed(other);
+    };
+    SelectSiteName.prototype.event_click_other = function (e) {
+        this.elm_other.style.display = 'none';
+        this.elm_txtOther.style.display = 'inline';
+        this.elm_otherOK.style.display = 'inline';
+        this.elm_txtOther.focus();
+    };
+    SelectSiteName.prototype.onScreenReady = function () {
+        this.elm_shortDomain.focus();
+    };
+    return SelectSiteName;
+}());
+function onMessage(msg, senderInfo) {
+    return __awaiter(this, void 0, void 0, function () {
+        return __generator(this, function (_a) {
+            console.log('popup onMessage was called!', JSON.stringify(msg));
+            if (msg.CONTENT_SCRIPT_LOADED) {
+                console.log('got CONTENT_SCRIPT_LOADED');
+                setScreen(new SelectSiteName(msg.location.scheme, msg.location.hostname));
+            }
+            return [2 /*return*/];
+        });
+    });
+}
+function load() {
+    return __awaiter(this, void 0, void 0, function () {
+        var e_1, e_2;
+        return __generator(this, function (_a) {
+            switch (_a.label) {
+                case 0:
+                    console.log('popup load()');
+                    _a.label = 1;
+                case 1:
+                    _a.trys.push([1, 6, , 7]);
+                    firefox.addOnMessageListener(onMessage);
+                    _a.label = 2;
+                case 2:
+                    _a.trys.push([2, 4, , 5]);
+                    //throws if active tab is not a normal webpage (eg about:blank)
+                    return [4 /*yield*/, firefox.loadContentScriptIntoActiveTab()];
+                case 3:
+                    //throws if active tab is not a normal webpage (eg about:blank)
+                    _a.sent();
+                    return [3 /*break*/, 5];
+                case 4:
+                    e_1 = _a.sent();
+                    console.log('Unable to load content script: ' + e_1);
+                    showUnexpectedError('TODO: ask user to select a tab or enter sitename');
+                    return [2 /*return*/];
+                case 5: return [3 /*break*/, 7];
+                case 6:
+                    e_2 = _a.sent();
+                    showUnexpectedError(e_2);
+                    return [3 /*break*/, 7];
+                case 7: return [2 /*return*/];
+            }
+        });
+    });
+}
+load();
+
+},{"./calcpass2017a":2,"./calcpass_misc":3,"./execute_parallel_bcrypt_webworkers":4,"./firefox":5,"./utf8":10,"./util":11}],9:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 //Copied from: https://github.com/dchest/fast-sha256-js
@@ -2116,211 +1918,7 @@ exports.hmac = hmac;
     return dk;
 }*/
 
-},{}],16:[function(require,module,exports){
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-var sha256 = require("./sha256");
-var assert = require("./assert");
-var utf8_1 = require("./utf8");
-var hex = require("./hex");
-function sha256Hex(data) {
-    return hex.encode(sha256.hash(data));
-}
-function hmacSha256Hex(key, data) {
-    return hex.encode(sha256.hmac(key, data));
-}
-function reverseByteSeq(n) {
-    var res = new Uint8Array(n);
-    for (var i = 0; i < n; i++) {
-        res[i] = 0xFF - (i & 0xFF);
-    }
-    return res;
-}
-function byteSeq(n) {
-    var res = new Uint8Array(n);
-    for (var i = 0; i < n; i++) {
-        res[i] = i & 0xFF;
-    }
-    return res;
-}
-function sha256_test() {
-    //These test vectors were generated by the Python3 program at the end of this file.
-    //
-    // sha256
-    assert.equal(sha256Hex(utf8_1.stringToUTF8('a')), 'ca978112ca1bbdcafac231b39a23dc4da786eff8147c4e72b9807785afee48bb');
-    assert.equal(sha256Hex(utf8_1.stringToUTF8('abc')), 'ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad');
-    assert.equal(sha256Hex(reverseByteSeq(256)), 'cd6816b77f68d70001fc3eaa4d42bdd67cb5973b3151cc5292ecc02a3daac6ab');
-    //
-    // hmac
-    assert.equal(hmacSha256Hex(reverseByteSeq(256), utf8_1.stringToUTF8('Hello World')), '9174b4b3063d7c82d47c631c75e8c3f10e8b3983d7d65473920156256f7c0526');
-    //
-    // hmac with input sizes 1-65
-    var N = 65;
-    var firstBytes = hex.decode('b5676001b8e90fcdac47d9cf046eb3a1ab79c34f84319981452153317e4f68d0631e8adf308241f5a80dd39f958d7c95388457d46641ce8bb14f340060c25acc38');
-    var allResults = new Uint8Array(N * sha256.digestLength);
-    for (var i = 0; i < N; i++) {
-        var inputSize = i + 1;
-        var key = reverseByteSeq(inputSize);
-        var msg = byteSeq(inputSize);
-        var res = sha256.hmac(key, msg);
-        assert.equal(res.length, sha256.digestLength);
-        assert.equal(res[0], firstBytes[i]);
-        //append result to allResults
-        allResults.set(res, i * sha256.digestLength);
-    }
-    //hash of all results
-    assert.equal(sha256Hex(allResults), 'c67a5248db596f9045239d1461ffae4901527a2ff8714428fd3eaed936c007b4');
-}
-exports.default = sha256_test;
-//Run this Python3 program to verify the above test vectors
-/*
-import hashlib
-import hmac
-
-def hmacSha256(key, msg):
-    return hmac.new(key, msg, hashlib.sha256).digest()
-
-def sha256(data):
-    m = hashlib.sha256()
-    m.update(data)
-    return m.digest()
-
-def byteSequence(n):
-    ba = bytearray(n)
-    for i in range(0, n):
-        ba[i] = i & 0xFF
-    return ba
-
-def reverseByteSequence(n):
-    ba = bytearray(n)
-    for i in range(0, n):
-        ba[i] = 0xFF - (i & 0xFF)
-    return ba
-
-def main():
-    print('sha256')
-    
-    print('sha256("a") == %s' % (sha256(b'a').hex()))
-
-    print('sha256("abc") == %s' % (sha256(b'abc').hex()))
-    
-    data = reverseByteSequence(256)
-    print('sha256(255 through 0) == %s' % (sha256(data).hex()))
-
-    key = reverseByteSequence(256)
-    print('hmacSha256(255-0, "Hello World") %s' % hmacSha256(key, b'Hello World').hex())
-
-
-    print('hmacSha256 with many key and message sizes:')
-    firstBytes = bytearray()
-    all = bytearray()
-    for inputSize in range(1, 66):
-        key = reverseByteSequence(inputSize)
-        msg = byteSequence(inputSize)
-
-        res = hmacSha256(key, msg)
-        if inputSize % 7 == 0:
-            print('%02d: %s' % (inputSize, res.hex()))
-
-        all += res
-        firstBytes += res[0:1]
-
-    print('First byte of each result %s' % firstBytes.hex())
-    print('Hash of all results %s' % sha256(all).hex())
-    
-
-if __name__ == '__main__':
-    main()
-
-*/
-
-},{"./assert":1,"./hex":9,"./sha256":15,"./utf8":18}],17:[function(require,module,exports){
-"use strict";
-var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : new P(function (resolve) { resolve(result.value); }).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
-var __generator = (this && this.__generator) || function (thisArg, body) {
-    var _ = { label: 0, sent: function() { if (t[0] & 1) throw t[1]; return t[1]; }, trys: [], ops: [] }, f, y, t;
-    return { next: verb(0), "throw": verb(1), "return": verb(2) };
-    function verb(n) { return function (v) { return step([n, v]); }; }
-    function step(op) {
-        if (f) throw new TypeError("Generator is already executing.");
-        while (_) try {
-            if (f = 1, y && (t = y[op[0] & 2 ? "return" : op[0] ? "throw" : "next"]) && !(t = t.call(y, op[1])).done) return t;
-            if (y = 0, t) op = [0, t.value];
-            switch (op[0]) {
-                case 0: case 1: t = op; break;
-                case 4: _.label++; return { value: op[1], done: false };
-                case 5: _.label++; y = op[1]; op = [0]; continue;
-                case 7: op = _.ops.pop(); _.trys.pop(); continue;
-                default:
-                    if (!(t = _.trys, t = t.length > 0 && t[t.length - 1]) && (op[0] === 6 || op[0] === 2)) { _ = 0; continue; }
-                    if (op[0] === 3 && (!t || (op[1] > t[0] && op[1] < t[3]))) { _.label = op[1]; break; }
-                    if (op[0] === 6 && _.label < t[1]) { _.label = t[1]; t = op; break; }
-                    if (t && _.label < t[2]) { _.label = t[2]; _.ops.push(op); break; }
-                    if (t[2]) _.ops.pop();
-                    _.trys.pop(); continue;
-            }
-            op = body.call(thisArg, _);
-        } catch (e) { op = [6, e]; y = 0; } finally { f = t = 0; }
-        if (op[0] & 5) throw op[1]; return { value: op[0] ? op[1] : void 0, done: true };
-    }
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-var assert_test_1 = require("./assert_test");
-var util_test_1 = require("./util_test");
-var utf8_test_1 = require("./utf8_test");
-var hex_test_1 = require("./hex_test");
-var sha256_test_1 = require("./sha256_test");
-var hmacdrbg_test_1 = require("./hmacdrbg_test");
-var bcrypt_test_1 = require("./bcrypt_test");
-var parallel_bcrypt_test_1 = require("./parallel_bcrypt_test");
-var execute_parallel_bcrypt_webworkers_test_1 = require("./execute_parallel_bcrypt_webworkers_test");
-var calcpass2017a_test_1 = require("./calcpass2017a_test");
-function run_tests() {
-    return __awaiter(this, void 0, void 0, function () {
-        return __generator(this, function (_a) {
-            switch (_a.label) {
-                case 0:
-                    assert_test_1.default();
-                    console.log('assert_test PASS');
-                    util_test_1.default();
-                    console.log('util_test PASS');
-                    utf8_test_1.default();
-                    console.log('utf8_test PASS');
-                    hex_test_1.default();
-                    console.log('hex_test PASS');
-                    sha256_test_1.default();
-                    console.log('sha256_test PASS');
-                    hmacdrbg_test_1.default();
-                    console.log('hmacdrbg_test PASS');
-                    bcrypt_test_1.default();
-                    console.log('bcrypt_test PASS');
-                    parallel_bcrypt_test_1.default();
-                    console.log('parallel_bcrypt_test PASS');
-                    return [4 /*yield*/, execute_parallel_bcrypt_webworkers_test_1.execute_parallel_bcrypt_webworkers_test()];
-                case 1:
-                    _a.sent();
-                    console.log('execute_parallel_bcrypt_webworkers_test PASS');
-                    console.log('Testing calcpass2017a...');
-                    return [4 /*yield*/, calcpass2017a_test_1.calcpass2017a_test()];
-                case 2:
-                    _a.sent();
-                    console.log('calcpass2017a PASS');
-                    console.log('\nAll tests PASS');
-                    return [2 /*return*/];
-            }
-        });
-    });
-}
-window.addEventListener("load", function (e) { run_tests(); });
-
-},{"./assert_test":2,"./bcrypt_test":4,"./calcpass2017a_test":6,"./execute_parallel_bcrypt_webworkers_test":8,"./hex_test":10,"./hmacdrbg_test":12,"./parallel_bcrypt_test":14,"./sha256_test":16,"./utf8_test":19,"./util_test":21}],18:[function(require,module,exports){
+},{}],10:[function(require,module,exports){
 /**Convert a unicode string to a Uint8Array of UTF-8 octets.*/
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
@@ -2351,24 +1949,7 @@ function selfTest() {
 }
 exports.selfTest = selfTest;
 
-},{}],19:[function(require,module,exports){
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-var utf8 = require("./utf8");
-var assert = require("./assert");
-function stringToUTF8_test() {
-    //Simple ascii
-    assert.equalArray(utf8.stringToUTF8('abcABC'), [0x61, 0x62, 0x63, 0x41, 0x42, 0x43]);
-    //All printable ascii <= 127
-    //2 Latin characters: æǼ
-    assert.equalArray(utf8.stringToUTF8("\u00e6\u01fc"), [0xc3, 0xa6, 0xc7, 0xbc]);
-    //2 characters: ℉℃
-    assert.equalArray(utf8.stringToUTF8("\u2109\u2103"), [0xe2, 0x84, 0x89, 0xe2, 0x84, 0x83]);
-    utf8.selfTest();
-}
-exports.default = stringToUTF8_test;
-
-},{"./assert":1,"./utf8":18}],20:[function(require,module,exports){
+},{}],11:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 /**Write zero into any array-like object.*/
@@ -2378,19 +1959,4 @@ function erase(array) {
 }
 exports.erase = erase;
 
-},{}],21:[function(require,module,exports){
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-var util = require("./util");
-var assert = require("./assert");
-function util_test() {
-    var ar = [1, 2, 3];
-    util.erase(ar);
-    assert.equal(0, ar[1]);
-    var bytes = new Uint8Array([1, 2, 3]);
-    util.erase(bytes);
-    assert.equal(0, bytes[2]);
-}
-exports.default = util_test;
-
-},{"./assert":1,"./util":20}]},{},[17]);
+},{}]},{},[8]);

@@ -18,7 +18,7 @@ export default function hex_test() {
 
 	//empty is valid
 	assert.equalArray(hex.decode(''), []);
-	assert.equal(hex.encode([]), '');
+	assert.equal(hex.encode(new Uint8Array(0)), '');
 
 	assert.throws(() => hex.decode('a'));
 	assert.throws(() => hex.decode('aaa'));

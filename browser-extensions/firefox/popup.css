@@ -1,0 +1,36 @@
+body {
+	font-family: sans-serif;
+	width: 30em;
+	height: 15em;
+}
+
+div.progressBar {
+	width: 95%;
+	border: 1px solid #666666;
+	background-color: #cccccc;
+}
+
+/*the bar which moves within div.progressBar*/
+div.progressBar div {
+	background-color: #4C80FF;
+	width: 1px;
+	white-space: nowrap;
+}
+
+#err {
+	display: none;
+	color: #700000;
+	padding: 0.25em;
+	border: 1px solid #700000;
+	background-color: #FFFF82;
+	margin-top: 0.5em;
+	margin-bottom: 0.5em;
+}
+
+#unexpected_error {
+	display: none;	
+}
+
+#unexpected_error h3 {
+	color: #700000;
+}
