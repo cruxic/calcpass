@@ -282,7 +282,7 @@ Dinei Florêncio and Cormac Herley, Microsoft Research; Paul C. van Oorschot, Ca
 https://www.usenix.org/conference/lisa14/conference-program/presentation/florencio
 */
 func MakeFriendlyPassword12a(seed PasswordSeed) (string, error) {
-	rng := util.NewHmacDrbgByteSource([]byte(seed))
+	rng := util.NewHmacCounterByteSource([]byte(seed), 128)
 
 	chars := make([]byte, 12)
 

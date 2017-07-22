@@ -7,7 +7,6 @@ import (
 	"crypto/hmac"
 	"crypto/sha256"
 	"errors"
-	"github.com/cruxic/go-hmac-drbg/hmacdrbg"
 )
 
 /**Request a single byte at a time from some abstract source.*/
@@ -24,6 +23,27 @@ type FixedByteSource struct {
 	
 	//Index of the next byte which will be returned
 	Index int
+}
+
+//Convert a ByteSource to a Reader
+type ByteSourceReader struct {
+	Source ByteSource
+}
+
+func (self *ByteSourceReader) Read(dest []byte) (int, error) {
+	var n int
+	var err error
+	var b byte
+	for n = 0; n < len(dest); n++ {
+		b, err = self.Source.NextByte()
+		if err != nil {
+			break
+		}
+
+		dest[n] = b
+	}
+
+	return n, err
 }
 
 func (self *FixedByteSource) NextByte() (byte, error) {
@@ -84,35 +104,6 @@ func Erase(sensitive []byte) {
 	for i := range sensitive {
 		sensitive[i] = 0
 	}
-}
-
-/**A deterministic byteSource from hmacdrbg.
-It uses HMAC/SHA-256 to generate the pseudo-random bytes
-from a 256bit seed.
-*/
-type HmacDrbgByteSource struct {
-	drbg *hmacdrbg.HmacDrbgReader
-}
-
-
-func NewHmacDrbgByteSource(seed32 []byte) *HmacDrbgByteSource {
-	if len(seed32) != 32 {
-		panic("bad seed length")
-	}
-	
-	return &HmacDrbgByteSource {
-		drbg: hmacdrbg.NewHmacDrbgReader(hmacdrbg.NewHmacDrbg(128, seed32, nil)),
-	}
-}
-
-func (self *HmacDrbgByteSource) NextByte() (byte, error) {
-	one := []byte{0}
-	_, err := self.drbg.Read(one)
-	if err != nil {
-		return 0, err
-	}
-
-	return one[0], nil
 }
 
 type shuffleHelper struct {

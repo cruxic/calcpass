@@ -135,38 +135,47 @@ func TestHmacSha256(t *testing.T) {
 	assert.Equal("ea6c66229109f1321b0088c42111069e9794c3aed574e837b6e87c6d14931aef", hash)
 }
 
-
-func TestHmacDrbgByteSource(t *testing.T) {
+func Test_HmacCounterByteSource(t *testing.T) {
 	assert := assert.New(t)
 
-	//I created this test vector with https://github.com/fpgaminer/python-hmac-drbg
-	seed32 := make([]byte, 32)
-	for i := range seed32 {
-		seed32[i] = 97  //'a'
-	}
+	key := ByteSequence(1, 32)
 
-	rng := NewHmacDrbgByteSource(seed32)
+	src := NewHmacCounterByteSource(key, 3)
+	reader := &ByteSourceReader{Source: src}
 
-	//seed has been copied so this has no effect
-	seed32[0]++
+	//read the first 32 bytes
+	block := make([]byte, 32)
+	n, err := reader.Read(block)
+	assert.Equal(32, n)
+	assert.Nil(err)
+	assert.Equal(HmacSha256(key, []byte{0,0,0,0}), block)
+
+	//read 32 more
+	n, err = reader.Read(block)
+	assert.Equal(32, n)
+	assert.Nil(err)
+	assert.Equal(HmacSha256(key, []byte{0,0,0,1}), block)
+
+	//final 32
+	n, err = reader.Read(block)
+	assert.Equal(32, n)
+	assert.Nil(err)
+	assert.Equal(HmacSha256(key, []byte{0,0,0,2}), block)
+
+	//one more causes error
+	_, err = reader.Source.NextByte()
+	assert.True(err == io.EOF)
+
+	//Verify correct 32bit counting
+	src.maxCounter = 0xffffffff
+	src.counter = 0xABCDEF98
+	src.blockOffset = 32
 	
-
-	output := make([]byte, 33)
-
-	for i := range output {
-		b, err := rng.NextByte()
-		if err != nil {
-			t.Error(err)
-			return
-		}
-		output[i] = b
-	}
-
-	got := hex.EncodeToString(output)
-	assert.Equal("e73263df2c62f5cc89cf9619677e0ecb49d58df04a967ac9ca64a4e9ccb30ba209", got)
+	n, err = reader.Read(block)
+	assert.Equal(32, n)
+	assert.Nil(err)
+	assert.Equal(HmacSha256(key, []byte{0xAB,0xCD,0xEF,0x98}), block)
 }
-
-
 
 func TestSecureShuffleBytes(t *testing.T) {
 	assert := assert.New(t)

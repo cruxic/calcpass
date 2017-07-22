@@ -114,8 +114,8 @@ func Test_MakeSiteCoordinates(t *testing.T) {
 	coords, err := MakeSiteCoordinates(sitekey, 2)
 	assert.Nil(err)
 	assert.Equal(2, len(coords))
-	assert.Equal("18Q", coords[0].String())
-	assert.Equal("8J", coords[1].String())
+	assert.Equal("1N", coords[0].String())
+	assert.Equal("12H", coords[1].String())
 
 	//change key
 	tmp[31]++
@@ -123,8 +123,8 @@ func Test_MakeSiteCoordinates(t *testing.T) {
 	coords, err = MakeSiteCoordinates(sitekey, 2)
 	assert.Nil(err)
 	assert.Equal(2, len(coords))
-	assert.Equal("6M", coords[0].String())
-	assert.Equal("8D", coords[1].String())
+	assert.Equal("17H", coords[0].String())
+	assert.Equal("5N", coords[1].String())
 
 	
 }
@@ -179,14 +179,14 @@ func Test_MakeFriendlyPassword12a(t *testing.T) {
 	
 	pw, err := MakeFriendlyPassword12a(pwseed)
 	assert.Nil(err)
-	assert.Equal("Xtzrbivmsnm5", pw)
+	assert.Equal("Scvqduejxmm5", pw)
 
 	//change seed
 	tmp[31]++
 	pwseed = PasswordSeed(tmp)
 	pw, err = MakeFriendlyPassword12a(pwseed)
 	assert.Nil(err)
-	assert.Equal("Ffzlpcqjnpl7", pw)
+	assert.Equal("Ikvruuyldov1", pw)
 
 	//
 	// Verify that all characters are possible (a-z, 0-9)
@@ -226,9 +226,9 @@ func Test_MakeFriendlyPassword12a(t *testing.T) {
 	}
 
 	assert.True(foundAll)
-	assert.Equal(28, j)
+	assert.Equal(20, j)
 
 	//verify hash of all passwords
-	assert.Equal("f02d14c76443c00147f08fa3ad4789809547729d17329fbdf2df25471e290c57", hex.EncodeToString(sha.Sum(nil)))
+	assert.Equal("008634126acab8fdd6c34f123495a8d2d3ae9cd073e705cd12d506d71e63234a", hex.EncodeToString(sha.Sum(nil)))
 	
 }
