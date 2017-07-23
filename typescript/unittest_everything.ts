@@ -3,7 +3,7 @@ import util_test from  './util_test'
 import utf8_test from  './utf8_test'
 import hex_test from './hex_test'
 import sha256_test from './sha256_test'
-import hmacdrbg_test from './hmacdrbg_test'
+import {HmacCounterByteSource_test} from './HmacCounterByteSource_test'
 import bcrypt_test from './bcrypt_test'
 import parallel_bcrypt_test from './parallel_bcrypt_test'
 import {execute_parallel_bcrypt_webworkers_test} from './execute_parallel_bcrypt_webworkers_test';
@@ -25,8 +25,8 @@ async function run_tests() {
 	sha256_test();
 	console.log('sha256_test PASS');
 
-	hmacdrbg_test();
-	console.log('hmacdrbg_test PASS');
+	HmacCounterByteSource_test();
+	console.log('HmacCounterByteSource_test PASS');
 
 	bcrypt_test();
 	console.log('bcrypt_test PASS');

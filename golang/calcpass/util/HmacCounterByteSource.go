@@ -31,13 +31,12 @@ func NewHmacCounterByteSource(key []byte, maxCounter uint32) *HmacCounterByteSou
 		maxCounter: maxCounter,
 	}
 
-	res.fillBlock()
-	res.counter++
+	res.nextBlock()
 	
 	return res
 }
 
-func (self *HmacCounterByteSource) fillBlock() {
+func (self *HmacCounterByteSource) nextBlock() {
 	four := make([]byte, 4)
 	four[0] = byte((self.counter >> 24) & 0xFF)
 	four[1] = byte((self.counter >> 16) & 0xFF)
@@ -52,6 +51,9 @@ func (self *HmacCounterByteSource) fillBlock() {
 	self.hm.Reset()
 	self.hm.Write(four)
 	self.block = self.hm.Sum(nil)
+
+	self.counter++
+	self.blockOffset = 0
 }
 
 func (self *HmacCounterByteSource) NextByte() (byte, error) {
@@ -60,9 +62,7 @@ func (self *HmacCounterByteSource) NextByte() (byte, error) {
 			return 0, io.EOF
 		}
 
-		self.fillBlock()
-		self.counter++
-		self.blockOffset = 0
+		self.nextBlock()
 	}
 
 	b := self.block[self.blockOffset]

@@ -1,6 +1,7 @@
 import * as assert from './assert';
 import * as hex from './hex';
 import {stringToUTF8} from './utf8';
+import {byteSeq} from './util';
 import * as calcpass2017a from './calcpass2017a';
 import {execute_parallel_bcrypt_webworkers} from './execute_parallel_bcrypt_webworkers';
 
@@ -33,14 +34,7 @@ async function Test_StretchMasterPassword():Promise<boolean> {
 	return emptyPromise();
 }
 
-function byteSeq(start:number, count:number): Uint8Array {
-	let res = new Uint8Array(count);
-	for (let i = 0; i < count; i++) {
-		res[i] = (start + i) & 0xFF;
-	}
 
-	return res;
-}
 
 function Test_MakeSiteKey() {
 	let stretchedMaster = new calcpass2017a.StretchedMaster();

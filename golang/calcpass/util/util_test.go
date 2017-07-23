@@ -135,47 +135,6 @@ func TestHmacSha256(t *testing.T) {
 	assert.Equal("ea6c66229109f1321b0088c42111069e9794c3aed574e837b6e87c6d14931aef", hash)
 }
 
-func Test_HmacCounterByteSource(t *testing.T) {
-	assert := assert.New(t)
-
-	key := ByteSequence(1, 32)
-
-	src := NewHmacCounterByteSource(key, 3)
-	reader := &ByteSourceReader{Source: src}
-
-	//read the first 32 bytes
-	block := make([]byte, 32)
-	n, err := reader.Read(block)
-	assert.Equal(32, n)
-	assert.Nil(err)
-	assert.Equal(HmacSha256(key, []byte{0,0,0,0}), block)
-
-	//read 32 more
-	n, err = reader.Read(block)
-	assert.Equal(32, n)
-	assert.Nil(err)
-	assert.Equal(HmacSha256(key, []byte{0,0,0,1}), block)
-
-	//final 32
-	n, err = reader.Read(block)
-	assert.Equal(32, n)
-	assert.Nil(err)
-	assert.Equal(HmacSha256(key, []byte{0,0,0,2}), block)
-
-	//one more causes error
-	_, err = reader.Source.NextByte()
-	assert.True(err == io.EOF)
-
-	//Verify correct 32bit counting
-	src.maxCounter = 0xffffffff
-	src.counter = 0xABCDEF98
-	src.blockOffset = 32
-	
-	n, err = reader.Read(block)
-	assert.Equal(32, n)
-	assert.Nil(err)
-	assert.Equal(HmacSha256(key, []byte{0xAB,0xCD,0xEF,0x98}), block)
-}
 
 func TestSecureShuffleBytes(t *testing.T) {
 	assert := assert.New(t)

@@ -1,6 +1,84 @@
 (function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);var f=new Error("Cannot find module '"+o+"'");throw f.code="MODULE_NOT_FOUND",f}var l=n[o]={exports:{}};t[o][0].call(l.exports,function(e){var n=t[o][1][e];return s(n?n:e)},l,l.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
+var sha256 = require("./sha256");
+var util_1 = require("./util");
+var HmacCounterByteSource = (function () {
+    function HmacCounterByteSource(key, maxCounter) {
+        this.key = key;
+        this.maxCounter = maxCounter;
+        this.counter = 0;
+        this._nextBlock();
+    }
+    HmacCounterByteSource.prototype._nextBlock = function () {
+        var four = new Uint8Array(4);
+        four[0] = (this.counter >> 24) & 0xFF;
+        four[1] = (this.counter >> 16) & 0xFF;
+        four[2] = (this.counter >> 8) & 0xFF;
+        four[3] = this.counter & 0xFF;
+        //erase previous block
+        if (this.block)
+            util_1.erase(this.block);
+        this.block = sha256.hmac(this.key, four);
+        this.blockOffset = 0;
+        this.counter++;
+    };
+    HmacCounterByteSource.prototype.NextByte = function () {
+        if (this.blockOffset >= this.block.length) {
+            if (this.counter >= this.maxCounter) {
+                throw new Error('HmacCounterByteSource exhausted.');
+            }
+            this._nextBlock();
+        }
+        return this.block[this.blockOffset++];
+    };
+    return HmacCounterByteSource;
+}());
+exports.HmacCounterByteSource = HmacCounterByteSource;
+
+},{"./sha256":15,"./util":20}],2:[function(require,module,exports){
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+var HmacCounterByteSource_1 = require("./HmacCounterByteSource");
+var assert = require("./assert");
+var hex = require("./hex");
+var util_1 = require("./util");
+function readInto(dest, src) {
+    var count = dest.length;
+    for (var i = 0; i < count; i++) {
+        dest[i] = src.NextByte();
+    }
+}
+function HmacCounterByteSource_test() {
+    //Note: these test vectors were verified against the Go implementation
+    var key = util_1.byteSeq(1, 32);
+    var src = new HmacCounterByteSource_1.HmacCounterByteSource(key, 3);
+    //read the first 32 bytes
+    var block = new Uint8Array(32);
+    readInto(block, src);
+    assert.equal(hex.encode(block), "2c8463ac51f796043dcd8edc7d3dda424569314980cdd762a562ef88c1718ca0");
+    //read 32 more
+    readInto(block, src);
+    assert.equal(hex.encode(block), "3df609df0d17be5e19ba72218136e82546a973b1388c2e7beb95a9184355fe18");
+    //final 32
+    readInto(block, src);
+    assert.equal(hex.encode(block), "7b8da86c3ebdd0a2dc5dd679037d18ee079a25d585557790abeb9f4c3f21e46a");
+    //one more causes error
+    assert.throws(function () {
+        src.NextByte();
+    });
+    //Verify correct 32bit counting
+    src.maxCounter = 0xffffffff;
+    src.counter = 0xABCDEF98;
+    src.blockOffset = 32;
+    readInto(block, src);
+    assert.equal("5c126654874aef85c6e34130183cf70e36749eae73fa3d095c23063d6086e3af", hex.encode(block));
+}
+exports.HmacCounterByteSource_test = HmacCounterByteSource_test;
+
+},{"./HmacCounterByteSource":1,"./assert":3,"./hex":11,"./util":20}],3:[function(require,module,exports){
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
 exports.config = {
     logToConsole: true,
 };
@@ -83,7 +161,7 @@ function throws(func) {
 }
 exports.throws = throws;
 
-},{}],2:[function(require,module,exports){
+},{}],4:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 var assert = require("./assert");
@@ -138,7 +216,7 @@ function assert_test() {
 }
 exports.default = assert_test;
 
-},{"./assert":1}],3:[function(require,module,exports){
+},{"./assert":3}],5:[function(require,module,exports){
 /*The following is a bcrypt implementation which implements the bare minimum necessary
 for calcpass.  It is mostly a simplification of bcrypt.js (https://github.com/dcodeIO/bcrypt.js).
 Because much of the interals are copy/paste (with minor tweaks) it is a derived work and
@@ -692,7 +770,7 @@ var C_ORIG = [
     0x6f756274
 ];
 
-},{}],4:[function(require,module,exports){
+},{}],6:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 var assert = require("./assert");
@@ -741,7 +819,7 @@ function byteSeq(n) {
     return res;
 }
 
-},{"./assert":1,"./bcrypt":3,"./hex":9,"./utf8":18}],5:[function(require,module,exports){
+},{"./assert":3,"./bcrypt":5,"./hex":11,"./utf8":18}],7:[function(require,module,exports){
 "use strict";
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
     return new (P || (P = Promise))(function (resolve, reject) {
@@ -939,7 +1017,7 @@ export function MakeFriendlyPassword12a(seed:PasswordSeed):string {
     return s, nil
 }*/
 
-},{"./sha256":15,"./utf8":18,"./util":20}],6:[function(require,module,exports){
+},{"./sha256":15,"./utf8":18,"./util":20}],8:[function(require,module,exports){
 "use strict";
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
     return new (P || (P = Promise))(function (resolve, reject) {
@@ -980,6 +1058,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 var assert = require("./assert");
 var hex = require("./hex");
 var utf8_1 = require("./utf8");
+var util_1 = require("./util");
 var calcpass2017a = require("./calcpass2017a");
 var execute_parallel_bcrypt_webworkers_1 = require("./execute_parallel_bcrypt_webworkers");
 function emptyPromise() {
@@ -1015,22 +1094,15 @@ function Test_StretchMasterPassword() {
         });
     });
 }
-function byteSeq(start, count) {
-    var res = new Uint8Array(count);
-    for (var i = 0; i < count; i++) {
-        res[i] = (start + i) & 0xFF;
-    }
-    return res;
-}
 function Test_MakeSiteKey() {
     var stretchedMaster = new calcpass2017a.StretchedMaster();
-    stretchedMaster.bytes = byteSeq(1, 32);
+    stretchedMaster.bytes = util_1.byteSeq(1, 32);
     var sitekey = calcpass2017a.MakeSiteKey(stretchedMaster, " \t\nExAmPle.CoM \r", 0);
     assert.equal(hex.encode(sitekey.bytes), "6c95536db40ee491011c5159a5990e39a5ff09dae396559fe7b2413c4308bc62");
 }
 function Test_MixSiteAndCard() {
     var sitekey = new calcpass2017a.SiteKey();
-    sitekey.bytes = byteSeq(1, 32);
+    sitekey.bytes = util_1.byteSeq(1, 32);
     var mixed = calcpass2017a.MixSiteAndCard(sitekey, " \n\tQwErTyUi \r\t");
     assert.equal(hex.encode(mixed.bytes), "6e8c0b5448f31396a04b1139b0ec43308e55192340610a564107bfde8dccc8dc");
 }
@@ -1041,7 +1113,7 @@ function Test_StretchSiteCardMix() {
             switch (_a.label) {
                 case 0:
                     mixed = new calcpass2017a.SiteCardMix();
-                    mixed.bytes = byteSeq(1, 32);
+                    mixed.bytes = util_1.byteSeq(1, 32);
                     console.log('  stretching...');
                     return [4 /*yield*/, calcpass2017a.StretchSiteCardMix(mixed, setup_bcrypt())];
                 case 1:
@@ -1073,7 +1145,7 @@ function calcpass2017a_test() {
 }
 exports.calcpass2017a_test = calcpass2017a_test;
 
-},{"./assert":1,"./calcpass2017a":5,"./execute_parallel_bcrypt_webworkers":7,"./hex":9,"./utf8":18}],7:[function(require,module,exports){
+},{"./assert":3,"./calcpass2017a":7,"./execute_parallel_bcrypt_webworkers":9,"./hex":11,"./utf8":18,"./util":20}],9:[function(require,module,exports){
 /**Spawn Web Worker threads to compute part of the parallel bcrypt hash.*/
 "use strict";
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
@@ -1222,7 +1294,7 @@ function execute_parallel_bcrypt_webworkers(numThreads, plaintextPassword, salt,
 }
 exports.execute_parallel_bcrypt_webworkers = execute_parallel_bcrypt_webworkers;
 
-},{"./hex":9,"./parallel_bcrypt":13}],8:[function(require,module,exports){
+},{"./hex":11,"./parallel_bcrypt":13}],10:[function(require,module,exports){
 "use strict";
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
     return new (P || (P = Promise))(function (resolve, reject) {
@@ -1288,7 +1360,7 @@ function execute_parallel_bcrypt_webworkers_test() {
 }
 exports.execute_parallel_bcrypt_webworkers_test = execute_parallel_bcrypt_webworkers_test;
 
-},{"./assert":1,"./execute_parallel_bcrypt_webworkers":7,"./hex":9,"./utf8":18}],9:[function(require,module,exports){
+},{"./assert":3,"./execute_parallel_bcrypt_webworkers":9,"./hex":11,"./utf8":18}],11:[function(require,module,exports){
 /**Convert arrays of octets to and from hex strings*/
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
@@ -1343,7 +1415,7 @@ function decode(str) {
 }
 exports.decode = decode;
 
-},{}],10:[function(require,module,exports){
+},{}],12:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 var hex = require("./hex");
@@ -1383,258 +1455,7 @@ function hex_test() {
 }
 exports.default = hex_test;
 
-},{"./assert":1,"./hex":9}],11:[function(require,module,exports){
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-/*This Implements HMAC_DRBG in TypeScript, as per NIST Special Publication 800-90A.
-It is a port of my Go implementation https://github.com/cruxic/go-hmac-drbg which
- was in turn ported from https://github.com/fpgaminer/python-hmac-drbg
-*/
-var sha256 = require("./sha256");
-/**937 bytes (~7500 bits) as per the spec.*/
-exports.MaxBytesPerGenerate = 937; // ~ 7500bits/8
-/**Entropy for NewHmacDrbg() and Reseed() must never exceed this number of bytes.*/
-exports.MaxEntropyBytes = 125; // = 1000bits
-exports.MaxPersonalizationBytes = 32; // = 256bits
-function _hmac(key, message) {
-    return sha256.hmac(key, message);
-}
-//Because TypedArray.fill() is not supported by older browsers.
-function fill(data, value) {
-    for (var i = 0; i < data.length; i++)
-        data[i] = value;
-}
-var HmacDrbg = (function () {
-    /**Create a new DRBG.
-    desiredSecurityLevelBits must be one of 112, 128, 192, 256.
-
-    entropy length (in bits) must be at least 1.5 times securityLevelBits.
-    entropy byte length cannot exceed MaxEntropyBytes.
-
-    The personalization can be nil.  If non-nil, it's byte length cannot exceed MaxPersonalizationBytes.
-
-    If any of the parameters are out-of-range this function will panic.
-    */
-    function HmacDrbg(securityLevelBits, entropy, personalization) {
-        if (securityLevelBits != 112 &&
-            securityLevelBits != 128 &&
-            securityLevelBits != 192 &&
-            securityLevelBits != 256) {
-            throw new Error("Illegal desiredSecurityLevelBits");
-        }
-        if (entropy.length > exports.MaxEntropyBytes) {
-            throw new Error("Input entropy too large");
-        }
-        if ((entropy.length * 8 * 2) < (securityLevelBits * 3)) {
-            throw new Error("Insufficient entropy for security level");
-        }
-        if (personalization !== null && personalization.length > exports.MaxPersonalizationBytes) {
-            throw new Error("Personalization too long");
-        }
-        this.SecurityLevelBits = securityLevelBits;
-        this.k = new Uint8Array(32);
-        this.v = new Uint8Array(32);
-        this.reseedCounter = 1;
-        //Instantiate
-        //k already holds 0x00.
-        //Fill v with 0x01.
-        fill(this.v, 0x01);
-        var nPers = (personalization !== null) ? personalization.length : 0;
-        var seed = new Uint8Array(entropy.length + nPers);
-        seed.set(entropy, 0); //copy from entropy to seed
-        if (personalization !== null) {
-            //append personalization
-            seed.set(personalization, entropy.length);
-        }
-        this.update(seed);
-    }
-    HmacDrbg.prototype.update = function (providedData) {
-        var nProvided = (providedData !== null) ? providedData.length : 0;
-        var msg = new Uint8Array(this.v.length + 1 + nProvided);
-        msg.set(this.v); //copy v to msg
-        //leave hole with 0x00 at msg[len(this.v)]
-        if (providedData != null) {
-            msg.set(providedData, this.v.length + 1);
-        }
-        this.k = _hmac(this.k, msg);
-        this.v = _hmac(this.k, this.v);
-        if (providedData != null) {
-            msg.set(this.v);
-            msg[this.v.length] = 0x01;
-            msg.set(providedData, this.v.length + 1);
-            this.k = _hmac(this.k, msg);
-            this.v = _hmac(this.k, this.v);
-        }
-    };
-    HmacDrbg.prototype.Reseed = function (entropy) {
-        if (entropy.length * 8 < this.SecurityLevelBits) {
-            throw new Error("Reseed entropy is less than security-level");
-        }
-        if (entropy.length > exports.MaxEntropyBytes) {
-            throw new Error("Reseed entropy exceeds MaxEntropyBytes");
-        }
-        this.update(entropy);
-        this.reseedCounter = 1;
-    };
-    /**Fill the given byte array with random bytes.
-    Returns false if a reseed is necessary first.
-    This function will panic if the array is larger than MaxBytesPerGenerate.*/
-    HmacDrbg.prototype.Generate = function (outputBytes) {
-        var nWanted = outputBytes.length;
-        if (nWanted > exports.MaxBytesPerGenerate) {
-            throw new Error("HmacDrbg: generate request too large.");
-        }
-        if (this.reseedCounter >= 10000) {
-            //set all bytes to zero, just to be clear
-            fill(outputBytes, 0);
-            return false;
-        }
-        var nGen = 0;
-        var n;
-        while (nGen < nWanted) {
-            this.v = _hmac(this.k, this.v);
-            n = nWanted - nGen;
-            if (n >= this.v.length) {
-                n = this.v.length;
-                outputBytes.set(this.v, nGen);
-                nGen += this.v.length;
-            }
-            else {
-                for (var i = 0; i < n; i++)
-                    outputBytes[nGen++] = this.v[i];
-            }
-        }
-        this.update(null);
-        this.reseedCounter++;
-        return true;
-    };
-    return HmacDrbg;
-}());
-exports.HmacDrbg = HmacDrbg;
-/**Read from an arbitrary number of bytes from HmacDrbg efficiently.
-Internally it generates blocks of MaxBytesPerGenerate.  It then
-serves these out through the standard `Read` function.  Read returns
-an error if reseed becomes is necessary.
-*/
-/*
-type HmacDrbgReader struct {
-    Drbg *HmacDrbg
-    buffer []byte //size MaxBytesPerGenerate
-    offset int
-}
-
-
-func NewHmacDrbgReader(drbg *HmacDrbg) *HmacDrbgReader {
-    return &HmacDrbgReader{
-        Drbg: drbg,
-        buffer: make([]byte, MaxBytesPerGenerate),
-        offset: MaxBytesPerGenerate,
-    }
-}
-
-func (self *HmacDrbgReader) Read(b []byte) (n int, err error) {
-    nRead := 0
-    nWanted := len(b)
-    for nRead < nWanted {
-        if this.offset >= MaxBytesPerGenerate {
-            if !this.Drbg.Generate(this.buffer) {
-                return nRead, errors.New("MUST_RESEED")
-            }
-            this.offset = 0
-        }
-        
-        b[nRead] = this.buffer[this.offset]
-        nRead++
-        this.offset++
-    }
-    
-    return nRead, nil
-}
-*/
-
-},{"./sha256":15}],12:[function(require,module,exports){
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-var hmacdrbg_1 = require("./hmacdrbg");
-var sha256 = require("./sha256");
-var assert = require("./assert");
-//import {stringToUTF8} from './utf8'
-var hex = require("./hex");
-//This test suite was ported from go-hmac-drbg
-function hmacdrbg_test() {
-    TestBasic();
-    TestNIST1();
-    TestAllGenerationLengths();
-}
-exports.default = hmacdrbg_test;
-function TestBasic() {
-    //These test vectors generated with https://github.com/fpgaminer/python-hmac-drbg
-    var seed48 = hex.decode("b0a1f6d9707cc52b876d4a0ed0dd11718827f86f2c2405f7f9e068d9f5439e48531655d5b0d8170a389d9c176748f3f5");
-    var e1 = hex.decode("550a8ad9e22d359c31e356efda");
-    var e2 = hex.decode("16610f2eb23ccfde34fda35458cdeafc661ea67eb89c19223a28aab8353f322c7c");
-    var e3 = hex.decode("e16bd5223256eab3f11ead68fa217e529307f5553ceecbfe96d8e2963d0d3f4b8588dec6d7d9410f1b4e3441c088e5a4d4441b8b74e23ad7f3c5312df3211601c79ee27a09dd0fc75f60d760b5c0ac0d72dd51161cb210703f0b5a307e62a14479d895c1ae73b8e3a694d8ec3d6655b949ea46b9ec07f3212de636ea717d6bb48ea5792534d1c42abaab79a761ef6b4f658d0b0c780f224a447ba63962c2943b721a44402fe1ffa667d3dbca7166aa356eba8d1fe1b5f5a5eed3c2d5139381b3ce12a3d11a3714e41639bf315810b3fd2ce5ab4086a1ea6827fb4c9d9680625f46858cf76d0622a4e9faf2507483208b632cd30817d459c4135d815f3c642188bee0eabd86f5c3faf622a5406873378eb6f59bd8fce24d3c17397af919f3f60d2b7f45fbccc205b477f38df6b0861bd155fbbdc11ea48dda7a1762b4133035b7a95b6becb17b4cdda86eed667c");
-    var rng = new hmacdrbg_1.HmacDrbg(256, seed48, null);
-    var got = new Uint8Array(e1.length);
-    assert.isTrue(rng.Generate(got));
-    assert.equalArray(got, e1);
-    got = new Uint8Array(e2.length);
-    assert.isTrue(rng.Generate(got));
-    assert.equalArray(got, e2);
-    got = new Uint8Array(e3.length);
-    assert.isTrue(rng.Generate(got));
-    assert.equalArray(got, e3);
-    //With personalization string and reseed
-    seed48 = hex.decode("c081232e6627b050e05a34cba6de97f6410a5e52739316443026cb2a40b5fe7648cea25464a79226bf97ef626a1a2579");
-    var pers = hex.decode("d5ae166c587fd664e1a9e32b29");
-    var reseed43 = hex.decode("a7428e1be103930fed246c5e934a4bf5685a340e16db08c0ffef857332f1d96464f12f8da7a5ddfcb76cb6");
-    e1 = hex.decode("52292951368094b5a6c4af0346");
-    e2 = hex.decode("1371416f080b0b0471678e80f4a5c23f614a1937c45f1eb7a60b7cc13a03af4579");
-    rng = new hmacdrbg_1.HmacDrbg(256, seed48, pers);
-    got = new Uint8Array(e1.length);
-    assert.isTrue(rng.Generate(got));
-    assert.equalArray(got, e1);
-    rng.Reseed(reseed43);
-    got = new Uint8Array(e2.length);
-    assert.isTrue(rng.Generate(got));
-    assert.equalArray(got, e2);
-}
-function TestNIST1() {
-    //I think these are official test vectors from NIST.  I got them from:
-    // https://github.com/fpgaminer/python-hmac-drbg/blob/master/HMAC_DRBG.rsp
-    var EntropyInput = "fa0ee1fe39c7c390aa94159d0de97564342b591777f3e5f6a4ba2aea342ec840";
-    var Nonce = "dd0820655cb2ffdb0da9e9310a67c9e5";
-    var PersonalizationString = hex.decode("f2e58fe60a3afc59dad37595415ffd318ccf69d67780f6fa0797dc9aa43e144c");
-    var EntropyInputReseed = hex.decode("e0629b6d7975ddfa96a399648740e60f1f9557dc58b3d7415f9ba9d4dbb501f6");
-    var ReturnedBits = hex.decode("f92d4cf99a535b20222a52a68db04c5af6f5ffc7b66a473a37a256bd8d298f9b4aa4af7e8d181e02367903f93bdb744c6c2f3f3472626b40ce9bd6a70e7b8f93992a16a76fab6b5f162568e08ee6c3e804aefd952ddd3acb791c50f2ad69e9a04028a06a9c01d3a62aca2aaf6efe69ed97a016213a2dd642b4886764072d9cbe");
-    var seed48 = hex.decode(EntropyInput + Nonce);
-    var rng = new hmacdrbg_1.HmacDrbg(256, seed48, PersonalizationString);
-    rng.Reseed(EntropyInputReseed);
-    var got = new Uint8Array(ReturnedBits.length);
-    assert.isTrue(rng.Generate(got));
-    //yes, ignore the first batch of generated data
-    assert.isTrue(rng.Generate(got));
-    assert.equalArray(got, ReturnedBits);
-}
-function TestAllGenerationLengths() {
-    //I created this test vector with https://github.com/fpgaminer/python-hmac-drbg
-    var seed48 = new Uint8Array(48);
-    for (var i = 0; i < seed48.length; i++) {
-        seed48[i] = 97; //'a'
-    }
-    var rng = new hmacdrbg_1.HmacDrbg(256, seed48, null);
-    var h = new sha256.Hash();
-    //Test all valid Generate lengths
-    for (var n = 1; n <= hmacdrbg_1.MaxBytesPerGenerate; n++) {
-        var buf = new Uint8Array(n);
-        assert.isTrue(rng.Generate(buf));
-        h.update(buf);
-    }
-    var got = h.digest();
-    var expect = hex.decode("ee5fb7498d044ad52dac5a4e6446da71a253d024985f4969dad8590e93890be3");
-    assert.equalArray(got, expect);
-}
-
-},{"./assert":1,"./hex":9,"./hmacdrbg":11,"./sha256":15}],13:[function(require,module,exports){
+},{"./assert":3,"./hex":11}],13:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 var bcrypt = require("./bcrypt");
@@ -1715,7 +1536,7 @@ function hashWithSingleThread(numSimulatedThreads, plaintextPassword, salt, cost
 }
 exports.hashWithSingleThread = hashWithSingleThread;
 
-},{"./bcrypt":3,"./hex":9,"./sha256":15,"./utf8":18}],14:[function(require,module,exports){
+},{"./bcrypt":5,"./hex":11,"./sha256":15,"./utf8":18}],14:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 var assert = require("./assert");
@@ -1755,7 +1576,7 @@ function parallel_bcrypt_test() {
 }
 exports.default = parallel_bcrypt_test;
 
-},{"./assert":1,"./bcrypt":3,"./hex":9,"./parallel_bcrypt":13,"./utf8":18}],15:[function(require,module,exports){
+},{"./assert":3,"./bcrypt":5,"./hex":11,"./parallel_bcrypt":13,"./utf8":18}],15:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 //Copied from: https://github.com/dchest/fast-sha256-js
@@ -2234,7 +2055,7 @@ if __name__ == '__main__':
 
 */
 
-},{"./assert":1,"./hex":9,"./sha256":15,"./utf8":18}],17:[function(require,module,exports){
+},{"./assert":3,"./hex":11,"./sha256":15,"./utf8":18}],17:[function(require,module,exports){
 "use strict";
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
     return new (P || (P = Promise))(function (resolve, reject) {
@@ -2277,7 +2098,7 @@ var util_test_1 = require("./util_test");
 var utf8_test_1 = require("./utf8_test");
 var hex_test_1 = require("./hex_test");
 var sha256_test_1 = require("./sha256_test");
-var hmacdrbg_test_1 = require("./hmacdrbg_test");
+var HmacCounterByteSource_test_1 = require("./HmacCounterByteSource_test");
 var bcrypt_test_1 = require("./bcrypt_test");
 var parallel_bcrypt_test_1 = require("./parallel_bcrypt_test");
 var execute_parallel_bcrypt_webworkers_test_1 = require("./execute_parallel_bcrypt_webworkers_test");
@@ -2297,8 +2118,8 @@ function run_tests() {
                     console.log('hex_test PASS');
                     sha256_test_1.default();
                     console.log('sha256_test PASS');
-                    hmacdrbg_test_1.default();
-                    console.log('hmacdrbg_test PASS');
+                    HmacCounterByteSource_test_1.HmacCounterByteSource_test();
+                    console.log('HmacCounterByteSource_test PASS');
                     bcrypt_test_1.default();
                     console.log('bcrypt_test PASS');
                     parallel_bcrypt_test_1.default();
@@ -2320,7 +2141,7 @@ function run_tests() {
 }
 window.addEventListener("load", function (e) { run_tests(); });
 
-},{"./assert_test":2,"./bcrypt_test":4,"./calcpass2017a_test":6,"./execute_parallel_bcrypt_webworkers_test":8,"./hex_test":10,"./hmacdrbg_test":12,"./parallel_bcrypt_test":14,"./sha256_test":16,"./utf8_test":19,"./util_test":21}],18:[function(require,module,exports){
+},{"./HmacCounterByteSource_test":2,"./assert_test":4,"./bcrypt_test":6,"./calcpass2017a_test":8,"./execute_parallel_bcrypt_webworkers_test":10,"./hex_test":12,"./parallel_bcrypt_test":14,"./sha256_test":16,"./utf8_test":19,"./util_test":21}],18:[function(require,module,exports){
 /**Convert a unicode string to a Uint8Array of UTF-8 octets.*/
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
@@ -2368,7 +2189,7 @@ function stringToUTF8_test() {
 }
 exports.default = stringToUTF8_test;
 
-},{"./assert":1,"./utf8":18}],20:[function(require,module,exports){
+},{"./assert":3,"./utf8":18}],20:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 /**Write zero into any array-like object.*/
@@ -2377,12 +2198,22 @@ function erase(array) {
         array[i] = 0;
 }
 exports.erase = erase;
+/**Build an incrementing sequence of bytes (handy for unit testing).*/
+function byteSeq(start, count) {
+    var res = new Uint8Array(count);
+    for (var i = 0; i < count; i++) {
+        res[i] = (start + i) & 0xFF;
+    }
+    return res;
+}
+exports.byteSeq = byteSeq;
 
 },{}],21:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 var util = require("./util");
 var assert = require("./assert");
+//import * as hex from './hex'
 function util_test() {
     var ar = [1, 2, 3];
     util.erase(ar);
@@ -2390,7 +2221,8 @@ function util_test() {
     var bytes = new Uint8Array([1, 2, 3]);
     util.erase(bytes);
     assert.equal(0, bytes[2]);
+    assert.equalArray(util.byteSeq(3, 5), [3, 4, 5, 6, 7]);
 }
 exports.default = util_test;
 
-},{"./assert":1,"./util":20}]},{},[17]);
+},{"./assert":3,"./util":20}]},{},[17]);
