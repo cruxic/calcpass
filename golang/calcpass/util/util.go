@@ -76,27 +76,28 @@ func UnbiasedSmallInt(source ByteSource, n int) (int, error) {
 	//Solution from:
 	//  https://zuttobenkyou.wordpress.com/2012/10/18/generating-random-numbers-without-modulo-bias/
 
-	var err error;
-	var b byte;
+	var err error
+	var b byte
+	var r, limit int
 	const randmax = 255
 	
-	if n > (randmax + 1) {
-		return -1, errors.New("UnbiasedSmallInt: n too large");
+	if n <= 0 || n > (randmax + 1) {
+		return -1, errors.New("UnbiasedSmallInt: n out of range");
 	}
 	
-	rand_limit := randmax - ((randmax+1) % n);
-	r := rand_limit + 1;
+	limit = randmax - ((randmax+1) % n)
 	
-	for r > rand_limit {
-		b, err = source.NextByte();
+	for {
+		b, err = source.NextByte()
 		if err != nil {
-			return -1, err;
+			return -1, err
 		}
 
-		r = int(b);
+		r = int(b)
+		if r <= limit {
+			return r % n, nil
+		}
 	}
-
-	return r % n, nil;
 }
 
 /**Fill given slice with zeros.*/

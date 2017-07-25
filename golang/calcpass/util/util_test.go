@@ -36,6 +36,24 @@ func (self *cycle_byte_source) NextByte() (byte, error) {
 	return b, nil
 }
 
+type one_byte_source struct {
+	b byte
+	done bool
+}
+
+func (self *one_byte_source) reset(b byte) {
+	self.b = b
+	self.done = false
+}
+
+func (self *one_byte_source) NextByte() (byte, error) {
+	if self.done {
+		return 0, io.EOF
+	}
+	self.done = true
+	return self.b, nil
+}
+
 type rand_int8_func func (ByteSource, int)(int,error)
 
 func hasGoodDistribution(src ByteSource, fn rand_int8_func, n int) bool {
@@ -92,6 +110,17 @@ func baseline_rand_int8(source ByteSource, n int) (int, error) {
 	}
 }
 
+func spotcheck_UnbiasedSmallInt(input byte, n int) int {
+	obs := &one_byte_source{b: input}
+
+	v, err := UnbiasedSmallInt(obs, n)
+	if err != nil {
+		v = -1
+	}
+	
+	return v
+}
+
 func TestUnbiasedSmallInt(t *testing.T) {
 	assert := assert.New(t)
 
@@ -118,12 +147,41 @@ func TestUnbiasedSmallInt(t *testing.T) {
 	src.reset()
 	_, err := UnbiasedSmallInt(src, 257)
 	assert.NotNil(err)
+
+	//n too small
+	src.reset()
+	_, err = UnbiasedSmallInt(src, 0)
+	assert.NotNil(err)
 	
 	//souce exhausted
 	src.reset()
 	src.cycleCount = src.maxCycleCount + 1
 	_, err = UnbiasedSmallInt(src, 26)
 	assert.NotNil(err)
+
+	//spot check with n == 26.  random bytes >= 234 will be discarded 
+	assert.Equal(10, spotcheck_UnbiasedSmallInt(10, 26))
+	assert.Equal(0, spotcheck_UnbiasedSmallInt(26, 26))
+	assert.Equal(22, spotcheck_UnbiasedSmallInt(100, 26))
+	assert.Equal(24, spotcheck_UnbiasedSmallInt(232, 26))
+	assert.Equal(25, spotcheck_UnbiasedSmallInt(233, 26))
+	assert.Equal(-1, spotcheck_UnbiasedSmallInt(234, 26))
+	assert.Equal(-1, spotcheck_UnbiasedSmallInt(235, 26))
+	assert.Equal(-1, spotcheck_UnbiasedSmallInt(255, 26))
+	
+	//spot check with n == 10.  random bytes >= 250 will be discarded 
+	assert.Equal(3, spotcheck_UnbiasedSmallInt(3, 10))
+	assert.Equal(0, spotcheck_UnbiasedSmallInt(10, 10))
+	assert.Equal(7, spotcheck_UnbiasedSmallInt(17, 10))
+	assert.Equal(8, spotcheck_UnbiasedSmallInt(248, 10))
+	assert.Equal(9, spotcheck_UnbiasedSmallInt(249, 10))
+	assert.Equal(-1, spotcheck_UnbiasedSmallInt(250, 10))
+	assert.Equal(-1, spotcheck_UnbiasedSmallInt(251, 10))
+	assert.Equal(-1, spotcheck_UnbiasedSmallInt(255, 10))
+
+	//spot check with n == 256
+	assert.Equal(254, spotcheck_UnbiasedSmallInt(254, 256))
+	assert.Equal(255, spotcheck_UnbiasedSmallInt(255, 256))
 }
 
 //Make sure I'm using hmac and sha256 correctly
