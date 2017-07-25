@@ -1,6 +1,7 @@
 import * as sha256 from './sha256';
 import {erase} from './util';
 
+//implements ByteSource
 export class HmacCounterByteSource {
 	key:Uint8Array;
 	maxCounter:number;

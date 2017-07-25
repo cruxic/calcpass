@@ -1,6 +1,7 @@
 import * as sha256 from './sha256';
 import {stringToUTF8} from './utf8';
-import {erase} from './util';
+import {erase, UnbiasedSmallInt} from './util';
+import {HmacCounterByteSource} from './HmacCounterByteSource';
 
 const bcryptCost_2017a = 13;
 
@@ -117,42 +118,31 @@ export async function StretchSiteCardMix(siteCardMix:SiteCardMix,
 	return new Promise<PasswordSeed>((resolve) => {resolve(ps);});
 }
 
-/*
 export function MakeFriendlyPassword12a(seed:PasswordSeed):string {
-	rng := util.NewHmacDrbgByteSource([]byte(seed))
+	let rng = new HmacCounterByteSource(seed.bytes, 128);
 
-	chars := make([]byte, 12)
+	let chars = '';
+	let b:number;
 
-	const ascii_a = 0x61
-	const ascii_A = 0x41
-	const ascii_0 = 0x30
+	const ascii_a = 0x61;
+	const ascii_A = 0x41;
+	const ascii_0 = 0x30;
 
 	//Select 11 a-z characters
-	for i := 0; i < 11; i++ {
-		b, err := util.UnbiasedSmallInt(rng, 26)
-		if err != nil {
-			//HMAC-DRBG exhausted - extremely unlikely
-			return "", err
-		}
+	for (let i = 0; i < 11; i++) {
+		b = UnbiasedSmallInt(rng, 26);
 
 		//Capitalize the first char
-		if i == 0 {
-			chars[i] = byte(ascii_A + b)
+		if (i == 0) {
+			chars += String.fromCharCode(ascii_A + b);
 		} else {
-			chars[i] = byte(ascii_a + b)
+			chars += String.fromCharCode(ascii_a + b);
 		}
 	}
 
 	//Select 0-9
-	b, err := util.UnbiasedSmallInt(rng, 10)
-	if err != nil {
-		return "", err
-	}
-	chars[11] = byte(b + ascii_0)
-
-	s := string(chars)
-	util.Erase(chars)
+	b = UnbiasedSmallInt(rng, 10);
+	chars += String.fromCharCode(b + ascii_0);
 	
-	return s, nil
-}*/
-
+	return chars;
+}

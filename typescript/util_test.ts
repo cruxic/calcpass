@@ -24,8 +24,9 @@ function spotcheck_UnbiasedSmallInt(inputByte:number, n:number):number {
 		return util.UnbiasedSmallInt(src, n);
 	}
 	catch (e) {
-		//error contains 'SourceOfOne_DONE' ?
-		if ((''+e).indexOf('SourceOfOne_DONE') >= 0)
+		let errstr = '' + e;
+		//error contains 'SourceOfOne_DONE' or 'n out of range' ?
+		if (errstr.indexOf('SourceOfOne_DONE') >= 0 || errstr.indexOf('n out of range') >= 0)
 			return -1;
 		else
 			throw e;

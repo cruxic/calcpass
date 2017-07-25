@@ -34,7 +34,7 @@ export function UnbiasedSmallInt(source:ByteSource, n:number):number {
 	const randmax = 255;
 	
 	if (n <= 0 || n > (randmax + 1) || n !== Math.floor(n)) {
-		throw new Error("UnbiasedSmallInt: n out of range");
+		throw new Error("UnbiasedSmallInt: n out of range: " + n);
 	}
 	
 	let limit = randmax - ((randmax+1) % n)

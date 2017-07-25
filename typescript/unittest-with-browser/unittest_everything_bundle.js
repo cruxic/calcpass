@@ -3,6 +3,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 var sha256 = require("./sha256");
 var util_1 = require("./util");
+//implements ByteSource
 var HmacCounterByteSource = (function () {
     function HmacCounterByteSource(key, maxCounter) {
         this.key = key;
@@ -860,6 +861,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 var sha256 = require("./sha256");
 var utf8_1 = require("./utf8");
 var util_1 = require("./util");
+var HmacCounterByteSource_1 = require("./HmacCounterByteSource");
 var bcryptCost_2017a = 13;
 var StretchedMaster = (function () {
     function StretchedMaster() {
@@ -978,46 +980,32 @@ function StretchSiteCardMix(siteCardMix, pbcrypt) {
     });
 }
 exports.StretchSiteCardMix = StretchSiteCardMix;
-/*
-export function MakeFriendlyPassword12a(seed:PasswordSeed):string {
-    rng := util.NewHmacDrbgByteSource([]byte(seed))
-
-    chars := make([]byte, 12)
-
-    const ascii_a = 0x61
-    const ascii_A = 0x41
-    const ascii_0 = 0x30
-
+function MakeFriendlyPassword12a(seed) {
+    var rng = new HmacCounterByteSource_1.HmacCounterByteSource(seed.bytes, 128);
+    var chars = '';
+    var b;
+    var ascii_a = 0x61;
+    var ascii_A = 0x41;
+    var ascii_0 = 0x30;
     //Select 11 a-z characters
-    for i := 0; i < 11; i++ {
-        b, err := util.UnbiasedSmallInt(rng, 26)
-        if err != nil {
-            //HMAC-DRBG exhausted - extremely unlikely
-            return "", err
-        }
-
+    for (var i = 0; i < 11; i++) {
+        b = util_1.UnbiasedSmallInt(rng, 26);
         //Capitalize the first char
-        if i == 0 {
-            chars[i] = byte(ascii_A + b)
-        } else {
-            chars[i] = byte(ascii_a + b)
+        if (i == 0) {
+            chars += String.fromCharCode(ascii_A + b);
+        }
+        else {
+            chars += String.fromCharCode(ascii_a + b);
         }
     }
-
     //Select 0-9
-    b, err := util.UnbiasedSmallInt(rng, 10)
-    if err != nil {
-        return "", err
-    }
-    chars[11] = byte(b + ascii_0)
+    b = util_1.UnbiasedSmallInt(rng, 10);
+    chars += String.fromCharCode(b + ascii_0);
+    return chars;
+}
+exports.MakeFriendlyPassword12a = MakeFriendlyPassword12a;
 
-    s := string(chars)
-    util.Erase(chars)
-    
-    return s, nil
-}*/
-
-},{"./sha256":15,"./utf8":18,"./util":20}],8:[function(require,module,exports){
+},{"./HmacCounterByteSource":1,"./sha256":15,"./utf8":18,"./util":20}],8:[function(require,module,exports){
 "use strict";
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
     return new (P || (P = Promise))(function (resolve, reject) {
@@ -1057,6 +1045,7 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
 Object.defineProperty(exports, "__esModule", { value: true });
 var assert = require("./assert");
 var hex = require("./hex");
+var sha256 = require("./sha256");
 var utf8_1 = require("./utf8");
 var util_1 = require("./util");
 var calcpass2017a = require("./calcpass2017a");
@@ -1124,17 +1113,39 @@ function Test_StretchSiteCardMix() {
         });
     });
 }
+function Test_MakeFriendlyPassword12a() {
+    var seed = new calcpass2017a.PasswordSeed();
+    seed.bytes = util_1.byteSeq(1, 32);
+    assert.equal(calcpass2017a.MakeFriendlyPassword12a(seed), 'Scvqduejxmm5');
+    //change seed
+    seed.bytes[31]++;
+    assert.equal(calcpass2017a.MakeFriendlyPassword12a(seed), 'Ikvruuyldov1');
+    //checksum of 20 different seeds (verified against Go program)
+    seed.bytes = util_1.byteSeq(1, 32);
+    var sha = new sha256.Hash();
+    var pass;
+    var j = 0;
+    for (var i = 0; i < 20; i++) {
+        //modify seed
+        seed.bytes[j % 32]++;
+        j++;
+        pass = calcpass2017a.MakeFriendlyPassword12a(seed);
+        sha.update(utf8_1.stringToUTF8(pass));
+    }
+    assert.equal(hex.encode(sha.digest()), '008634126acab8fdd6c34f123495a8d2d3ae9cd073e705cd12d506d71e63234a');
+}
 function calcpass2017a_test() {
     return __awaiter(this, void 0, void 0, function () {
         return __generator(this, function (_a) {
             switch (_a.label) {
                 case 0:
                     assert.isTrue(calcpass2017a.isSaneEmail('a@b.c'));
+                    Test_MakeSiteKey();
+                    Test_MixSiteAndCard();
+                    Test_MakeFriendlyPassword12a();
                     return [4 /*yield*/, Test_StretchMasterPassword()];
                 case 1:
                     _a.sent();
-                    Test_MakeSiteKey();
-                    Test_MixSiteAndCard();
                     return [4 /*yield*/, Test_StretchSiteCardMix()];
                 case 2:
                     _a.sent();
@@ -1145,7 +1156,7 @@ function calcpass2017a_test() {
 }
 exports.calcpass2017a_test = calcpass2017a_test;
 
-},{"./assert":3,"./calcpass2017a":7,"./execute_parallel_bcrypt_webworkers":9,"./hex":11,"./utf8":18,"./util":20}],9:[function(require,module,exports){
+},{"./assert":3,"./calcpass2017a":7,"./execute_parallel_bcrypt_webworkers":9,"./hex":11,"./sha256":15,"./utf8":18,"./util":20}],9:[function(require,module,exports){
 /**Spawn Web Worker threads to compute part of the parallel bcrypt hash.*/
 "use strict";
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
@@ -2192,6 +2203,7 @@ exports.default = stringToUTF8_test;
 },{"./assert":3,"./utf8":18}],20:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
+;
 /**Write zero into any array-like object.*/
 function erase(array) {
     for (var i = 0; i < array.length; i++)
@@ -2207,6 +2219,27 @@ function byteSeq(start, count) {
     return res;
 }
 exports.byteSeq = byteSeq;
+/**Create a random integer from [0, n) where n is <= 256.
+This function returns uniformly distributed numbers (no modulo bias).
+
+Throws an error if the random source is exhausted or n exceeds 256.
+*/
+function UnbiasedSmallInt(source, n) {
+    //Solutions from:
+    //  https://zuttobenkyou.wordpress.com/2012/10/18/generating-random-numbers-without-modulo-bias/
+    var randmax = 255;
+    if (n <= 0 || n > (randmax + 1) || n !== Math.floor(n)) {
+        throw new Error("UnbiasedSmallInt: n out of range: " + n);
+    }
+    var limit = randmax - ((randmax + 1) % n);
+    var r;
+    while (true) {
+        r = source.NextByte();
+        if (r <= limit)
+            return r % n;
+    }
+}
+exports.UnbiasedSmallInt = UnbiasedSmallInt;
 
 },{}],21:[function(require,module,exports){
 "use strict";
@@ -2214,6 +2247,60 @@ Object.defineProperty(exports, "__esModule", { value: true });
 var util = require("./util");
 var assert = require("./assert");
 //import * as hex from './hex'
+var SourceOfOne = (function () {
+    function SourceOfOne(b) {
+        this.b = b;
+        this.done = false;
+    }
+    SourceOfOne.prototype.NextByte = function () {
+        if (this.done)
+            throw new Error('SourceOfOne_DONE');
+        this.done = true;
+        return this.b;
+    };
+    return SourceOfOne;
+}());
+function spotcheck_UnbiasedSmallInt(inputByte, n) {
+    var src = new SourceOfOne(inputByte);
+    try {
+        return util.UnbiasedSmallInt(src, n);
+    }
+    catch (e) {
+        var errstr = '' + e;
+        //error contains 'SourceOfOne_DONE' or 'n out of range' ?
+        if (errstr.indexOf('SourceOfOne_DONE') >= 0 || errstr.indexOf('n out of range') >= 0)
+            return -1;
+        else
+            throw e;
+    }
+}
+function test_UnbiasedSmallInt() {
+    //n too small
+    assert.equal(-1, spotcheck_UnbiasedSmallInt(10, 0));
+    //n too large
+    assert.equal(-1, spotcheck_UnbiasedSmallInt(10, 257));
+    //spot check with n == 26.  random bytes >= 234 will be discarded 
+    assert.equal(10, spotcheck_UnbiasedSmallInt(10, 26));
+    assert.equal(0, spotcheck_UnbiasedSmallInt(26, 26));
+    assert.equal(22, spotcheck_UnbiasedSmallInt(100, 26));
+    assert.equal(24, spotcheck_UnbiasedSmallInt(232, 26));
+    assert.equal(25, spotcheck_UnbiasedSmallInt(233, 26));
+    assert.equal(-1, spotcheck_UnbiasedSmallInt(234, 26));
+    assert.equal(-1, spotcheck_UnbiasedSmallInt(235, 26));
+    assert.equal(-1, spotcheck_UnbiasedSmallInt(255, 26));
+    //spot check with n == 10.  random bytes >= 250 will be discarded 
+    assert.equal(3, spotcheck_UnbiasedSmallInt(3, 10));
+    assert.equal(0, spotcheck_UnbiasedSmallInt(10, 10));
+    assert.equal(7, spotcheck_UnbiasedSmallInt(17, 10));
+    assert.equal(8, spotcheck_UnbiasedSmallInt(248, 10));
+    assert.equal(9, spotcheck_UnbiasedSmallInt(249, 10));
+    assert.equal(-1, spotcheck_UnbiasedSmallInt(250, 10));
+    assert.equal(-1, spotcheck_UnbiasedSmallInt(251, 10));
+    assert.equal(-1, spotcheck_UnbiasedSmallInt(255, 10));
+    //spot check with n == 256
+    assert.equal(254, spotcheck_UnbiasedSmallInt(254, 256));
+    assert.equal(255, spotcheck_UnbiasedSmallInt(255, 256));
+}
 function util_test() {
     var ar = [1, 2, 3];
     util.erase(ar);
@@ -2222,6 +2309,7 @@ function util_test() {
     util.erase(bytes);
     assert.equal(0, bytes[2]);
     assert.equalArray(util.byteSeq(3, 5), [3, 4, 5, 6, 7]);
+    test_UnbiasedSmallInt();
 }
 exports.default = util_test;
 

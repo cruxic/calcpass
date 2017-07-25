@@ -1,5 +1,6 @@
 import * as assert from './assert';
 import * as hex from './hex';
+import * as sha256 from './sha256';
 import {stringToUTF8} from './utf8';
 import {byteSeq} from './util';
 import * as calcpass2017a from './calcpass2017a';
@@ -66,13 +67,41 @@ async function Test_StretchSiteCardMix():Promise<boolean> {
 	return emptyPromise();
 }
 
+function Test_MakeFriendlyPassword12a() {
+	let seed = new calcpass2017a.PasswordSeed();
+	seed.bytes = byteSeq(1, 32);
+
+	assert.equal(calcpass2017a.MakeFriendlyPassword12a(seed), 'Scvqduejxmm5');
+
+	//change seed
+	seed.bytes[31]++;
+	assert.equal(calcpass2017a.MakeFriendlyPassword12a(seed), 'Ikvruuyldov1');
+
+	//checksum of 20 different seeds (verified against Go program)
+	seed.bytes = byteSeq(1, 32);
+	let sha = new sha256.Hash();
+	let pass:string;
+	let j = 0;
+	for (let i = 0; i < 20; i++) {
+		//modify seed
+		seed.bytes[j % 32]++;
+		j++;
+		
+		pass = calcpass2017a.MakeFriendlyPassword12a(seed);
+		sha.update(stringToUTF8(pass));
+	}
+
+	assert.equal(hex.encode(sha.digest()), '008634126acab8fdd6c34f123495a8d2d3ae9cd073e705cd12d506d71e63234a');
+}
+
 export async function calcpass2017a_test():Promise<boolean> {
 	assert.isTrue(calcpass2017a.isSaneEmail('a@b.c'));
 
-	await Test_StretchMasterPassword();
-
 	Test_MakeSiteKey();
 	Test_MixSiteAndCard();
+	Test_MakeFriendlyPassword12a();
+
+	await Test_StretchMasterPassword();
 	await Test_StretchSiteCardMix();
 
 	return emptyPromise();
