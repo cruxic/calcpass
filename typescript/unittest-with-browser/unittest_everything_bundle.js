@@ -1004,6 +1004,48 @@ function MakeFriendlyPassword12a(seed) {
     return chars;
 }
 exports.MakeFriendlyPassword12a = MakeFriendlyPassword12a;
+var CARD_xNames = "ABCDEFGHJKLMNPQRSTUVWX"; //skip I and O to avoid ambiguity when rendered with certain fonts
+var CARD_W = 22;
+var CARD_H = 15;
+function xNameFunc(index) {
+    if (index >= CARD_xNames.length) {
+        throw new Error("XName index out of range");
+    }
+    return CARD_xNames[index];
+}
+function yNameFunc(index) {
+    return (index + 1).toString();
+}
+var CardCoord = (function () {
+    function CardCoord() {
+    }
+    CardCoord.prototype.toString = function () {
+        //number then letter
+        return this.HumanY + this.HumanX;
+    };
+    return CardCoord;
+}());
+function makeCardCoordinatesFromSource(src, count, cardSizeX, cardSizeY, xNameFunc, yNameFunc) {
+    var coords = new Array(count);
+    var coord;
+    for (var i = 0; i < count; i++) {
+        coord = new CardCoord();
+        coord.X = util_1.UnbiasedSmallInt(src, cardSizeX);
+        coord.Y = util_1.UnbiasedSmallInt(src, cardSizeY);
+        coord.HumanX = xNameFunc(coord.X);
+        coord.HumanY = yNameFunc(coord.Y);
+        coords[i] = coord;
+    }
+    return coords;
+}
+function MakeSiteCoordinates(siteKey, count) {
+    if (count < 1 || count > 100) {
+        throw new Error("invalid coordinate count");
+    }
+    var src = new HmacCounterByteSource_1.HmacCounterByteSource(siteKey.bytes, 128);
+    return makeCardCoordinatesFromSource(src, count, CARD_W, CARD_H, xNameFunc, yNameFunc);
+}
+exports.MakeSiteCoordinates = MakeSiteCoordinates;
 
 },{"./HmacCounterByteSource":1,"./sha256":15,"./utf8":18,"./util":20}],8:[function(require,module,exports){
 "use strict";
@@ -1134,6 +1176,20 @@ function Test_MakeFriendlyPassword12a() {
     }
     assert.equal(hex.encode(sha.digest()), '008634126acab8fdd6c34f123495a8d2d3ae9cd073e705cd12d506d71e63234a');
 }
+function Test_MakeSiteCoordinates() {
+    var sitekey = new calcpass2017a.SiteKey();
+    sitekey.bytes = util_1.byteSeq(1, 32);
+    var coords = calcpass2017a.MakeSiteCoordinates(sitekey, 2);
+    assert.equal(coords.length, 2);
+    assert.equal(coords[0].toString(), "13A");
+    assert.equal(coords[1].toString(), "8M");
+    //change key
+    sitekey.bytes[31]++;
+    coords = calcpass2017a.MakeSiteCoordinates(sitekey, 2);
+    assert.equal(coords.length, 2);
+    assert.equal(coords[0].toString(), "8S");
+    assert.equal(coords[1].toString(), "13E");
+}
 function calcpass2017a_test() {
     return __awaiter(this, void 0, void 0, function () {
         return __generator(this, function (_a) {
@@ -1143,6 +1199,7 @@ function calcpass2017a_test() {
                     Test_MakeSiteKey();
                     Test_MixSiteAndCard();
                     Test_MakeFriendlyPassword12a();
+                    Test_MakeSiteCoordinates();
                     return [4 /*yield*/, Test_StretchMasterPassword()];
                 case 1:
                     _a.sent();

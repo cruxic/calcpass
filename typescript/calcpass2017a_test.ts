@@ -94,12 +94,30 @@ function Test_MakeFriendlyPassword12a() {
 	assert.equal(hex.encode(sha.digest()), '008634126acab8fdd6c34f123495a8d2d3ae9cd073e705cd12d506d71e63234a');
 }
 
+function Test_MakeSiteCoordinates() {
+	let sitekey = new calcpass2017a.SiteKey();
+	sitekey.bytes = byteSeq(1, 32);
+
+	let coords = calcpass2017a.MakeSiteCoordinates(sitekey, 2);
+	assert.equal(coords.length, 2);
+	assert.equal(coords[0].toString(), "13A");
+	assert.equal(coords[1].toString(), "8M");
+
+	//change key
+	sitekey.bytes[31]++;
+	coords = calcpass2017a.MakeSiteCoordinates(sitekey, 2);
+	assert.equal(coords.length, 2);
+	assert.equal(coords[0].toString(), "8S");
+	assert.equal(coords[1].toString(), "13E");
+}
+
 export async function calcpass2017a_test():Promise<boolean> {
 	assert.isTrue(calcpass2017a.isSaneEmail('a@b.c'));
 
 	Test_MakeSiteKey();
 	Test_MixSiteAndCard();
 	Test_MakeFriendlyPassword12a();
+	Test_MakeSiteCoordinates();
 
 	await Test_StretchMasterPassword();
 	await Test_StretchSiteCardMix();

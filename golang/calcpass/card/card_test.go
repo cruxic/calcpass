@@ -40,17 +40,17 @@ func (self *cycle_byte_source) NextByte() (byte, error) {
 	return b, nil
 }
 
-func xNameFunc(index int) string {
+func yNameFunc(index int) string {
 	return strconv.Itoa(index + 1)	
 }
 
-func yNameFunc(index int) string {
-	const yNames = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-	if index >= len(yNames) {
+func xNameFunc(index int) string {
+	const xNames = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+	if index >= len(xNames) {
 		panic("index out of range")
 	}
 	
-	return yNames[index:index+1]
+	return xNames[index:index+1]
 }
 
 
@@ -100,7 +100,7 @@ func TestMakeCoordinates(t *testing.T) {
 	}
 
 	assert.Equal("2,1 7,9 6,14 0,12 11,14 11,7 0,3 5,6 8,8 1,12 1,1 11,9 6,3 10,8 9,11 12,0 10,1 5,11 2,13 8,1 ", rawXY)
-	assert.Equal("3B 8J 7O 1M 12O 12H 1D 6G 9I 2M 2B 12J 7D 11I 10L 13A 11B 6L 3N 9B ", human)
+	assert.Equal("2C 10H 15G 13A 15L 8L 4A 7F 9I 13B 2B 10L 4G 9K 12J 1M 2K 12F 14C 2I ", human)
 }
 
 func TestCreateRandomSeed(t *testing.T) {

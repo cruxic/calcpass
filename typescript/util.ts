@@ -1,6 +1,6 @@
 
 /*A stream of bytes read one at a time.*/
-interface ByteSource {
+export interface ByteSource {
 	/*Throws if byte source is exhausted.*/
 	NextByte():number;
 };

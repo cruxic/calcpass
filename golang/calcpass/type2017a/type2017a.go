@@ -55,7 +55,7 @@ import (
 const bcryptCost_2017a = 13
 
 const cardAlphabet = "abcdefghijklmnopqrstuvwxyz"
-const typeA_yNames = "ABCDEFGHJKLMNPQRSTUVWX"  //skip I and O to avoid ambiguity when rendered with certain fonts
+const typeA_xNames = "ABCDEFGHJKLMNPQRSTUVWX"  //skip I and O to avoid ambiguity when rendered with certain fonts
 const typeAcardWidth = 22
 const typeAcardHeight = 15
 
@@ -177,16 +177,16 @@ func MakeSiteKey(stretchedMaster StretchedMaster, websiteName string, revision i
 	return SiteKey(hash), nil
 }
 
-func typeA_xNameFunc(index int) string {
+func typeA_yNameFunc(index int) string {
 	return strconv.Itoa(index + 1)	
 }
 
-func typeA_yNameFunc(index int) string {
-	if index >= len(typeA_yNames) {
+func typeA_xNameFunc(index int) string {
+	if index >= len(typeA_xNames) {
 		panic("index out of range")
 	}
 	
-	return typeA_yNames[index:index+1]
+	return typeA_xNames[index:index+1]
 }
 
 

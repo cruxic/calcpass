@@ -265,7 +265,8 @@ type Coord struct {
 }
 
 func (self Coord) String() string {
-	return self.HumanX + self.HumanY
+	//number then letter
+	return self.HumanY + self.HumanX
 }
 
 type CoordinateNameFunc func(index int) string;

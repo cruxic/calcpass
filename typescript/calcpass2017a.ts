@@ -1,6 +1,6 @@
 import * as sha256 from './sha256';
 import {stringToUTF8} from './utf8';
-import {erase, UnbiasedSmallInt} from './util';
+import {erase, UnbiasedSmallInt, ByteSource} from './util';
 import {HmacCounterByteSource} from './HmacCounterByteSource';
 
 const bcryptCost_2017a = 13;
@@ -145,4 +145,66 @@ export function MakeFriendlyPassword12a(seed:PasswordSeed):string {
 	chars += String.fromCharCode(b + ascii_0);
 	
 	return chars;
+}
+
+const CARD_xNames = "ABCDEFGHJKLMNPQRSTUVWX";  //skip I and O to avoid ambiguity when rendered with certain fonts
+const CARD_W = 22;
+const CARD_H = 15;
+
+function xNameFunc(index:number):string {
+	if (index >= CARD_xNames.length) {
+		throw new Error("XName index out of range");
+	}
+	
+	return CARD_xNames[index];
+}
+
+function yNameFunc(index:number):string {
+	return (index + 1).toString();
+}
+
+class CardCoord {
+	//Horizontal coordinate index, starting at 0
+	X:number;
+	//Vertical coordinate index, starting at 0
+	Y:number;
+	
+	//The human friendly representation (eg "13W").
+	HumanX:string;
+	HumanY:string;
+
+	toString():string {
+		//number then letter
+		return this.HumanY + this.HumanX;
+	}	
+}
+
+function makeCardCoordinatesFromSource(src:ByteSource, count:number, cardSizeX:number, cardSizeY:number,
+	xNameFunc:(idx:number)=>string, yNameFunc:(idx:number)=>string):Array<CardCoord> {
+		
+	let coords:Array<CardCoord> = new Array<CardCoord>(count);
+	let coord:CardCoord;
+
+	for (let i = 0; i < count; i++) {
+		coord = new CardCoord();
+		
+		coord.X = UnbiasedSmallInt(src, cardSizeX);
+		coord.Y = UnbiasedSmallInt(src, cardSizeY);
+		coord.HumanX = xNameFunc(coord.X);
+		coord.HumanY = yNameFunc(coord.Y);
+		coords[i] = coord;
+	}
+	
+	return coords;
+}
+
+export function MakeSiteCoordinates(siteKey:SiteKey, count:number):Array<CardCoord> {
+	if (count < 1 || count > 100) {
+		throw new Error("invalid coordinate count");
+	}
+
+	let src = new HmacCounterByteSource(siteKey.bytes, 128);
+
+	return makeCardCoordinatesFromSource(src, count, CARD_W, CARD_H,
+		xNameFunc, yNameFunc);
 }

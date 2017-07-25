@@ -114,8 +114,8 @@ func Test_MakeSiteCoordinates(t *testing.T) {
 	coords, err := MakeSiteCoordinates(sitekey, 2)
 	assert.Nil(err)
 	assert.Equal(2, len(coords))
-	assert.Equal("1N", coords[0].String())
-	assert.Equal("12H", coords[1].String())
+	assert.Equal("13A", coords[0].String())
+	assert.Equal("8M", coords[1].String())
 
 	//change key
 	tmp[31]++
@@ -123,10 +123,8 @@ func Test_MakeSiteCoordinates(t *testing.T) {
 	coords, err = MakeSiteCoordinates(sitekey, 2)
 	assert.Nil(err)
 	assert.Equal(2, len(coords))
-	assert.Equal("17H", coords[0].String())
-	assert.Equal("5N", coords[1].String())
-
-	
+	assert.Equal("8S", coords[0].String())
+	assert.Equal("13E", coords[1].String())
 }
 
 func Test_MixSiteAndCard(t *testing.T) {
