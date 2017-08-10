@@ -1,4 +1,43 @@
 (function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);var f=new Error("Cannot find module '"+o+"'");throw f.code="MODULE_NOT_FOUND",f}var l=n[o]={exports:{}};t[o][0].call(l.exports,function(e){var n=t[o][1][e];return s(n?n:e)},l,l.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+var sha256 = require("./sha256");
+var util_1 = require("./util");
+//implements ByteSource
+var HmacCounterByteSource = (function () {
+    function HmacCounterByteSource(key, maxCounter) {
+        this.key = key;
+        this.maxCounter = maxCounter;
+        this.counter = 0;
+        this._nextBlock();
+    }
+    HmacCounterByteSource.prototype._nextBlock = function () {
+        var four = new Uint8Array(4);
+        four[0] = (this.counter >> 24) & 0xFF;
+        four[1] = (this.counter >> 16) & 0xFF;
+        four[2] = (this.counter >> 8) & 0xFF;
+        four[3] = this.counter & 0xFF;
+        //erase previous block
+        if (this.block)
+            util_1.erase(this.block);
+        this.block = sha256.hmac(this.key, four);
+        this.blockOffset = 0;
+        this.counter++;
+    };
+    HmacCounterByteSource.prototype.NextByte = function () {
+        if (this.blockOffset >= this.block.length) {
+            if (this.counter >= this.maxCounter) {
+                throw new Error('HmacCounterByteSource exhausted.');
+            }
+            this._nextBlock();
+        }
+        return this.block[this.blockOffset++];
+    };
+    return HmacCounterByteSource;
+}());
+exports.HmacCounterByteSource = HmacCounterByteSource;
+
+},{"./sha256":10,"./util":12}],2:[function(require,module,exports){
 /*The following is a bcrypt implementation which implements the bare minimum necessary
 for calcpass.  It is mostly a simplification of bcrypt.js (https://github.com/dcodeIO/bcrypt.js).
 Because much of the interals are copy/paste (with minor tweaks) it is a derived work and
@@ -552,7 +591,7 @@ var C_ORIG = [
     0x6f756274
 ];
 
-},{}],2:[function(require,module,exports){
+},{}],3:[function(require,module,exports){
 "use strict";
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
     return new (P || (P = Promise))(function (resolve, reject) {
@@ -593,6 +632,11 @@ Object.defineProperty(exports, "__esModule", { value: true });
 var sha256 = require("./sha256");
 var utf8_1 = require("./utf8");
 var util_1 = require("./util");
+var HmacCounterByteSource_1 = require("./HmacCounterByteSource");
+var CARD_xNames = "ABCDEFGHJKLMNPQRSTUVWX"; //skip I and O to avoid ambiguity when rendered with certain fonts
+var CARD_W = 22;
+var CARD_H = 15;
+var CARD_NUM_CODES = 40;
 var bcryptCost_2017a = 13;
 var StretchedMaster = (function () {
     function StretchedMaster() {
@@ -618,6 +662,12 @@ var PasswordSeed = (function () {
     return PasswordSeed;
 }());
 exports.PasswordSeed = PasswordSeed;
+var CodeFromCard = (function () {
+    function CodeFromCard() {
+    }
+    return CodeFromCard;
+}());
+exports.CodeFromCard = CodeFromCard;
 function isSaneEmail(s) {
     //a@b.c
     return s.length >= 4 && s.indexOf("@") != -1 && s.indexOf(".") != -1;
@@ -673,22 +723,35 @@ function MakeSiteKey(stretchedMaster, websiteName, revision) {
     return sk;
 }
 exports.MakeSiteKey = MakeSiteKey;
+function CheckCardCode(lettersFromCard, codeNumber) {
+    if (!lettersFromCard)
+        return null;
+    //always lower case
+    lettersFromCard = lettersFromCard.trim().toLowerCase();
+    var codeBytes = utf8_1.stringToUTF8(lettersFromCard);
+    var i;
+    var c;
+    if (codeBytes.length != 8)
+        return null;
+    //must be a-z
+    for (i = 0; i < codeBytes.length; i++) {
+        c = codeBytes[i];
+        if (c < 0x61 || c > 0x7A)
+            return null;
+    }
+    //TODO: verify checksum of the first 7 (also include codeNumber)
+    var res = new CodeFromCard();
+    res.bytes = codeBytes.slice(0, 7);
+    return res;
+}
+exports.CheckCardCode = CheckCardCode;
 /**Mix SiteKey and card characters using HmacSha256.*/
-function MixSiteAndCard(siteKey, charactersFromCard) {
-    //2017a cards are all lower case.  Also trim white space
-    charactersFromCard = charactersFromCard.trim().toLowerCase();
-    if (charactersFromCard.length < 8) {
-        throw new Error("Too few characters from card");
-    }
-    var rawChars = utf8_1.stringToUTF8(charactersFromCard);
-    //verify a-z
-    for (var i = 0; i < rawChars.length; i++) {
-        if (rawChars[i] < 0x61 || rawChars[i] > 0x7A)
-            throw new Error("charactersFromCard must be a through z");
-    }
+function MixSiteAndCard(siteKey, cardCode) {
+    //sanity
+    if (cardCode.bytes.length != 7)
+        throw new Error('CodeFromCard wrong length');
     var mix = new SiteCardMix();
-    mix.bytes = sha256.hmac(siteKey.bytes, rawChars);
-    util_1.erase(rawChars);
+    mix.bytes = sha256.hmac(siteKey.bytes, cardCode.bytes);
     return mix;
 }
 exports.MixSiteAndCard = MixSiteAndCard;
@@ -711,46 +774,76 @@ function StretchSiteCardMix(siteCardMix, pbcrypt) {
     });
 }
 exports.StretchSiteCardMix = StretchSiteCardMix;
-/*
-export function MakeFriendlyPassword12a(seed:PasswordSeed):string {
-    rng := util.NewHmacDrbgByteSource([]byte(seed))
-
-    chars := make([]byte, 12)
-
-    const ascii_a = 0x61
-    const ascii_A = 0x41
-    const ascii_0 = 0x30
-
+function MakeFriendlyPassword12a(seed) {
+    var rng = new HmacCounterByteSource_1.HmacCounterByteSource(seed.bytes, 128);
+    var chars = '';
+    var b;
+    var ascii_a = 0x61;
+    var ascii_A = 0x41;
+    var ascii_0 = 0x30;
     //Select 11 a-z characters
-    for i := 0; i < 11; i++ {
-        b, err := util.UnbiasedSmallInt(rng, 26)
-        if err != nil {
-            //HMAC-DRBG exhausted - extremely unlikely
-            return "", err
-        }
-
+    for (var i = 0; i < 11; i++) {
+        b = util_1.UnbiasedSmallInt(rng, 26);
         //Capitalize the first char
-        if i == 0 {
-            chars[i] = byte(ascii_A + b)
-        } else {
-            chars[i] = byte(ascii_a + b)
+        if (i == 0) {
+            chars += String.fromCharCode(ascii_A + b);
+        }
+        else {
+            chars += String.fromCharCode(ascii_a + b);
         }
     }
-
     //Select 0-9
-    b, err := util.UnbiasedSmallInt(rng, 10)
-    if err != nil {
-        return "", err
+    b = util_1.UnbiasedSmallInt(rng, 10);
+    chars += String.fromCharCode(b + ascii_0);
+    return chars;
+}
+exports.MakeFriendlyPassword12a = MakeFriendlyPassword12a;
+function xNameFunc(index) {
+    if (index >= CARD_xNames.length) {
+        throw new Error("XName index out of range");
     }
-    chars[11] = byte(b + ascii_0)
+    return CARD_xNames[index];
+}
+function yNameFunc(index) {
+    return (index + 1).toString();
+}
+var CardCoord = (function () {
+    function CardCoord() {
+    }
+    CardCoord.prototype.toString = function () {
+        //number then letter
+        return this.HumanY + this.HumanX;
+    };
+    return CardCoord;
+}());
+function makeCardCoordinatesFromSource(src, count, cardSizeX, cardSizeY, xNameFunc, yNameFunc) {
+    var coords = new Array(count);
+    var coord;
+    for (var i = 0; i < count; i++) {
+        coord = new CardCoord();
+        coord.X = util_1.UnbiasedSmallInt(src, cardSizeX);
+        coord.Y = util_1.UnbiasedSmallInt(src, cardSizeY);
+        coord.HumanX = xNameFunc(coord.X);
+        coord.HumanY = yNameFunc(coord.Y);
+        coords[i] = coord;
+    }
+    return coords;
+}
+function MakeSiteCoordinates(siteKey, count) {
+    if (count < 1 || count > 100) {
+        throw new Error("invalid coordinate count");
+    }
+    var src = new HmacCounterByteSource_1.HmacCounterByteSource(siteKey.bytes, 128);
+    return makeCardCoordinatesFromSource(src, count, CARD_W, CARD_H, xNameFunc, yNameFunc);
+}
+exports.MakeSiteCoordinates = MakeSiteCoordinates;
+function GetCardCodeNumber(siteKey) {
+    var src = new HmacCounterByteSource_1.HmacCounterByteSource(siteKey.bytes, 128);
+    return util_1.UnbiasedSmallInt(src, CARD_NUM_CODES) + 1;
+}
+exports.GetCardCodeNumber = GetCardCodeNumber;
 
-    s := string(chars)
-    util.Erase(chars)
-    
-    return s, nil
-}*/
-
-},{"./sha256":9,"./utf8":10,"./util":11}],3:[function(require,module,exports){
+},{"./HmacCounterByteSource":1,"./sha256":10,"./utf8":11,"./util":12}],4:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 //TODO: unit test this
@@ -781,7 +874,7 @@ function removeSubdomains(hostname) {
 }
 exports.removeSubdomains = removeSubdomains;
 
-},{}],4:[function(require,module,exports){
+},{}],5:[function(require,module,exports){
 /**Spawn Web Worker threads to compute part of the parallel bcrypt hash.*/
 "use strict";
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
@@ -930,7 +1023,7 @@ function execute_parallel_bcrypt_webworkers(numThreads, plaintextPassword, salt,
 }
 exports.execute_parallel_bcrypt_webworkers = execute_parallel_bcrypt_webworkers;
 
-},{"./hex":6,"./parallel_bcrypt":7}],5:[function(require,module,exports){
+},{"./hex":7,"./parallel_bcrypt":8}],6:[function(require,module,exports){
 "use strict";
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
     return new (P || (P = Promise))(function (resolve, reject) {
@@ -1030,19 +1123,37 @@ function getActiveTabURL() {
     });
 }
 exports.getActiveTabURL = getActiveTabURL;
+function getActiveTabID() {
+    return __awaiter(this, void 0, void 0, function () {
+        var tab;
+        return __generator(this, function (_a) {
+            switch (_a.label) {
+                case 0: return [4 /*yield*/, getActiveTab()];
+                case 1:
+                    tab = _a.sent();
+                    return [2 /*return*/, tab.id];
+            }
+        });
+    });
+}
+exports.getActiveTabID = getActiveTabID;
 function addOnMessageListener(callback) {
     browser.runtime.onMessage.addListener(function (msg, sender, sendResponseFunc) {
-        callback(msg, sender);
+        var res = callback(msg, sender);
+        //if callback returned something non-null then respond synchronously		
+        if (typeof (res) != 'undefined' && res !== null)
+            sendResponseFunc(res);
     });
 }
 exports.addOnMessageListener = addOnMessageListener;
-function loadContentScriptIntoActiveTab() {
+function loadContentScriptIntoActiveTab(allFrames) {
     return __awaiter(this, void 0, void 0, function () {
         return __generator(this, function (_a) {
             switch (_a.label) {
                 case 0: return [4 /*yield*/, browser.tabs.executeScript(null, {
                         file: "/content-script-bundle.js",
-                        allFrames: false,
+                        allFrames: allFrames,
+                        runAt: 'document_end' //"The DOM has finished loading, but resources such as scripts and images may still be loading"
                     })];
                 case 1:
                     _a.sent();
@@ -1052,8 +1163,21 @@ function loadContentScriptIntoActiveTab() {
     });
 }
 exports.loadContentScriptIntoActiveTab = loadContentScriptIntoActiveTab;
+/**Send a message to another script which was loaded by the current extension.*/
+function sendMessage(msgObject) {
+    if (typeof (msgObject) != 'object' || msgObject === null)
+        throw new Error('Invaild msgObject type');
+    return browser.runtime.sendMessage(msgObject);
+}
+exports.sendMessage = sendMessage;
+function sendMessageToContentScript(tabId, msgObject) {
+    if (typeof (msgObject) != 'object' || msgObject === null)
+        throw new Error('Invaild msgObject type');
+    return browser.tabs.sendMessage(tabId, msgObject);
+}
+exports.sendMessageToContentScript = sendMessageToContentScript;
 
-},{}],6:[function(require,module,exports){
+},{}],7:[function(require,module,exports){
 /**Convert arrays of octets to and from hex strings*/
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
@@ -1108,7 +1232,7 @@ function decode(str) {
 }
 exports.decode = decode;
 
-},{}],7:[function(require,module,exports){
+},{}],8:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 var bcrypt = require("./bcrypt");
@@ -1189,7 +1313,7 @@ function hashWithSingleThread(numSimulatedThreads, plaintextPassword, salt, cost
 }
 exports.hashWithSingleThread = hashWithSingleThread;
 
-},{"./bcrypt":1,"./hex":6,"./sha256":9,"./utf8":10}],8:[function(require,module,exports){
+},{"./bcrypt":2,"./hex":7,"./sha256":10,"./utf8":11}],9:[function(require,module,exports){
 "use strict";
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
     return new (P || (P = Promise))(function (resolve, reject) {
@@ -1232,8 +1356,21 @@ var calcpass2017a = require("./calcpass2017a");
 var execute_parallel_bcrypt_webworkers_1 = require("./execute_parallel_bcrypt_webworkers");
 var utf8_1 = require("./utf8");
 var util_1 = require("./util");
-//import * as hex from './hex'
+var hex = require("./hex");
 var calcpass_misc = require("./calcpass_misc");
+var gCurrentScreen = null;
+var ContentFrameInfo = (function () {
+    function ContentFrameInfo() {
+    }
+    return ContentFrameInfo;
+}());
+//let gContentFrames = new Array<ContentFrameInfo>();
+//The content frame which had the focused password field
+//when the user clicked the toolbar.
+//If there was no focused input this will point to the root frame.
+var gTargetFrame = null;
+//holds the root frame
+var gRootFrame = null;
 function setContent(html) {
     document.getElementById('content').innerHTML = html;
 }
@@ -1276,6 +1413,7 @@ function setScreen(screen) {
             //console.log(`set elm ${k}`);
         }
     }
+    gCurrentScreen = screen;
     //Call onScreenReady if provided
     if (screen['onScreenReady']) {
         screen['onScreenReady']();
@@ -1351,34 +1489,60 @@ function showErr(text) {
     setElmText(elm, text);
     elm.style.display = 'block';
 }
-var MasterPassPrompt = (function () {
-    function MasterPassPrompt(ctx) {
-        this.elm_pass = null;
+/*
+class MasterPassPrompt {
+    html:string;
+    elm_pass:any = null;
+
+    ctx:Context;
+    
+    constructor(ctx:Context) {
         this.ctx = ctx;
-        this.html = "\n\t\t<input id=\"pass\" type=\"password\" placeholder=\"Master Password\" size=\"20\"/>\n\t\t<button id=\"btnOK\">OK</button>\n\t\t<div id=\"err\">?</div>\n\t\t";
+        this.html = `
+        <input id="pass" type="password" placeholder="Master Password" size="20"/>
+        <button id="btnOK">OK</button>
+        <div id="err">?</div>
+        `;
     }
-    MasterPassPrompt.prototype.event_click_btnOK = function (e) {
-        var pass = this.elm_pass.value.trim();
+
+    event_click_btnOK(e) {
+        let pass = this.elm_pass.value.trim();
         if (pass.length < 8) {
             console.log('here');
             showErr('Password must be at least 8 characters.');
             return;
         }
-        var rawPlain = utf8_1.stringToUTF8(pass);
+
+        let rawPlain = stringToUTF8(pass);
+    
         setScreen(new StretchingMasterPass(this.ctx, rawPlain));
-    };
-    MasterPassPrompt.prototype.onScreenReady = function () {
-        return __awaiter(this, void 0, void 0, function () {
-            return __generator(this, function (_a) {
-                this.elm_pass.focus();
-                return [2 /*return*/];
-            });
-        });
-    };
-    return MasterPassPrompt;
-}());
+
+    }
+
+    async onScreenReady() {
+        this.elm_pass.focus();
+
+    }
+}
+*/
 var Context = (function () {
     function Context() {
+        //the full host name which was in the address bar
+        //when the user started calculating the password.
+        this.origHostname = null;
+        //The host name or program name the user chose to
+        //calculate a password for (not necessarily a domain
+        // name)
+        this.sitename = null;
+        this.stretchTookMillis = 0;
+        this.siteKey = null;
+        this.revision = 0;
+        /*toPlainObject():any {
+            return {
+                origHostname: this.origHostname,
+                sitename:
+            };
+        }*/
     }
     return Context;
 }());
@@ -1402,9 +1566,9 @@ var StretchingMasterPass = (function () {
     StretchingMasterPass.prototype.onScreenReady = function () {
         return __awaiter(this, void 0, void 0, function () {
             var _this = this;
-            var userEmail, pass, pbc, t1, _a, t2;
-            return __generator(this, function (_b) {
-                switch (_b.label) {
+            var userEmail, pass, pbc, t1, stretchedMaster, t2;
+            return __generator(this, function (_a) {
+                switch (_a.label) {
                     case 0:
                         console.log("TODO: get salt from local storage");
                         userEmail = "a@b.c";
@@ -1415,15 +1579,14 @@ var StretchingMasterPass = (function () {
                             _this.setProgressBar(percent);
                         };
                         t1 = performance.now();
-                        _a = this.ctx;
                         return [4 /*yield*/, calcpass2017a.StretchMasterPassword(pass, userEmail, pbc)];
                     case 1:
-                        _a.stretchedMaster = _b.sent();
+                        stretchedMaster = _a.sent();
                         t2 = performance.now();
                         this.ctx.stretchTookMillis = Math.ceil(t2 - t1);
                         util_1.erase(this.plaintext);
                         this.plaintext = null;
-                        setScreen(new ShowCoordinates(this.ctx));
+                        setScreen(new PromptCardCode(this.ctx, stretchedMaster));
                         return [2 /*return*/];
                 }
             });
@@ -1431,14 +1594,26 @@ var StretchingMasterPass = (function () {
     };
     return StretchingMasterPass;
 }());
-var ShowCoordinates = (function () {
-    function ShowCoordinates(ctx) {
+var PromptCardCode = (function () {
+    function PromptCardCode(ctx, stretchedMaster) {
         this.elm_chars = null;
         this.ctx = ctx;
-        //TODO: calculate coordinates from ctx.stretchedMaster and ctx.sitename and ctx.revision
-        this.html = "\n\t\t<h2>Enter Coordinates</h2>\n\t\t<p>\n\t\t<b>7P</b>&nbsp;&nbsp;<b>13Q</b>\n\t\t<p>\n\t\t<input id=\"chars\" type=\"password\" size=\"8\" maxlength=\"8\"/><button>*</button>\n\t\t<p>\n\t\t<button id=\"next\">OK</button>\n\t\t<div id=\"err\">?</div>\n\t\t";
+        ctx.siteKey = calcpass2017a.MakeSiteKey(stretchedMaster, ctx.sitename, ctx.revision);
+        util_1.erase(stretchedMaster.bytes);
+        stretchedMaster.bytes = null;
+        //Remember the siteKey in RAM of the background script so that we can skip the lengthy
+        // stretching step if the user requests the same password again
+        firefox.sendMessage({
+            REMEMBER_STATE: true,
+            origHostname: ctx.origHostname,
+            sitename: ctx.sitename,
+            revision: ctx.revision,
+            siteKeyHex: hex.encode(ctx.siteKey.bytes)
+        });
+        this.codeNum = calcpass2017a.GetCardCodeNumber(ctx.siteKey);
+        this.html = "\n\t\t<table>\n\t\t<tr>\n\t\t<td>\n\t\t\tEnter code <span class=\"codeNum\">" + this.codeNum + "</span> from your card.\n\t\t\t<p>\n\t\t\t<input id=\"chars\" type=\"password\" size=\"8\" maxlength=\"8\"/>\n\t\t\t<img src=\"/icons/reveal.png\" alt=\"reveal\" title=\"TODO\" style=\"height:20px\" />\n\t\t\t<button id=\"next\">OK</button>\n\t\t</td>\n\t\t<td>\n\t\t\t<img src=\"img/enter-card-code.png\" style=\"width: 5em; margin-left: 2em;\" alt=\"picture of card\"/>\n\t\t</td>\n\t\t</tr>\n\t\t</table>\n\t\t<div id=\"err\">?</div>\n\t\t";
     }
-    ShowCoordinates.prototype.onScreenReady = function () {
+    PromptCardCode.prototype.onScreenReady = function () {
         return __awaiter(this, void 0, void 0, function () {
             return __generator(this, function (_a) {
                 this.elm_chars.focus();
@@ -1446,79 +1621,236 @@ var ShowCoordinates = (function () {
             });
         });
     };
-    ShowCoordinates.prototype.event_click_next = function (e) {
+    PromptCardCode.prototype.event_click_next = function (e) {
         var chars = this.elm_chars.value.trim();
         if (chars.length != 8) {
             showErr("Please enter 8 characters.");
             return;
         }
+        var codeFromCard = calcpass2017a.CheckCardCode(chars, this.codeNum);
+        if (!codeFromCard) {
+            showErr('Checksum failed.  Typo?  Wrong code?');
+            return;
+        }
+        var siteCardMix = calcpass2017a.MixSiteAndCard(this.ctx.siteKey, codeFromCard);
+        util_1.erase(codeFromCard);
+        setScreen(new StretchingFinal(this.ctx, siteCardMix));
     };
-    return ShowCoordinates;
+    return PromptCardCode;
+}());
+var StretchingFinal = (function () {
+    function StretchingFinal(ctx, siteCardMix) {
+        this.elm_progBar = null;
+        this.elm_progPercent = null;
+        this.ctx = ctx;
+        this.siteCardMix = siteCardMix;
+        this.html = "\n\t\t<div class=\"progressBar\">\n\t\t\t<div id=\"progBar\">Stretching card code. <span id=\"progPercent\">0%</span></div>\n\t\t</div>\n\t\t";
+    }
+    StretchingFinal.prototype.setProgressBar = function (percent) {
+        if (percent < 0.0)
+            percent = 0.0;
+        if (percent > 1.0)
+            percent = 1.0;
+        var percentStr = '' + Math.floor(percent * 100.0);
+        this.elm_progBar.style.width = percentStr + '%';
+        setElmText(this.elm_progPercent, percentStr + '%');
+    };
+    StretchingFinal.prototype.onScreenReady = function () {
+        return __awaiter(this, void 0, void 0, function () {
+            var _this = this;
+            var pbc, passwordSeed, password;
+            return __generator(this, function (_a) {
+                switch (_a.label) {
+                    case 0:
+                        pbc = new calcpass2017a.ParallelBcrypt();
+                        pbc.execute = execute_parallel_bcrypt_webworkers_1.execute_parallel_bcrypt_webworkers;
+                        pbc.progressCallback = function (percent) {
+                            _this.setProgressBar(percent);
+                        };
+                        return [4 /*yield*/, calcpass2017a.StretchSiteCardMix(this.siteCardMix, pbc)];
+                    case 1:
+                        passwordSeed = _a.sent();
+                        password = calcpass2017a.MakeFriendlyPassword12a(passwordSeed);
+                        util_1.erase(this.siteCardMix);
+                        util_1.erase(passwordSeed);
+                        setScreen(new PasswordReady(this.ctx, password));
+                        return [2 /*return*/];
+                }
+            });
+        });
+    };
+    return StretchingFinal;
+}());
+var PasswordReady = (function () {
+    function PasswordReady(ctx, password) {
+        this.elm_warnCopy = null;
+        this.didCopyWarning = false;
+        this.elm_showPassDiv = null;
+        this.ctx = ctx;
+        this.password = password;
+        this.html = "\n\t\t\t<h2>Password Ready</h2>\n\t\t\t<p>\n\t\t\t<b>Click on</b> or <b>type any key</b> into on the field where the password\n\t\t\tshould be inserted.\n\t\t\t<p>\n\t\t\t<button id=\"btnShow\">Show Password</button>\n\t\t\t<button id=\"btnCopy\">Copy to Clipboard</button>\n\t\t\t<div id=\"warnCopy\" style=\"display:none; width: 85%;\">\n\t\t\t\tCopying makes the password visible to every\n\t\t\t\tprogram on this computer, including\n\t\t\t\tMalware and Spyware.  Click Copy again\n\t\t\t\tto confirm.\n\t\t\t</div>\n\t\t\t<div id=\"showPassDiv\" style=\"display:none\">\n\t\t\t\t<table border=\"1\">\n\t\t\t\t\t<tr>\n\t\t\t\t\t\t<td>Abcd</td>\n\t\t\t\t\t\t<td>efgh</td>\n\t\t\t\t\t\t<td>ijk1</td>\n\t\t\t\t\t</tr>\n\t\t\t\t</table>\n\t\t\t</div>\n\t\t\t<div id=\"err\">?</div>\n\t\t";
+    }
+    PasswordReady.prototype.event_click_btnSend = function (e) {
+        return __awaiter(this, void 0, void 0, function () {
+            var tabId;
+            return __generator(this, function (_a) {
+                switch (_a.label) {
+                    case 0:
+                        console.log('TODO: lock into active tab ID during initial calcpass click? Warn user if it has changed');
+                        return [4 /*yield*/, firefox.getActiveTabID()];
+                    case 1:
+                        tabId = _a.sent();
+                        firefox.sendMessageToContentScript(tabId, { ENTER_PASSWORD: true,
+                            password: this.password,
+                        });
+                        return [2 /*return*/];
+                }
+            });
+        });
+    };
+    PasswordReady.prototype.event_click_btnShow = function (e) {
+        this.elm_showPassDiv.style.display = 'block';
+        //TODO: fill in table
+    };
+    PasswordReady.prototype.event_click_btnCopy = function (e) {
+        if (this.didCopyWarning) {
+            //this.elm_warnCopy.style.display = 'none';
+            this.elm_warnCopy.firstChild.nodeValue = 'Copied';
+            showErr('copy not yet ready');
+            return;
+        }
+        else {
+            this.didCopyWarning = true;
+            this.elm_warnCopy.style.display = 'block';
+        }
+    };
+    return PasswordReady;
 }());
 function escapeHTML(text) {
     //TODO
     return text;
 }
-var SelectSiteName = (function () {
-    function SelectSiteName(scheme, hostname) {
-        this.elm_shortDomain = null;
-        this.elm_other = null;
-        this.elm_txtOther = null;
-        this.elm_otherOK = null;
-        this.html = "<h2>Verify Website Name:</h2>";
+var PromptParameters = (function () {
+    function PromptParameters() {
+        this.elm_selSite = null;
+        this.elm_jumble_symbols = null;
+        this.elm_spanJumbleSymbols = null;
+        this.elm_pass = null;
+        this.elm_selFormat = null;
+        var hostname = 'fixme.com';
         hostname = hostname.toLowerCase();
+        this.ctx = new Context();
+        this.ctx.origHostname = hostname;
         //TODO: show warning if not HTTPS
         //let isHTTPS = scheme.toLowerCase() === 'https';
         this.shortDomain = calcpass_misc.removeSubdomains(hostname);
         this.fullDomain = hostname;
-        this.html += "\n\t\t<button id=\"shortDomain\" style=\"font-weight:bold\">" + escapeHTML(this.shortDomain) + "</button>\n\t\t<br/>\n\t\t";
-        if (this.shortDomain != this.fullDomain) {
-            this.html += "\n\t\t\t<button id=\"fullDomain\">" + escapeHTML(this.fullDomain) + "</button>\n\t\t\t<br/>\n\t\t\t";
-        }
-        this.html += "\n\t\t<button id=\"other\">Other</button>\n\t\t<input id=\"txtOther\" type=\"text\" value=\"" + escapeHTML(this.fullDomain) + "\" size=\"20\" style=\"display:none\"/>\n\t\t<button id=\"otherOK\" style=\"display:none\">OK</button>\n\t\t<br/>\n\t\t<div id=\"err\">?</div>\n\t\t";
+        this.html = "<h2>Calculate Password</h2>\n\t\t<div class=\"inputRow\">\n\t\t\t<label class=\"pushRight\" for=\"selSite\">Password For:</label>\n\t\t\t<select id=\"selSite\">\n\t\t\t\t<option value=\"short\" selected=\"selected\">" + escapeHTML(this.shortDomain) + "</option>\n\t\t\t\t<option value=\"full\">" + escapeHTML(this.fullDomain) + "</option>\n\t\t\t\t<option value=\"other\">Other</option>\n\t\t\t</select>\n\t\t</div>\n\t\t<div class=\"inputRow\">\n\t\t\t<label class=\"pushRight\" for=\"selRev\">Password Revision:</label>\n\t\t\t<select id=\"selRev\">\n\t\t\t\t<option value=\"0\" selected=\"selected\">0</option>\n\t\t\t\t<option value=\"1\">1</option>\n\t\t\t\t<option value=\"2\">2</option>\n\t\t\t\t<option value=\"3\">3</option>\n\t\t\t\t<option value=\"4\">4</option>\n\t\t\t\t<option value=\"other\">Other</option>\n\t\t\t</select>\n\t\t</div>\n\t\t<div class=\"inputRow\">\n\t\t\t<label class=\"pushRight\" for=\"selFormat\">Password Format:</label>\n\t\t\t<select id=\"selFormat\" title=\"Example: Alqingezioe7\">\n\t\t\t\t<option value=\"default\" selected=\"selected\">Default</option>\n\t\t\t\t<option value=\"sixteen\">Sixteen</option>\n\t\t\t\t<option value=\"jumble\">Jumble</option>\n\t\t\t\t<!-- I do not wish to offer any choice which could yield a password weaker than\n\t\t\t\tthe default format because that opens an attack vector. -->\n\t\t\t</select>\n\t\t\t<span id=\"spanJumbleSymbols\" style=\"display:none\"> with <input id=\"jumble_symbols\" type=\"text\" size=\"2\" value=\"@,\"/></span>\n\t\t</div>\n\t\t<div class=\"inputRow\">\n\t\t\t<label class=\"pushRight\" for=\"pass\">Master Password</label>\n\t\t\t<input id=\"pass\" type=\"password\" value=\"\" size=\"20\"/>\n\t\t\t<img src=\"/icons/reveal.png\" alt=\"reveal\" title=\"TODO\" style=\"height:20px\" />\n\t\t</div>\n\t\t<div id=\"err\">?</div>\n\t\t<div style=\"margin-top: 2em\">\n\t\t\t<button id=\"btnNext\" style=\"width: 10em; float:right; margin-right: 1em;\">Next</button>\n\t\t</div>\t\t\n\t\t";
     }
-    SelectSiteName.prototype.proceed = function (hostname) {
-        var ctx = new Context();
-        ctx.sitename = hostname;
-        setScreen(new MasterPassPrompt(ctx));
+    PromptParameters.prototype.on_selFormat_change = function (e) {
+        var jumble = this.elm_selFormat.value == 'jumble';
+        this.elm_spanJumbleSymbols.style.display = jumble ? 'inline' : 'none';
     };
-    SelectSiteName.prototype.event_click_shortDomain = function (e) {
-        this.proceed(this.shortDomain);
-    };
-    SelectSiteName.prototype.event_click_fullDomain = function (e) {
-        this.proceed(this.fullDomain);
-    };
-    SelectSiteName.prototype.event_click_otherOK = function (e) {
-        var other = this.elm_txtOther.value.trim().toLowerCase();
-        //TODO: better to just disable the OK button when empty?
-        if (other.length == 0) {
-            showErr('Empty not allowed');
+    PromptParameters.prototype.event_click_btnNext = function (e) {
+        var pass = this.elm_pass.value.trim();
+        if (pass.length < 8) {
+            showErr('Master Password must be 8 characters.');
             return;
         }
-        this.proceed(other);
+        var hostname;
+        switch (this.elm_selSite.value) {
+            case 'short':
+                hostname = this.shortDomain;
+                break;
+            case 'full':
+                hostname = this.fullDomain;
+                break;
+            case 'other':
+                showUnexpectedError('selSite other not yet implemented');
+                return;
+            default:
+                showUnexpectedError('invalid selSite');
+                return;
+        }
+        this.ctx.sitename = hostname;
+        //TODO: assign format etc
+        var rawPlain = utf8_1.stringToUTF8(pass);
+        setScreen(new StretchingMasterPass(this.ctx, rawPlain));
     };
-    SelectSiteName.prototype.event_click_other = function (e) {
-        this.elm_other.style.display = 'none';
-        this.elm_txtOther.style.display = 'inline';
-        this.elm_otherOK.style.display = 'inline';
-        this.elm_txtOther.focus();
+    PromptParameters.prototype.onScreenReady = function () {
+        var _this = this;
+        this.elm_selFormat.addEventListener('change', function (e) { _this.on_selFormat_change(e); });
+        this.elm_pass.focus();
     };
-    SelectSiteName.prototype.onScreenReady = function () {
-        this.elm_shortDomain.focus();
-    };
-    return SelectSiteName;
+    return PromptParameters;
 }());
-function onMessage(msg, senderInfo) {
-    return __awaiter(this, void 0, void 0, function () {
-        return __generator(this, function (_a) {
-            console.log('popup onMessage was called!', JSON.stringify(msg));
-            if (msg.CONTENT_SCRIPT_LOADED) {
-                console.log('got CONTENT_SCRIPT_LOADED');
-                setScreen(new SelectSiteName(msg.location.scheme, msg.location.hostname));
+var WarnNoSelectedInput = (function () {
+    function WarnNoSelectedInput() {
+        this.html = "\n\t\t\t<h2>No Field Selected</h2>\n\t\t\t<p>\n\t\t\tPlease select a password or text field on the current web page.\n\t\t\t<p>\n\t\t\tIf you wish to calculate a password but not insert it into this web\n\t\t\tpage you can <a href=\"#\">proceed anyway</a>.\n\t\t";
+    }
+    return WarnNoSelectedInput;
+}());
+var WarnUnableToLoadContentScript = (function () {
+    function WarnUnableToLoadContentScript() {
+        this.html = "\n\t\t\tPlease browse to the website which you need a password for.\n\t\t\t<p>\n\t\t\tIf you wish to calculate a password but not insert it into a web\n\t\t\tpage you can <a href=\"#\">proceed anyway</a>.\n\t\t";
+    }
+    return WarnUnableToLoadContentScript;
+}());
+function onMessage(msg, sender) {
+    console.log('popup onMessage: ', JSON.stringify(msg));
+    //If sent from the content-script, get the tabId and frameId
+    var cfi = null;
+    if (sender.tab) {
+        cfi = new ContentFrameInfo();
+        cfi.tabId = sender.tab.id;
+        cfi.frameId = sender.frameId;
+    }
+    //sender is a runtime.MessageSender
+    if (msg.CONTENT_SCRIPT_READY) {
+        if (!cfi)
+            throw new Error('Received CONTENT_SCRIPT_READY from unknown tab');
+        //Ignore the message if we already know our target
+        if (gTargetFrame)
+            return;
+        cfi.origin = msg.origin;
+        cfi.hasFocusedInput = msg.hasFocusedInput;
+        cfi.hasChildFrames = msg.hasChildFrames;
+        if (cfi.hasFocusedInput) {
+            if (gTargetFrame)
+                throw new Error('Multiple frames have a focused input!');
+            gTargetFrame = cfi;
+        }
+        //always remember the root frame
+        if (cfi.frameId == 0) {
+            if (gRootFrame)
+                throw new Error('Multiple CONTENT_SCRIPT_READY from the root frame!');
+            gRootFrame = cfi;
+            if (!gRootFrame.hasFocusedInput) {
+                if (gRootFrame.hasChildFrames) {
+                    //Root has no focused inputs but perhaps a child frame does
+                    //We must give the children more time to load the content-script.
+                    setTimeout(onWarnNoSelectedInputTimeout, 250);
+                }
+                else {
+                    //No point in waiting because no children
+                    onWarnNoSelectedInputTimeout();
+                }
+                return;
             }
-            return [2 /*return*/];
-        });
-    });
+        }
+        //Show the prompt as soon as we have a target and the root
+        if (gTargetFrame && gRootFrame) {
+            setScreen(new PromptParameters());
+        }
+    }
+}
+//Fires when we get tired of waiting for the child frames to report back
+function onWarnNoSelectedInputTimeout() {
+    //If still no target then show a warning
+    if (!gTargetFrame) {
+        gTargetFrame = gRootFrame;
+        setScreen(new WarnNoSelectedInput());
+    }
 }
 function load() {
     return __awaiter(this, void 0, void 0, function () {
@@ -1526,6 +1858,34 @@ function load() {
         return __generator(this, function (_a) {
             switch (_a.label) {
                 case 0:
+                    /*
+                    Our first task is to tell the user the domain name of the website they are logging in to.
+                
+                    This is made tricky by the fact that some websites use an <iframe> for login (eg gog.com).
+                    The iframe often has a different domain name.
+                    
+                    Other sites have a login <form> which submits to a different domain.  Some sites set the
+                    <form> action attribute dyamically, with JavaScript, so you can't tell by looking at the markup
+                    where it will submit to.  I'll bet some sites even do login with AJAX.
+                
+                    The fact is, when you type a password into a web page, you have no
+                    guarantee where	that password will be sent to.  You must simply TRUST that the
+                    parent website will take good care of your precious password.
+                
+                    So it call comes down to trust.  When I visit example.com and start typing my password
+                    I must trust example.com.  example.com would not trick me into typing into an <iframe>
+                    of a malicious website.  Nor would they trick me by submitting the <form> to a malicious website.
+                    If I don't trust example.com then I shouldn't type a password into it.
+                
+                    If example.com was trustworthy but is later compromised then it's
+                    game over - the attacker will get your password and theres little
+                    we can do to stop it.
+                
+                    In summary, the calcpass extension will use the domain name which appears
+                    in the address bar.  It will not use the domain of the <iframe> or the
+                    domain where the <form> submits to.  This solution is simple,
+                    easy to explain, and completely deterministic.
+                    */
                     console.log('popup load()');
                     _a.label = 1;
                 case 1:
@@ -1534,16 +1894,15 @@ function load() {
                     _a.label = 2;
                 case 2:
                     _a.trys.push([2, 4, , 5]);
-                    //throws if active tab is not a normal webpage (eg about:blank)
-                    return [4 /*yield*/, firefox.loadContentScriptIntoActiveTab()];
+                    return [4 /*yield*/, firefox.loadContentScriptIntoActiveTab(true)];
                 case 3:
-                    //throws if active tab is not a normal webpage (eg about:blank)
                     _a.sent();
                     return [3 /*break*/, 5];
                 case 4:
                     e_1 = _a.sent();
+                    //This happens when the active tab is not a normal web page (eg about:blank)
                     console.log('Unable to load content script: ' + e_1);
-                    showUnexpectedError('TODO: ask user to select a tab or enter sitename');
+                    setScreen(new WarnUnableToLoadContentScript());
                     return [2 /*return*/];
                 case 5: return [3 /*break*/, 7];
                 case 6:
@@ -1557,7 +1916,7 @@ function load() {
 }
 load();
 
-},{"./calcpass2017a":2,"./calcpass_misc":3,"./execute_parallel_bcrypt_webworkers":4,"./firefox":5,"./utf8":10,"./util":11}],9:[function(require,module,exports){
+},{"./calcpass2017a":3,"./calcpass_misc":4,"./execute_parallel_bcrypt_webworkers":5,"./firefox":6,"./hex":7,"./utf8":11,"./util":12}],10:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 //Copied from: https://github.com/dchest/fast-sha256-js
@@ -1918,7 +2277,7 @@ exports.hmac = hmac;
     return dk;
 }*/
 
-},{}],10:[function(require,module,exports){
+},{}],11:[function(require,module,exports){
 /**Convert a unicode string to a Uint8Array of UTF-8 octets.*/
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
@@ -1949,14 +2308,45 @@ function selfTest() {
 }
 exports.selfTest = selfTest;
 
-},{}],11:[function(require,module,exports){
+},{}],12:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
+;
 /**Write zero into any array-like object.*/
 function erase(array) {
     for (var i = 0; i < array.length; i++)
         array[i] = 0;
 }
 exports.erase = erase;
+/**Build an incrementing sequence of bytes (handy for unit testing).*/
+function byteSeq(start, count) {
+    var res = new Uint8Array(count);
+    for (var i = 0; i < count; i++) {
+        res[i] = (start + i) & 0xFF;
+    }
+    return res;
+}
+exports.byteSeq = byteSeq;
+/**Create a random integer from [0, n) where n is <= 256.
+This function returns uniformly distributed numbers (no modulo bias).
 
-},{}]},{},[8]);
+Throws an error if the random source is exhausted or n exceeds 256.
+*/
+function UnbiasedSmallInt(source, n) {
+    //Solutions from:
+    //  https://zuttobenkyou.wordpress.com/2012/10/18/generating-random-numbers-without-modulo-bias/
+    var randmax = 255;
+    if (n <= 0 || n > (randmax + 1) || n !== Math.floor(n)) {
+        throw new Error("UnbiasedSmallInt: n out of range: " + n);
+    }
+    var limit = randmax - ((randmax + 1) % n);
+    var r;
+    while (true) {
+        r = source.NextByte();
+        if (r <= limit)
+            return r % n;
+    }
+}
+exports.UnbiasedSmallInt = UnbiasedSmallInt;
+
+},{}]},{},[9]);

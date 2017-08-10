@@ -1,7 +1,7 @@
 TEMPDIR := /tmp/calcpass-firefox-build
 DIRFILE := $(TEMPDIR)/.placeholder
 
-all: popup-bundle.js content-script-bundle.js parallel-bcrypt-webworker.js
+all: popup-bundle.js content-script-bundle.js parallel-bcrypt-webworker.js background-script-bundle.js
 
 popup-bundle.js: js-src/*.ts Makefile
 	tsc --outDir "$(TEMPDIR)" --project ./js-src
@@ -14,9 +14,11 @@ content-script-bundle.js: popup-bundle.js
 	@echo '\n1234; //ignored but necessary for tabs.executeScript()' >> $(TEMPDIR)/content-script-bundle.tmp
 	cp $(TEMPDIR)/content-script-bundle.tmp $@
 
-#the popup-bundle.js dependency compiles all typescript
 parallel-bcrypt-webworker.js: popup-bundle.js
 	browserify $(TEMPDIR)/parallel-bcrypt-webworker.js --outfile $@
+
+background-script-bundle.js: popup-bundle.js
+	browserify $(TEMPDIR)/background-script.js --outfile $@
 
 
 #Make TEMPDIR

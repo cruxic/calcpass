@@ -34,3 +34,23 @@ div.progressBar div {
 #unexpected_error h3 {
 	color: #700000;
 }
+
+span.codeNum {
+	font-weight: bold;
+	font-size: large;
+	border: 1px solid #CE8F00;
+	background: #FFF89A;
+	border-radius: 4px;
+	padding-left: 5px;
+	padding-right: 5px;
+}
+
+label.pushRight {
+	width: 10em;
+	display: inline-block;
+	text-align: right;
+}
+
+div.inputRow {
+	margin-bottom: 0.5em;
+}

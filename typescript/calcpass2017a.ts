@@ -1,8 +1,12 @@
 import * as sha256 from './sha256';
 import {stringToUTF8} from './utf8';
-import {erase, UnbiasedSmallInt, ByteSource} from './util';
+import {UnbiasedSmallInt, ByteSource} from './util';
 import {HmacCounterByteSource} from './HmacCounterByteSource';
 
+const CARD_xNames = "ABCDEFGHJKLMNPQRSTUVWX";  //skip I and O to avoid ambiguity when rendered with certain fonts
+const CARD_W = 22;
+const CARD_H = 15;
+const CARD_NUM_CODES = 40;
 const bcryptCost_2017a = 13;
 
 export class StretchedMaster {
@@ -20,6 +24,11 @@ export class SiteCardMix {
 export class PasswordSeed {
 	bytes:Uint8Array;  //32 bytes
 }
+
+export class CodeFromCard {
+	bytes:Uint8Array;  //7 bytes (a-z)
+}
+
 
 export function isSaneEmail(s:string):boolean {
 	//a@b.c
@@ -80,27 +89,42 @@ export function MakeSiteKey(stretchedMaster:StretchedMaster, websiteName:string,
 	return sk;
 }
 
+export function CheckCardCode(lettersFromCard:string, codeNumber:number):CodeFromCard {
+	if (!lettersFromCard)
+		return null;
+
+	//always lower case
+	lettersFromCard = lettersFromCard.trim().toLowerCase();
+
+	let codeBytes = stringToUTF8(lettersFromCard);
+	let i:number;
+	let c:number;
+
+	if (codeBytes.length != 8)
+		return null;
+
+	//must be a-z
+	for (i = 0; i < codeBytes.length; i++) {
+		c = codeBytes[i];
+		if (c < 0x61 || c > 0x7A)
+			return null;
+	}
+
+	//TODO: verify checksum of the first 7 (also include codeNumber)
+
+	let res = new CodeFromCard();
+	res.bytes = codeBytes.slice(0, 7);
+	return res;
+}
+
 /**Mix SiteKey and card characters using HmacSha256.*/
-export function MixSiteAndCard(siteKey:SiteKey, charactersFromCard:string):SiteCardMix {
-	//2017a cards are all lower case.  Also trim white space
-	charactersFromCard = charactersFromCard.trim().toLowerCase();
-
-	if (charactersFromCard.length < 8) {
-		throw new Error("Too few characters from card");
-	}
-
-	let rawChars = stringToUTF8(charactersFromCard);
-
-	//verify a-z
-	for (let i = 0; i < rawChars.length; i++) {
-		if (rawChars[i] < 0x61 || rawChars[i] > 0x7A)
-			throw new Error("charactersFromCard must be a through z");
-	}
+export function MixSiteAndCard(siteKey:SiteKey, cardCode:CodeFromCard):SiteCardMix {
+	//sanity
+	if (cardCode.bytes.length != 7)
+		throw new Error('CodeFromCard wrong length');
 
 	let mix = new SiteCardMix();
-	mix.bytes = sha256.hmac(siteKey.bytes, rawChars)
-
-	erase(rawChars);
+	mix.bytes = sha256.hmac(siteKey.bytes, cardCode.bytes)
 
 	return mix;
 }
@@ -147,9 +171,6 @@ export function MakeFriendlyPassword12a(seed:PasswordSeed):string {
 	return chars;
 }
 
-const CARD_xNames = "ABCDEFGHJKLMNPQRSTUVWX";  //skip I and O to avoid ambiguity when rendered with certain fonts
-const CARD_W = 22;
-const CARD_H = 15;
 
 function xNameFunc(index:number):string {
 	if (index >= CARD_xNames.length) {
@@ -208,3 +229,10 @@ export function MakeSiteCoordinates(siteKey:SiteKey, count:number):Array<CardCoo
 	return makeCardCoordinatesFromSource(src, count, CARD_W, CARD_H,
 		xNameFunc, yNameFunc);
 }
+
+export function GetCardCodeNumber(siteKey:SiteKey):number {
+	let src = new HmacCounterByteSource(siteKey.bytes, 128);
+	return UnbiasedSmallInt(src, CARD_NUM_CODES) + 1;
+}
+
+

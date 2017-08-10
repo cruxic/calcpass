@@ -3,8 +3,28 @@ import * as calcpass2017a from './calcpass2017a';
 import {execute_parallel_bcrypt_webworkers} from './execute_parallel_bcrypt_webworkers';
 import {stringToUTF8} from './utf8';
 import {erase} from './util';
-//import * as hex from './hex'
+import * as hex from './hex'
 import * as calcpass_misc from './calcpass_misc'
+
+let gCurrentScreen = null;
+
+class ContentFrameInfo {
+	tabId:number;
+	frameId:number;
+	origin:string;
+	hasFocusedInput:boolean;
+	hasChildFrames:boolean;
+}
+
+//let gContentFrames = new Array<ContentFrameInfo>();
+
+//The content frame which had the focused password field
+//when the user clicked the toolbar.
+//If there was no focused input this will point to the root frame.
+let gTargetFrame:ContentFrameInfo = null;
+
+//holds the root frame
+let gRootFrame:ContentFrameInfo = null;
 
 function setContent(html) {
 	document.getElementById('content').innerHTML = html;
@@ -58,6 +78,8 @@ function setScreen(screen:Object) {
 			//console.log(`set elm ${k}`);
 		}
 	}
+
+	gCurrentScreen = screen;
 
 	//Call onScreenReady if provided
 	if (screen['onScreenReady']) {
@@ -147,7 +169,7 @@ function showErr(text:string) {
 
 	elm.style.display = 'block';
 }
-
+/*
 class MasterPassPrompt {
 	html:string;
 	elm_pass:any = null;
@@ -182,11 +204,28 @@ class MasterPassPrompt {
 
 	}
 }
-
+*/
 class Context {
-	sitename:string;
-	stretchedMaster:calcpass2017a.StretchedMaster;
-	stretchTookMillis:number;
+	//the full host name which was in the address bar
+	//when the user started calculating the password.
+	origHostname:string = null;
+
+	//The host name or program name the user chose to
+	//calculate a password for (not necessarily a domain
+	// name)
+	sitename:string = null;
+	
+	stretchTookMillis:number = 0;
+	
+	siteKey: calcpass2017a.SiteKey = null;
+	revision:number = 0;
+
+	/*toPlainObject():any {
+		return {
+			origHostname: this.origHostname,
+			sitename: 
+		};
+	}*/
 }
 
 class StretchingMasterPass {
@@ -232,7 +271,7 @@ class StretchingMasterPass {
 
 		let t1 = performance.now();
 		
-		this.ctx.stretchedMaster = await calcpass2017a.StretchMasterPassword(pass, userEmail, pbc);
+		let stretchedMaster = await calcpass2017a.StretchMasterPassword(pass, userEmail, pbc);
 		
 		let t2 = performance.now();
 		this.ctx.stretchTookMillis = Math.ceil(t2 - t1);
@@ -240,28 +279,52 @@ class StretchingMasterPass {
 		erase(this.plaintext);
 		this.plaintext = null;
 
-		setScreen(new ShowCoordinates(this.ctx));
+		setScreen(new PromptCardCode(this.ctx, stretchedMaster));
 	}
 }
 
-class ShowCoordinates {
+class PromptCardCode {
 	html:string;
 
 	ctx:Context;
 	elm_chars:any = null;
+	codeNum:number;
 	
-	constructor(ctx:Context) {
+	constructor(ctx:Context, stretchedMaster:calcpass2017a.StretchedMaster) {
 		this.ctx = ctx;
-		//TODO: calculate coordinates from ctx.stretchedMaster and ctx.sitename and ctx.revision
+
+		ctx.siteKey = calcpass2017a.MakeSiteKey(stretchedMaster, ctx.sitename, ctx.revision);
+
+		erase(stretchedMaster.bytes);
+		stretchedMaster.bytes = null;
+
+		//Remember the siteKey in RAM of the background script so that we can skip the lengthy
+		// stretching step if the user requests the same password again
+		firefox.sendMessage({
+			REMEMBER_STATE:true,
+			origHostname: ctx.origHostname,
+			sitename: ctx.sitename,
+			revision: ctx.revision,
+			siteKeyHex: hex.encode(ctx.siteKey.bytes)
+		});
+
+		this.codeNum = calcpass2017a.GetCardCodeNumber(ctx.siteKey);
 		
 		this.html = `
-		<h2>Enter Coordinates</h2>
-		<p>
-		<b>7P</b>&nbsp;&nbsp;<b>13Q</b>
-		<p>
-		<input id="chars" type="password" size="8" maxlength="8"/><button>*</button>
-		<p>
-		<button id="next">OK</button>
+		<table>
+		<tr>
+		<td>
+			Enter code <span class="codeNum">${this.codeNum}</span> from your card.
+			<p>
+			<input id="chars" type="password" size="8" maxlength="8"/>
+			<img src="/icons/reveal.png" alt="reveal" title="TODO" style="height:20px" />
+			<button id="next">OK</button>
+		</td>
+		<td>
+			<img src="img/enter-card-code.png" style="width: 5em; margin-left: 2em;" alt="picture of card"/>
+		</td>
+		</tr>
+		</table>
 		<div id="err">?</div>
 		`;
 	}
@@ -277,8 +340,140 @@ class ShowCoordinates {
 			return;
 		}
 
-		
+		let codeFromCard = calcpass2017a.CheckCardCode(chars, this.codeNum);
+		if (!codeFromCard) {
+			showErr('Checksum failed.  Typo?  Wrong code?');
+			return;
+		}
+
+		let siteCardMix = calcpass2017a.MixSiteAndCard(this.ctx.siteKey, codeFromCard);
+
+		erase(codeFromCard);
+
+		setScreen(new StretchingFinal(this.ctx, siteCardMix));
 	}
+}
+
+class StretchingFinal {
+	html:string;
+
+	elm_progBar:any = null;
+	elm_progPercent:any = null;
+	ctx:Context;
+	siteCardMix:calcpass2017a.SiteCardMix;
+	
+	constructor(ctx:Context, siteCardMix:calcpass2017a.SiteCardMix) {
+		this.ctx = ctx;
+		this.siteCardMix = siteCardMix;
+		this.html = `
+		<div class="progressBar">
+			<div id="progBar">Stretching card code. <span id="progPercent">0%</span></div>
+		</div>
+		`;
+	}
+
+	setProgressBar(percent:number) {
+		if (percent < 0.0)
+			percent = 0.0;
+		if (percent > 1.0)
+			percent = 1.0;
+			
+		var percentStr = '' + Math.floor(percent * 100.0);
+		this.elm_progBar.style.width = percentStr + '%';
+		setElmText(this.elm_progPercent, percentStr + '%');
+	}
+	
+
+	async onScreenReady() {
+		let pbc = new calcpass2017a.ParallelBcrypt();
+		pbc.execute = execute_parallel_bcrypt_webworkers;
+		pbc.progressCallback = (percent:number) => {
+			this.setProgressBar(percent);
+		};
+
+		let passwordSeed = await calcpass2017a.StretchSiteCardMix(this.siteCardMix, pbc);
+
+		let password = calcpass2017a.MakeFriendlyPassword12a(passwordSeed);
+
+		erase(this.siteCardMix);
+		erase(passwordSeed);
+
+
+		setScreen(new PasswordReady(this.ctx, password));
+	}
+}
+
+class PasswordReady {
+	html:string;
+
+	ctx:Context;
+	elm_warnCopy = null;
+	didCopyWarning = false;
+	elm_showPassDiv = null;
+	password:string;
+	
+	
+	constructor(ctx:Context, password:string) {
+		this.ctx = ctx;
+
+		this.password = password;
+
+		this.html = `
+			<h2>Password Ready</h2>
+			<p>
+			<b>Click on</b> or <b>type any key</b> into on the field where the password
+			should be inserted.
+			<p>
+			<button id="btnShow">Show Password</button>
+			<button id="btnCopy">Copy to Clipboard</button>
+			<div id="warnCopy" style="display:none; width: 85%;">
+				Copying makes the password visible to every
+				program on this computer, including
+				Malware and Spyware.  Click Copy again
+				to confirm.
+			</div>
+			<div id="showPassDiv" style="display:none">
+				<table border="1">
+					<tr>
+						<td>Abcd</td>
+						<td>efgh</td>
+						<td>ijk1</td>
+					</tr>
+				</table>
+			</div>
+			<div id="err">?</div>
+		`;
+	}
+
+	/*async event_click_btnSend(e) {
+		console.log('TODO: lock into active tab ID during initial calcpass click? Warn user if it has changed');
+		let tabId = await firefox.getActiveTabID();
+	
+		firefox.sendMessageToContentScript(tabId, {ENTER_PASSWORD:true,
+			password: this.password,			
+		});
+	}*/
+
+	event_click_btnShow(e) {
+		this.elm_showPassDiv.style.display = 'block';
+		//TODO: fill in table
+
+	}
+
+	event_click_btnCopy(e) {
+		if (this.didCopyWarning) {
+			//this.elm_warnCopy.style.display = 'none';
+			this.elm_warnCopy.firstChild.nodeValue = 'Copied';
+			showErr('copy not yet ready');
+			return;
+		} else {
+			this.didCopyWarning = true;
+			this.elm_warnCopy.style.display = 'block';
+		}
+	}
+	
+	
+
 }
 
 function escapeHTML(text:string): string {
@@ -286,21 +481,28 @@ function escapeHTML(text:string): string {
 	return text;
 }
 
-class SelectSiteName {
+class PromptParameters {
 	html:string;
-	elm_shortDomain:any = null;
-	elm_other:any = null;
-	elm_txtOther:any = null;
-	elm_otherOK:any = null;
+	elm_selSite = null;
+
+	elm_jumble_symbols:any = null;
+	elm_spanJumbleSymbols:any = null;
+	elm_pass = null;
+	elm_selFormat = null;
 	
 	shortDomain:string;
 	fullDomain:string;
+	ctx:Context;
+
+	contentFrames:Array<ContentFrameInfo>;
 		
 	
-	constructor(scheme:string, hostname:string) {
-		this.html = `<h2>Verify Website Name:</h2>`;
-
+	constructor() {
+		let hostname = 'fixme.com';
 		hostname = hostname.toLowerCase();
+
+		this.ctx = new Context();
+		this.ctx.origHostname = hostname;
 
 		//TODO: show warning if not HTTPS
 		//let isHTTPS = scheme.toLowerCase() === 'https';
@@ -308,126 +510,236 @@ class SelectSiteName {
 		this.shortDomain = calcpass_misc.removeSubdomains(hostname);
 		this.fullDomain = hostname;
 
-		this.html += `
-		<button id="shortDomain" style="font-weight:bold">${escapeHTML(this.shortDomain)}</button>
-		<br/>
-		`;
-
-		if (this.shortDomain != this.fullDomain) {
-			this.html += `
-			<button id="fullDomain">${escapeHTML(this.fullDomain)}</button>
-			<br/>
-			`;
-		}
-
-		this.html += `
-		<button id="other">Other</button>
-		<input id="txtOther" type="text" value="${escapeHTML(this.fullDomain)}" size="20" style="display:none"/>
-		<button id="otherOK" style="display:none">OK</button>
-		<br/>
+		this.html = `<h2>Calculate Password</h2>
+		<div class="inputRow">
+			<label class="pushRight" for="selSite">Password For:</label>
+			<select id="selSite">
+				<option value="short" selected="selected">${escapeHTML(this.shortDomain)}</option>
+				<option value="full">${escapeHTML(this.fullDomain)}</option>
+				<option value="other">Other</option>
+			</select>
+		</div>
+		<div class="inputRow">
+			<label class="pushRight" for="selRev">Password Revision:</label>
+			<select id="selRev">
+				<option value="0" selected="selected">0</option>
+				<option value="1">1</option>
+				<option value="2">2</option>
+				<option value="3">3</option>
+				<option value="4">4</option>
+				<option value="other">Other</option>
+			</select>
+		</div>
+		<div class="inputRow">
+			<label class="pushRight" for="selFormat">Password Format:</label>
+			<select id="selFormat" title="Example: Alqingezioe7">
+				<option value="default" selected="selected">Default</option>
+				<option value="sixteen">Sixteen</option>
+				<option value="jumble">Jumble</option>
+				<!-- I do not wish to offer any choice which could yield a password weaker than
+				the default format because that opens an attack vector. -->
+			</select>
+			<span id="spanJumbleSymbols" style="display:none"> with <input id="jumble_symbols" type="text" size="2" value="@,"/></span>
+		</div>
+		<div class="inputRow">
+			<label class="pushRight" for="pass">Master Password</label>
+			<input id="pass" type="password" value="" size="20"/>
+			<img src="/icons/reveal.png" alt="reveal" title="TODO" style="height:20px" />
+		</div>
 		<div id="err">?</div>
+		<div style="margin-top: 2em">
+			<button id="btnNext" style="width: 10em; float:right; margin-right: 1em;">Next</button>
+		</div>		
 		`;		
 	}
 
-	proceed(hostname:string) {
-		let ctx = new Context();
-		ctx.sitename = hostname;
-		setScreen(new MasterPassPrompt(ctx));
+	on_selFormat_change(e) {
+		let jumble = this.elm_selFormat.value == 'jumble';
+		this.elm_spanJumbleSymbols.style.display = jumble ? 'inline' : 'none';
 	}
 
-	event_click_shortDomain(e) {
-		this.proceed(this.shortDomain);
-	}
-
-	event_click_fullDomain(e) {
-		this.proceed(this.fullDomain);
-	}
-	
-	event_click_otherOK(e) {
-		let other = this.elm_txtOther.value.trim().toLowerCase();
-
-		//TODO: better to just disable the OK button when empty?
-		if (other.length == 0) {
-			showErr('Empty not allowed');
+	event_click_btnNext(e) {
+		let pass = this.elm_pass.value.trim();
+		if (pass.length < 8) {
+			showErr('Master Password must be 8 characters.');
 			return;
 		}
 
-		this.proceed(other);
-	}
+		let hostname:string;
+		switch (this.elm_selSite.value) {
+			case 'short':
+				hostname = this.shortDomain;
+				break;
+			case 'full':
+				hostname = this.fullDomain;
+				break;
+			case 'other':
+				showUnexpectedError('selSite other not yet implemented');
+				return;
+			default:
+				showUnexpectedError('invalid selSite');
+				return;
+		}
 
-	event_click_other(e) {
-		this.elm_other.style.display = 'none';
-		this.elm_txtOther.style.display = 'inline';
-		this.elm_otherOK.style.display = 'inline';
-		this.elm_txtOther.focus();				
+		this.ctx.sitename = hostname;
+		//TODO: assign format etc
+		
+		let rawPlain = stringToUTF8(pass);	
+		setScreen(new StretchingMasterPass(this.ctx, rawPlain));		
 	}
 
 	onScreenReady() {
-		this.elm_shortDomain.focus();
+		this.elm_selFormat.addEventListener('change', (e) => {this.on_selFormat_change(e);});
+	
+		this.elm_pass.focus();
+
+		
 	}
 }
 
-async function onMessage(msg, senderInfo) {
-	console.log('popup onMessage was called!', JSON.stringify(msg));
+class WarnNoSelectedInput {
+	html:string;
+	
+	constructor() {
+		this.html =`
+			<h2>No Field Selected</h2>
+			<p>
+			Please select a password or text field on the current web page.
+			<p>
+			If you wish to calculate a password but not insert it into this web
+			page you can <a href="#">proceed anyway</a>.
+		`;
 
-	if (msg.CONTENT_SCRIPT_LOADED) {
-		console.log('got CONTENT_SCRIPT_LOADED');
-		setScreen(new SelectSiteName(msg.location.scheme, msg.location.hostname));
+	}
+}
+
+class WarnUnableToLoadContentScript {
+	html:string;
+	
+	constructor() {
+		this.html =`
+			Please browse to the website which you need a password for.
+			<p>
+			If you wish to calculate a password but not insert it into a web
+			page you can <a href="#">proceed anyway</a>.
+		`;
+	}
+}
+
+function onMessage(msg, sender) {
+	console.log('popup onMessage: ', JSON.stringify(msg));
+
+	//If sent from the content-script, get the tabId and frameId
+	let cfi = null;
+	if (sender.tab) {
+		cfi = new ContentFrameInfo();
+		cfi.tabId = sender.tab.id;
+		cfi.frameId = sender.frameId;
 	}
 
+	//sender is a runtime.MessageSender
+
+	if (msg.CONTENT_SCRIPT_READY) {
+		if (!cfi)
+			throw new Error('Received CONTENT_SCRIPT_READY from unknown tab');
+
+		//Ignore the message if we already know our target
+		if (gTargetFrame)
+			return;
+
+		cfi.origin = msg.origin;
+		cfi.hasFocusedInput = msg.hasFocusedInput;
+		cfi.hasChildFrames = msg.hasChildFrames;
+
+		if (cfi.hasFocusedInput) {
+			if (gTargetFrame)
+				throw new Error('Multiple frames have a focused input!');
+			gTargetFrame = cfi;
+		}
+
+		//always remember the root frame
+		if (cfi.frameId == 0) {
+			if (gRootFrame)
+				throw new Error('Multiple CONTENT_SCRIPT_READY from the root frame!');
+			gRootFrame = cfi;
+
+			if (!gRootFrame.hasFocusedInput) {
+				if (gRootFrame.hasChildFrames) {
+					//Root has no focused inputs but perhaps a child frame does
+					//We must give the children more time to load the content-script.
+					setTimeout(onWarnNoSelectedInputTimeout, 250);
+				} else {
+					//No point in waiting because no children
+					onWarnNoSelectedInputTimeout();
+				}
+
+				return;
+			}
+		}
+
+		//Show the prompt as soon as we have a target and the root
+		if (gTargetFrame && gRootFrame) {
+			setScreen(new PromptParameters());
+		}
+	}
+}
+
+//Fires when we get tired of waiting for the child frames to report back
+function onWarnNoSelectedInputTimeout() {
+	//If still no target then show a warning
+	if (!gTargetFrame) {
+		gTargetFrame = gRootFrame;
+		setScreen(new WarnNoSelectedInput());
+	}
 }
 
 
 async function load() {
+	/*
+	Our first task is to tell the user the domain name of the website they are logging in to.
+
+	This is made tricky by the fact that some websites use an <iframe> for login (eg gog.com).
+	The iframe often has a different domain name.
+	
+	Other sites have a login <form> which submits to a different domain.  Some sites set the
+	<form> action attribute dyamically, with JavaScript, so you can't tell by looking at the markup
+	where it will submit to.  I'll bet some sites even do login with AJAX.
+
+	The fact is, when you type a password into a web page, you have no
+	guarantee where	that password will be sent to.  You must simply TRUST that the
+	parent website will take good care of your precious password.
+
+	So it call comes down to trust.  When I visit example.com and start typing my password
+	I must trust example.com.  example.com would not trick me into typing into an <iframe>
+	of a malicious website.  Nor would they trick me by submitting the <form> to a malicious website.
+	If I don't trust example.com then I shouldn't type a password into it.
+
+	If example.com was trustworthy but is later compromised then it's
+	game over - the attacker will get your password and theres little
+	we can do to stop it.
+
+	In summary, the calcpass extension will use the domain name which appears
+	in the address bar.  It will not use the domain of the <iframe> or the
+	domain where the <form> submits to.  This solution is simple,
+	easy to explain, and completely deterministic.
+	*/
+
 	console.log('popup load()');
 	try {
 		firefox.addOnMessageListener(onMessage);
 
+
 		try {
-			//throws if active tab is not a normal webpage (eg about:blank)
-			await firefox.loadContentScriptIntoActiveTab();
+			await firefox.loadContentScriptIntoActiveTab(true);
+			//onMessage() will be called repeatedly for each frame which
+			// loaded the content script
 		}
 		catch (e) {
+			//This happens when the active tab is not a normal web page (eg about:blank)
 			console.log('Unable to load content script: ' + e);
-			showUnexpectedError('TODO: ask user to select a tab or enter sitename');
+			setScreen(new WarnUnableToLoadContentScript());
 			return;
 		}
-
-
-		/*
-		
-
-		console.log('tabURL' + tabURL);
-
-		await firefox.localSet({DID_WELCOME: false});
-
-		setScreen(new CardLockPassPrompt());
-
-	/*
-	await firefox.localSet({DID_WELCOME: false});
-
-	if ( ! await firefox.localGet('DID_WELCOME')) {
-		showWelcome();
-	} else {
-		setContent('hello old friend!');
-	}*/
-
-	
-	/*var tabs = await firefox.getActiveTab();
-	console.log('tabs ' + typeof(tabs));
-	if (tabs.length > 0) {
-		console.log(tabs[0].id);
-		console.log(tabs[0].url);
-	}*/
-	//var url = await firefox.getActiveTabURL();
-	//console.log('url ' + url);
-
-	/*
-
-	await firefox.loadContentScriptIntoActiveTab();
-	console.log('loaded');
-
-	setContent('<b class="cool">loaded!!!</b>');*/
 	
 	}
 	catch (e) {
@@ -436,3 +748,4 @@ async function load() {
 }
 
 load();
+

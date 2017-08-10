@@ -18,6 +18,9 @@
     "default_icon": "icons/toolbar32.png",
     "default_title": "CalcPass",
     "default_popup": "popup.html"
+  },
+  
+  "background": {
+    "scripts": ["background-script-bundle.js"]
   }
-
 }
