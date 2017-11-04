@@ -1170,12 +1170,12 @@ function sendMessage(msgObject) {
     return browser.runtime.sendMessage(msgObject);
 }
 exports.sendMessage = sendMessage;
-function sendMessageToContentScript(tabId, msgObject) {
+function sendMessageToAllContentScriptsInTab(tabId, msgObject) {
     if (typeof (msgObject) != 'object' || msgObject === null)
         throw new Error('Invaild msgObject type');
     return browser.tabs.sendMessage(tabId, msgObject);
 }
-exports.sendMessageToContentScript = sendMessageToContentScript;
+exports.sendMessageToAllContentScriptsInTab = sendMessageToAllContentScriptsInTab;
 
 },{}],7:[function(require,module,exports){
 /**Convert arrays of octets to and from hex strings*/
@@ -1368,9 +1368,10 @@ var ContentFrameInfo = (function () {
 //The content frame which had the focused password field
 //when the user clicked the toolbar.
 //If there was no focused input this will point to the root frame.
-var gTargetFrame = null;
+//let gTargetFrame:ContentFrameInfo = null;
 //holds the root frame
 var gRootFrame = null;
+var gAllFrames = new Array();
 function setContent(html) {
     document.getElementById('content').innerHTML = html;
 }
@@ -1687,27 +1688,14 @@ var PasswordReady = (function () {
         this.didCopyWarning = false;
         this.elm_showPassDiv = null;
         this.ctx = ctx;
-        this.password = password;
-        this.html = "\n\t\t\t<h2>Password Ready</h2>\n\t\t\t<p>\n\t\t\t<b>Click on</b> or <b>type any key</b> into on the field where the password\n\t\t\tshould be inserted.\n\t\t\t<p>\n\t\t\t<button id=\"btnShow\">Show Password</button>\n\t\t\t<button id=\"btnCopy\">Copy to Clipboard</button>\n\t\t\t<div id=\"warnCopy\" style=\"display:none; width: 85%;\">\n\t\t\t\tCopying makes the password visible to every\n\t\t\t\tprogram on this computer, including\n\t\t\t\tMalware and Spyware.  Click Copy again\n\t\t\t\tto confirm.\n\t\t\t</div>\n\t\t\t<div id=\"showPassDiv\" style=\"display:none\">\n\t\t\t\t<table border=\"1\">\n\t\t\t\t\t<tr>\n\t\t\t\t\t\t<td>Abcd</td>\n\t\t\t\t\t\t<td>efgh</td>\n\t\t\t\t\t\t<td>ijk1</td>\n\t\t\t\t\t</tr>\n\t\t\t\t</table>\n\t\t\t</div>\n\t\t\t<div id=\"err\">?</div>\n\t\t";
-    }
-    PasswordReady.prototype.event_click_btnSend = function (e) {
-        return __awaiter(this, void 0, void 0, function () {
-            var tabId;
-            return __generator(this, function (_a) {
-                switch (_a.label) {
-                    case 0:
-                        console.log('TODO: lock into active tab ID during initial calcpass click? Warn user if it has changed');
-                        return [4 /*yield*/, firefox.getActiveTabID()];
-                    case 1:
-                        tabId = _a.sent();
-                        firefox.sendMessageToContentScript(tabId, { ENTER_PASSWORD: true,
-                            password: this.password,
-                        });
-                        return [2 /*return*/];
-                }
-            });
+        //Send the password to all our content-scripts
+        firefox.sendMessageToAllContentScriptsInTab(gRootFrame.tabId, {
+            PASSWORD_READY: true,
+            password: password,
         });
-    };
+        this.password = password;
+        this.html = "\n\t\t\t<h2>Password Ready</h2>\n\t\t\t<p>\n\t\t\tTo insert your password, select the desired password field and press the <b>Control</b> key.\n\t\t\t<p>\n\t\t\t<button id=\"btnShow\">Show Password</button>\n\t\t\t<button id=\"btnCopy\">Copy to Clipboard</button>\n\t\t\t<div id=\"warnCopy\" style=\"display:none; width: 85%;\">\n\t\t\t\tCopying makes the password visible to every\n\t\t\t\tprogram on this computer, including\n\t\t\t\tMalware and Spyware.  Click Copy again\n\t\t\t\tto confirm.\n\t\t\t</div>\n\t\t\t<div id=\"showPassDiv\" style=\"display:none\">\n\t\t\t\t<table border=\"1\">\n\t\t\t\t\t<tr>\n\t\t\t\t\t\t<td>Abcd</td>\n\t\t\t\t\t\t<td>efgh</td>\n\t\t\t\t\t\t<td>ijk1</td>\n\t\t\t\t\t</tr>\n\t\t\t\t</table>\n\t\t\t</div>\n\t\t\t<div id=\"err\">?</div>\n\t\t";
+    }
     PasswordReady.prototype.event_click_btnShow = function (e) {
         this.elm_showPassDiv.style.display = 'block';
         //TODO: fill in table
@@ -1737,8 +1725,11 @@ var PromptParameters = (function () {
         this.elm_spanJumbleSymbols = null;
         this.elm_pass = null;
         this.elm_selFormat = null;
-        var hostname = 'fixme.com';
-        hostname = hostname.toLowerCase();
+        //Parse '["https","example.com",8080]'
+        var rootOrigin = JSON.parse(gRootFrame.origin);
+        if (rootOrigin.length != 3 || !rootOrigin[0] || !rootOrigin[1])
+            throw new Error('Invalid origin');
+        var hostname = rootOrigin[1].toLowerCase();
         this.ctx = new Context();
         this.ctx.origHostname = hostname;
         //TODO: show warning if not HTTPS
@@ -1784,12 +1775,21 @@ var PromptParameters = (function () {
     };
     return PromptParameters;
 }());
-var WarnNoSelectedInput = (function () {
-    function WarnNoSelectedInput() {
-        this.html = "\n\t\t\t<h2>No Field Selected</h2>\n\t\t\t<p>\n\t\t\tPlease select a password or text field on the current web page.\n\t\t\t<p>\n\t\t\tIf you wish to calculate a password but not insert it into this web\n\t\t\tpage you can <a href=\"#\">proceed anyway</a>.\n\t\t";
+/*class WarnNoSelectedInput {
+    html:string;
+    
+    constructor() {
+        this.html =`
+            <h2>No Field Selected</h2>
+            <p>
+            Please select a password or text field on the current web page.
+            <p>
+            If you wish to calculate a password but not insert it into this web
+            page you can <a href="#">proceed anyway</a>.
+        `;
+
     }
-    return WarnNoSelectedInput;
-}());
+}*/
 var WarnUnableToLoadContentScript = (function () {
     function WarnUnableToLoadContentScript() {
         this.html = "\n\t\t\tPlease browse to the website which you need a password for.\n\t\t\t<p>\n\t\t\tIf you wish to calculate a password but not insert it into a web\n\t\t\tpage you can <a href=\"#\">proceed anyway</a>.\n\t\t";
@@ -1809,49 +1809,72 @@ function onMessage(msg, sender) {
     if (msg.CONTENT_SCRIPT_READY) {
         if (!cfi)
             throw new Error('Received CONTENT_SCRIPT_READY from unknown tab');
+        cfi.origin = msg.origin;
+        cfi.hasChildFrames = msg.hasChildFrames;
+        //Remember each frame which reports in.
+        //We will refuse to reveal the password to any
+        //other frame
+        gAllFrames.push(cfi);
+        //TODO: verify sane origin
+        //if (!isSaneOrigin(cfi.origin))
+        //	throw ...
+        //root frame?
+        if (cfi.frameId == 0) {
+            if (gRootFrame)
+                throw new Error('Multiple CONTENT_SCRIPT_READY from the root frame!');
+            gRootFrame = cfi;
+            setScreen(new PromptParameters());
+        }
+        /*
+
         //Ignore the message if we already know our target
         if (gTargetFrame)
             return;
+
         cfi.origin = msg.origin;
         cfi.hasFocusedInput = msg.hasFocusedInput;
         cfi.hasChildFrames = msg.hasChildFrames;
+
         if (cfi.hasFocusedInput) {
             if (gTargetFrame)
                 throw new Error('Multiple frames have a focused input!');
             gTargetFrame = cfi;
         }
+
         //always remember the root frame
         if (cfi.frameId == 0) {
             if (gRootFrame)
                 throw new Error('Multiple CONTENT_SCRIPT_READY from the root frame!');
             gRootFrame = cfi;
+
             if (!gRootFrame.hasFocusedInput) {
                 if (gRootFrame.hasChildFrames) {
                     //Root has no focused inputs but perhaps a child frame does
                     //We must give the children more time to load the content-script.
                     setTimeout(onWarnNoSelectedInputTimeout, 250);
-                }
-                else {
+                } else {
                     //No point in waiting because no children
                     onWarnNoSelectedInputTimeout();
                 }
+
                 return;
             }
         }
+
         //Show the prompt as soon as we have a target and the root
         if (gTargetFrame && gRootFrame) {
             setScreen(new PromptParameters());
-        }
+        }*/
     }
 }
 //Fires when we get tired of waiting for the child frames to report back
-function onWarnNoSelectedInputTimeout() {
+/*function onWarnNoSelectedInputTimeout() {
     //If still no target then show a warning
     if (!gTargetFrame) {
         gTargetFrame = gRootFrame;
         setScreen(new WarnNoSelectedInput());
     }
-}
+}*/
 function load() {
     return __awaiter(this, void 0, void 0, function () {
         var e_1, e_2;

@@ -64,7 +64,7 @@ export function sendMessage(msgObject:any):Promise<any> {
 	return browser.runtime.sendMessage(msgObject);
 }
 
-export function sendMessageToContentScript(tabId:number, msgObject:any):Promise<any> {
+export function sendMessageToAllContentScriptsInTab(tabId:number, msgObject:any):Promise<any> {
 	if (typeof(msgObject) != 'object' || msgObject === null)
 		throw new Error('Invaild msgObject type');
 

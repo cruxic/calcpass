@@ -170,11 +170,11 @@ function sendMessage(msgObject) {
     return browser.runtime.sendMessage(msgObject);
 }
 exports.sendMessage = sendMessage;
-function sendMessageToContentScript(tabId, msgObject) {
+function sendMessageToAllContentScriptsInTab(tabId, msgObject) {
     if (typeof (msgObject) != 'object' || msgObject === null)
         throw new Error('Invaild msgObject type');
     return browser.tabs.sendMessage(tabId, msgObject);
 }
-exports.sendMessageToContentScript = sendMessageToContentScript;
+exports.sendMessageToAllContentScriptsInTab = sendMessageToAllContentScriptsInTab;
 
 },{}]},{},[1]);

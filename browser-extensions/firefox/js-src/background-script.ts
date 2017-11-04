@@ -11,11 +11,11 @@ function onMessage(msg, senderInfo):any {
 	//	setScreen(new SelectSiteName(msg.location.scheme, msg.location.hostname));
 	//}
 
-	if (msg.REMEMBER_STATE) {
+	if (msg.SET_STATE) {
 		gState = msg;
 	}
-	else if (msg.FETCH_STATE) {
-		if (gState && gState.REMEMBER_STATE)
+	else if (msg.GET_STATE) {
+		if (gState && gState.SET_STATE)
 			return gState;
 		else
 			return false;

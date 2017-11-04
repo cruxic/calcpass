@@ -1,9 +1,14 @@
 (function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);var f=new Error("Cannot find module '"+o+"'");throw f.code="MODULE_NOT_FOUND",f}var l=n[o]={exports:{}};t[o][0].call(l.exports,function(e){var n=t[o][1][e];return s(n?n:e)},l,l.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
 "use strict";
 //The text or password field which was selected then the extension was invoked.
-var gSelectedField = null;
+//var gSelectedField = null;
+var gPassword = null;
 function onMessage(msg, senderInfo) {
     console.log('content-script received: ', JSON.stringify(msg));
+    console.log('sender', JSON.stringify(senderInfo));
+    if (msg.PASSWORD_READY) {
+        gPassword = msg.password;
+    }
     /*if (msg.ARE_YOU_ALREADY_LOADED) {
         //respond with the same message which load() sent
         return buildLoadedMessage();
@@ -43,6 +48,7 @@ function getOrigin() {
 function getNumChildFrames() {
     return window.frames.length;
 }
+/*
 function getFocusedPasswordInput() {
     var elm = document.activeElement;
     var types = ['text', 'password'];
@@ -50,8 +56,9 @@ function getFocusedPasswordInput() {
         types.indexOf(elm.getAttribute('type')) != -1) {
         return elm;
     }
+
     return null;
-}
+}*/
 /**Return false if a calcpass content script is already loaded into this frame.
 If not it marks it loaded and returns true.  This is necessary because Firefox
 blindly loads a duplicate content script into the new JavaScript context every time
@@ -70,29 +77,48 @@ function loadCheck() {
     body.setAttribute(ATTR, '-');
     return true;
 }
+function onInputKeydown(e) {
+    if (e.key == 'Control') {
+        //console.log('Control pressed in ' + document.location);
+        if (gPassword)
+            e.target.value = gPassword;
+        else
+            console.log('No password yet');
+    }
+}
+function addInputListeners() {
+    var elms = document.getElementsByTagName('INPUT');
+    var elm, inputType;
+    for (var i = 0; i < elms.length; i++) {
+        elm = elms[i];
+        inputType = elm.getAttribute('TYPE') || '';
+        inputType = inputType.toLowerCase();
+        if (inputType == 'password' || inputType == 'text') {
+            elm.addEventListener('keydown', onInputKeydown);
+        }
+    }
+}
 function load() {
     if (loadCheck()) {
-        //First time
         addOnMessageListener(onMessage);
+        addInputListeners();
     }
     else {
         console.log('calcpass: already loaded');
-        //don't listen for messages but still send the READY message
     }
     var origin = getOrigin();
-    gSelectedField = getFocusedPasswordInput();
-    if (gSelectedField) {
+    //gSelectedField = getFocusedPasswordInput();
+    /*if (gSelectedField) {
         //highlight selected field for one second
-        var origColor_1 = gSelectedField.style.backgroundColor;
+        let origColor = gSelectedField.style.backgroundColor;
         gSelectedField.style.backgroundColor = '#61FF52';
-        setTimeout(function () {
-            gSelectedField.style.backgroundColor = origColor_1;
+        setTimeout(()=>{
+            gSelectedField.style.backgroundColor = origColor;
         }, 1000);
-    }
+    }*/
     browser.runtime.sendMessage({
         CONTENT_SCRIPT_READY: true,
         origin: origin,
-        hasFocusedInput: gSelectedField != null,
         hasChildFrames: getNumChildFrames() > 0
     });
 }

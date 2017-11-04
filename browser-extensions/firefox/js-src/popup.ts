@@ -12,7 +12,7 @@ class ContentFrameInfo {
 	tabId:number;
 	frameId:number;
 	origin:string;
-	hasFocusedInput:boolean;
+	//hasFocusedInput:boolean;
 	hasChildFrames:boolean;
 }
 
@@ -21,10 +21,12 @@ class ContentFrameInfo {
 //The content frame which had the focused password field
 //when the user clicked the toolbar.
 //If there was no focused input this will point to the root frame.
-let gTargetFrame:ContentFrameInfo = null;
+//let gTargetFrame:ContentFrameInfo = null;
 
 //holds the root frame
 let gRootFrame:ContentFrameInfo = null;
+
+let gAllFrames = new Array<ContentFrameInfo>();
 
 function setContent(html) {
 	document.getElementById('content').innerHTML = html;
@@ -206,9 +208,10 @@ class MasterPassPrompt {
 }
 */
 class Context {
-	//the full host name which was in the address bar
+	//the scheme, host and port that was in the address bar
 	//when the user started calculating the password.
-	origHostname:string = null;
+	//Example: '["https","example.com",8080]'
+	origin:string = null;
 
 	//The host name or program name the user chose to
 	//calculate a password for (not necessarily a domain
@@ -301,8 +304,8 @@ class PromptCardCode {
 		//Remember the siteKey in RAM of the background script so that we can skip the lengthy
 		// stretching step if the user requests the same password again
 		firefox.sendMessage({
-			REMEMBER_STATE:true,
-			origHostname: ctx.origHostname,
+			SET_STATE:true,
+			origin: ctx.origin,
 			sitename: ctx.sitename,
 			revision: ctx.revision,
 			siteKeyHex: hex.encode(ctx.siteKey.bytes)
@@ -398,6 +401,14 @@ class StretchingFinal {
 		erase(this.siteCardMix);
 		erase(passwordSeed);
 
+		//Remember the password in RAM of the background script for a short period of time
+		firefox.sendMessage({
+			SET_STATE:true,
+			origin: ctx.origin,
+			sitename: ctx.sitename,
+			revision: ctx.revision,
+			password: password
+		});		
 
 		setScreen(new PasswordReady(this.ctx, password));
 	}
@@ -416,13 +427,22 @@ class PasswordReady {
 	constructor(ctx:Context, password:string) {
 		this.ctx = ctx;
 
+		//Send the password to all our content-scripts
+		//TODO: use a random shared secret stored in local storage to sign each message and xor the password.
+		//Should I use window.crypto for the sha256 to keep the content-script light?
+		//Perhaps it would be best to prove out the attack(s) I am trying to prevent...
+		firefox.sendMessageToAllContentScriptsInTab(gRootFrame.tabId, {
+			PASSWORD_READY:true,
+			password: password,
+		});
+		
+
 		this.password = password;
 
 		this.html = `
 			<h2>Password Ready</h2>
 			<p>
-			<b>Click on</b> or <b>type any key</b> into on the field where the password
-			should be inserted.
+			To insert your password, select the desired password field and press the <b>Control</b> key.
 			<p>
 			<button id="btnShow">Show Password</button>
 			<button id="btnCopy">Copy to Clipboard</button>
@@ -445,15 +465,6 @@ class PasswordReady {
 		`;
 	}
 
-	/*async event_click_btnSend(e) {
-		console.log('TODO: lock into active tab ID during initial calcpass click? Warn user if it has changed');
-		let tabId = await firefox.getActiveTabID();
-	
-		firefox.sendMessageToContentScript(tabId, {ENTER_PASSWORD:true,
-			password: this.password,			
-		});
-	}*/
-
 	event_click_btnShow(e) {
 		this.elm_showPassDiv.style.display = 'block';
 		//TODO: fill in table
@@ -471,7 +482,6 @@ class PasswordReady {
 			this.elm_warnCopy.style.display = 'block';
 		}
 	}
-	
 	
 
 }
@@ -498,11 +508,16 @@ class PromptParameters {
 		
 	
 	constructor() {
-		let hostname = 'fixme.com';
-		hostname = hostname.toLowerCase();
+		//Parse '["https","example.com",8080]'
+		let rootOrigin = JSON.parse(gRootFrame.origin);
+		if (rootOrigin.length != 3 || !rootOrigin[0] || !rootOrigin[1])
+			throw new Error('Invalid origin');
+			
+		
+		let hostname = rootOrigin[1].toLowerCase();
 
 		this.ctx = new Context();
-		this.ctx.origHostname = hostname;
+		this.ctx.origin = gRootFrame.origin;
 
 		//TODO: show warning if not HTTPS
 		//let isHTTPS = scheme.toLowerCase() === 'https';
@@ -597,7 +612,7 @@ class PromptParameters {
 	}
 }
 
-class WarnNoSelectedInput {
+/*class WarnNoSelectedInput {
 	html:string;
 	
 	constructor() {
@@ -611,7 +626,7 @@ class WarnNoSelectedInput {
 		`;
 
 	}
-}
+}*/
 
 class WarnUnableToLoadContentScript {
 	html:string;
@@ -624,6 +639,26 @@ class WarnUnableToLoadContentScript {
 			page you can <a href="#">proceed anyway</a>.
 		`;
 	}
+}
+
+async function showFirstScreen() {
+	//Skip some prompts if the user has already entered info for this origin.
+	//The state is remembered in RAM by the background-script.
+	let state = await firefox.sendMessage({GET_STATE:true});
+	if (state && state.origin === gRootFrame.origin) {
+		/*
+		if (state.password)
+			setScreen(new PasswordReady(ctx, state.password));
+		else if (state.siteKeyHex)
+			setScreen(new PromptCardCode(
+		*/
+			
+		
+
+	}
+
+
+	setScreen(new PromptParameters());
 }
 
 function onMessage(msg, sender) {
@@ -643,55 +678,37 @@ function onMessage(msg, sender) {
 		if (!cfi)
 			throw new Error('Received CONTENT_SCRIPT_READY from unknown tab');
 
-		//Ignore the message if we already know our target
-		if (gTargetFrame)
-			return;
-
 		cfi.origin = msg.origin;
-		cfi.hasFocusedInput = msg.hasFocusedInput;
 		cfi.hasChildFrames = msg.hasChildFrames;
 
-		if (cfi.hasFocusedInput) {
-			if (gTargetFrame)
-				throw new Error('Multiple frames have a focused input!');
-			gTargetFrame = cfi;
-		}
+		//Remember each frame which reports in.
+		//We will refuse to reveal the password to any
+		//other frame
+		gAllFrames.push(cfi);
 
-		//always remember the root frame
+		//TODO: verify sane origin
+		//if (!isSaneOrigin(cfi.origin))
+		//	throw ...
+
+		//root frame?
 		if (cfi.frameId == 0) {
 			if (gRootFrame)
 				throw new Error('Multiple CONTENT_SCRIPT_READY from the root frame!');
 			gRootFrame = cfi;
 
-			if (!gRootFrame.hasFocusedInput) {
-				if (gRootFrame.hasChildFrames) {
-					//Root has no focused inputs but perhaps a child frame does
-					//We must give the children more time to load the content-script.
-					setTimeout(onWarnNoSelectedInputTimeout, 250);
-				} else {
-					//No point in waiting because no children
-					onWarnNoSelectedInputTimeout();
-				}
-
-				return;
-			}
-		}
-
-		//Show the prompt as soon as we have a target and the root
-		if (gTargetFrame && gRootFrame) {
-			setScreen(new PromptParameters());
+			showFirstScreen();
 		}
 	}
 }
 
 //Fires when we get tired of waiting for the child frames to report back
-function onWarnNoSelectedInputTimeout() {
+/*function onWarnNoSelectedInputTimeout() {
 	//If still no target then show a warning
 	if (!gTargetFrame) {
 		gTargetFrame = gRootFrame;
 		setScreen(new WarnNoSelectedInput());
 	}
-}
+}*/
 
 
 async function load() {

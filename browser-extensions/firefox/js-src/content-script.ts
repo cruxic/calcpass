@@ -1,10 +1,20 @@
 declare var browser;  //web extension API
 
 //The text or password field which was selected then the extension was invoked.
-var gSelectedField = null;
+//var gSelectedField = null;
+var gPassword:string = null;
 
 function onMessage(msg, senderInfo):any {
 	console.log('content-script received: ', JSON.stringify(msg));
+	console.log('sender', JSON.stringify(senderInfo));
+
+	if (msg.PASSWORD_READY) {
+		gPassword = msg.password;
+		
+
+	}
+
+	
 
 	/*if (msg.ARE_YOU_ALREADY_LOADED) {
 		//respond with the same message which load() sent
@@ -53,6 +63,7 @@ function getNumChildFrames() {
 	return window.frames.length;
 }
 
+/*
 function getFocusedPasswordInput() {
 	var elm = document.activeElement;
 	var types = ['text', 'password'];
@@ -62,7 +73,7 @@ function getFocusedPasswordInput() {
 	}
 
 	return null;
-}
+}*/
 
 /**Return false if a calcpass content script is already loaded into this frame.
 If not it marks it loaded and returns true.  This is necessary because Firefox
@@ -85,31 +96,52 @@ function loadCheck():boolean {
 	return true;
 }
 
+function onInputKeydown(e) {
+	if (e.key == 'Control') {
+		//console.log('Control pressed in ' + document.location);
+		if (gPassword)
+			e.target.value = gPassword;
+		else
+			console.log('No password yet');
+	}
+}
+
+function addInputListeners() {
+	var elms = document.getElementsByTagName('INPUT');
+	let elm, inputType;
+	for (let i = 0; i < elms.length; i++) {
+		elm = elms[i];
+		inputType = elm.getAttribute('TYPE') || '';
+		inputType = inputType.toLowerCase();
+		if (inputType == 'password' || inputType == 'text') {
+			elm.addEventListener('keydown', onInputKeydown);
+		}
+	}
+}
+
 function load() {
 	if (loadCheck()) {
-		//First time
 		addOnMessageListener(onMessage);
+		addInputListeners();
 	} else {
 		console.log('calcpass: already loaded');
-		//don't listen for messages but still send the READY message
 	}
 
 	let origin = getOrigin();
-	gSelectedField = getFocusedPasswordInput();
+	//gSelectedField = getFocusedPasswordInput();
 
-	if (gSelectedField) {
+	/*if (gSelectedField) {
 		//highlight selected field for one second
 		let origColor = gSelectedField.style.backgroundColor;
 		gSelectedField.style.backgroundColor = '#61FF52';
 		setTimeout(()=>{
 			gSelectedField.style.backgroundColor = origColor;
 		}, 1000);
-	}
+	}*/
 	
 	browser.runtime.sendMessage({
 		CONTENT_SCRIPT_READY:true,
 		origin: origin,
-		hasFocusedInput: gSelectedField != null,
 		hasChildFrames: getNumChildFrames() > 0
 	});
 }
