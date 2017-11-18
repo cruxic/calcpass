@@ -181,5 +181,53 @@ func ByteSequence(start byte, count int) []byte {
 	return res
 }
 
+type BitReader struct {
+	source io.Reader
+	currentByte uint32
+	//7,6,5,4,3,2,1,0. -1 means currentByte is exahusted
+	nextBitPos int
+}
+
+func NewBitReader(source io.Reader) *BitReader {
+	return &BitReader{
+		source: source,
+		nextBitPos: -1,
+	}
+}
+
+/*Read up to 32bits from the source.  Returns an error if
+the source reader reaches EOF before the requested number
+of bits have been returned.*/
+func (br *BitReader) ReadBits(nBits int) (uint32, error) {
+	var res uint32
+
+	if nBits <= 0 || nBits > 32 {
+		return 0, errors.New("ReadBits: nBits must be 1-32")
+	}
+
+	one := []byte{0}
+	var err error
+	
+	for nBits > 0 {
+		//Read another byte if necessary
+		if br.nextBitPos < 0 {
+			_, err = br.source.Read(one)
+			if err != nil {
+				return 0, err
+			}
+
+			br.nextBitPos = 7
+			br.currentByte = uint32(one[0])
+		}
+
+		//avoid if statements due to possible timing attack
+		res <<= 1
+		res |= (br.currentByte >> uint32(br.nextBitPos)) & 0x01
+		br.nextBitPos--
+		nBits--
+	}
+
+	return res, nil
+}
 
 

@@ -5,6 +5,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"io"
 	"encoding/hex"
+	"bytes"
 
 )
 
@@ -193,6 +194,98 @@ func TestHmacSha256(t *testing.T) {
 	assert.Equal("ea6c66229109f1321b0088c42111069e9794c3aed574e837b6e87c6d14931aef", hash)
 }
 
+func Test_BitReader(t *testing.T) {
+	assert := assert.New(t)
+
+	input := make([]byte, 2)
+	input[0] = 0xAA  //10101010
+	input[1] = 0xDB  //11011011
+	r := bytes.NewReader(input)
+
+	br := NewBitReader(r)
+
+	assertReadBits := func(nBits int, expect uint32) bool {
+		got, err := br.ReadBits(nBits)
+		if err != nil {
+			panic(err)
+			//fmt.Sprintf("while reading %d bits. expe", nBits, "bits. expected ", expect)
+			return false
+		}
+
+		if !assert.Equal(expect, got) {
+			panic("failed")
+		}
+		
+		return true		
+	}
+
+	assertReadBits(1, uint32(0x01))
+	assertReadBits(1, uint32(0x00))
+	assertReadBits(1, uint32(0x01))
+	assertReadBits(1, uint32(0x00))
+	assertReadBits(1, uint32(0x01))
+	assertReadBits(1, uint32(0x00))
+	assertReadBits(1, uint32(0x01))
+	assertReadBits(1, uint32(0x00))
+	
+	assertReadBits(1, uint32(0x01))
+	assertReadBits(1, uint32(0x01))
+	assertReadBits(1, uint32(0x00))
+	assertReadBits(1, uint32(0x01))
+	assertReadBits(1, uint32(0x01))
+	assertReadBits(1, uint32(0x00))
+	assertReadBits(1, uint32(0x01))
+	assertReadBits(1, uint32(0x01))
+
+	b, err := br.ReadBits(1)
+	assert.True(err == io.EOF)
+	assert.True(b == 0)
+
+	//Reset
+	r.Reset(input)
+	br = NewBitReader(r)
+	assertReadBits(3, uint32(0x05))  //101
+	assertReadBits(3, uint32(0x02))  //010
+	assertReadBits(3, uint32(0x05))  //10 1
+	assertReadBits(3, uint32(0x05))  //101
+	assertReadBits(3, uint32(0x05))  //101
+	assertReadBits(1, uint32(0x01))  //1
+
+	b, err = br.ReadBits(1)
+	assert.True(err == io.EOF)
+	assert.True(b == 0)
+
+	//Reset and change input
+	input = []byte{0x52, 0xae, 0xcf, 0x94}
+	r.Reset(input)
+	br = NewBitReader(r)
+	
+	b, err = br.ReadBits(-1)
+	assert.True(err != nil && err != io.EOF)
+	assert.True(b == 0)
+	
+	b, err = br.ReadBits(33)
+	assert.True(err != nil && err != io.EOF)
+	assert.True(b == 0)
+
+	assertReadBits(32, uint32(0x52aecf94))
+
+	b, err = br.ReadBits(1)
+	assert.True(err == io.EOF)
+	assert.True(b == 0)
+
+	//Reset
+	r.Reset(input)
+	br = NewBitReader(r)
+
+	assertReadBits(29, uint32(0xA55D9F2))
+
+	//only 3 left
+	b, err = br.ReadBits(4)
+	assert.True(err == io.EOF)
+	assert.True(b == 0)
+}
+
 
 func TestSecureShuffleBytes(t *testing.T) {
 	assert := assert.New(t)
@@ -323,4 +416,5 @@ func TestSecureShuffleBytes(t *testing.T) {
 	assert.Equal(expect, string(a))
 	//The above result was verified with a simple python program.
 }
+
 
