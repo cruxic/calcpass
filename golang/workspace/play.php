@@ -13,7 +13,7 @@ function bcrypt_base64_encode($data) {
 
 function _parallel_bcrypt_thread($threadIndex, $pass, $salt_bcryptBase64, $cost) {
 	//derive a distinct password for each thread to work on
-	$threadPassHex = hash("sha256", $pass . chr($threadIndex + 1), false);
+	$threadPassHex =  hash_hmac("sha256", chr($threadIndex + 1), $pass, false);
 
 	$options = array("cost" => $cost, "salt" => $salt_bcryptBase64);
 	$hash = password_hash($threadPassHex, PASSWORD_BCRYPT, $options);
@@ -63,4 +63,10 @@ function test2() {
 	printf("parallel_bcrypt: %s\n", bin2hex(parallel_bcrypt(4, $key, $salt, 13)));
 }
 
-test2();
+function test3() {
+	$salt = hex2bin("71d79f8218a39259a7a29aabb2dbafc3");
+
+	printf("parallel_bcrypt: %s\n", bin2hex(parallel_bcrypt(4, "Super Secret Password", $salt, 13)));
+}
+
+test3();

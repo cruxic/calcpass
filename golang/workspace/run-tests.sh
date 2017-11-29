@@ -15,6 +15,8 @@ export GOPATH=`pwd`
 
 PKG=github.com/cruxic/calcpass/golang/calcpass
 
-go test -v $PKG/util $PKG/card $PKG/parallel_bcrypt $PKG/type2017a
-#go test -v $PKG/type2017a
+#go test -v $PKG/util $PKG/card $PKG/parallel_bcrypt $PKG/type2017a
+#go test -v $PKG/util
+go test -v $PKG
+#go test -v $PKG/parallel_bcrypt
 

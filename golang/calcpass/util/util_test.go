@@ -255,6 +255,13 @@ func Test_BitReader(t *testing.T) {
 	assert.True(err == io.EOF)
 	assert.True(b == 0)
 
+	//Reset
+	r.Reset(input)
+	br = NewBitReader(r)
+	b, err = br.ReadBits(19)
+	assert.True(err == io.EOF)
+	assert.Equal(uint32(0xAADB) << 3, b)	
+
 	//Reset and change input
 	input = []byte{0x52, 0xae, 0xcf, 0x94}
 	r.Reset(input)
@@ -283,7 +290,7 @@ func Test_BitReader(t *testing.T) {
 	//only 3 left
 	b, err = br.ReadBits(4)
 	assert.True(err == io.EOF)
-	assert.True(b == 0)
+	assert.True(b == 0x08)  //100
 }
 
 

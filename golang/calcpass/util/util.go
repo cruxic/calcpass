@@ -195,9 +195,10 @@ func NewBitReader(source io.Reader) *BitReader {
 	}
 }
 
-/*Read up to 32bits from the source.  Returns an error if
-the source reader reaches EOF before the requested number
-of bits have been returned.*/
+/*Read up to 32bits from the source.  When the source Reader returns io.EOF
+this function adds in zeros until the requested number of bits is achieved and
+then returns io.EOF.  Other errors from the source reader return 0.
+*/
 func (br *BitReader) ReadBits(nBits int) (uint32, error) {
 	var res uint32
 
@@ -213,7 +214,14 @@ func (br *BitReader) ReadBits(nBits int) (uint32, error) {
 		if br.nextBitPos < 0 {
 			_, err = br.source.Read(one)
 			if err != nil {
-				return 0, err
+				if err == io.EOF {
+					//pad with zeros
+					res <<= uint32(nBits)
+				} else {			
+					res = 0
+				}
+
+				return res, err
 			}
 
 			br.nextBitPos = 7
