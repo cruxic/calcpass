@@ -17,18 +17,11 @@ func Test_bcrypt(t *testing.T) {
 	//parallel_bcrypt avoids sending 0x00 bytes to bcrypt because some
 	// implementations truncate upon the first null byte! (eg PHP)
 
-	//Verify that bcrypt can handle non-printable bytes
-	pass := []byte{0x01,0x02,0x03,0x7f,0x80,0x81,0xAB,0xCD,0xef,0xff}
-	hash, err := bcrypt.GenerateFromPasswordAndSalt(pass, salt, 5)
-	assert.Nil(err)
-	assert.Equal("$2a$05$abcdefghijklmnopqrstuuu18bGopDo9r1tDNZl2p2xd1YzcTrTp6", string(hash))
-
-
 	//parallel_bcrypt sends up to 64 bytes to bcrypt.  Prove that the
 	// implementation does not truncate it.
 	pass64 := []byte("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
 
-	hash, err = bcrypt.GenerateFromPasswordAndSalt(pass64, salt, 5)
+	hash, err := bcrypt.GenerateFromPasswordAndSalt(pass64, salt, 5)
 	assert.Nil(err)
 	assert.Equal("$2a$05$abcdefghijklmnopqrstuusN64mi0Q3MHT4E2PLNsVMiw2Jh1hNE6", string(hash))
 
@@ -54,7 +47,7 @@ func Test_quad(t *testing.T) {
 	salt := []byte{0x71,0xd7,0x9f,0x82,0x18,0xa3,0x92,0x59,0xa7,0xa2,0x9a,0xab,0xb2,0xdb,0xaf,0xc3};  //"abcdefghijklmnopqrstuu" as bcrypt-base64
 
 	//this result was verified with PHP's bcrypt
-	expect := "2c70a99f125eaa36561e97f0c9d215e099ab991116ceda19b7c3c93c669ebe7e"
+	expect := "50bec3b110e540afb4e35ee4fb657a7c7a7187916763a78851418605daa25f8a"
 	
 	pass := []byte("Super Secret Password")
 	hash, err := Hash(4, pass, salt, 5)

@@ -1,5 +1,9 @@
 <?php
 
+/*
+Currently this is just a playground so I can confirm the correct implementation of my Go and Java code.
+*/
+
 //Encode bytes as base64 using the bcrypt alphabet
 function bcrypt_base64_encode($data) {
 	$std_alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
@@ -11,11 +15,13 @@ function bcrypt_base64_encode($data) {
 	return str_replace("=", "", $b64);
 }
 
-function _parallel_bcrypt_thread($threadIndex, $pass, $salt_bcryptBase64, $cost) {
-	//derive a distinct password for each thread to work on
-	$threadPassHex =  hash_hmac("sha256", chr($threadIndex + 1), $pass, false);
+function _parallel_bcrypt_thread($threadIndex, $pass, $salt, $cost) {
+	//derive a distinct password and salt for each thread to work on
+	$threadByte = chr($threadIndex + 1);
+	$threadPassHex = hash_hmac("sha256", $threadByte, $pass, false);
+	$threadSalt = bcrypt_base64_encode(substr(hash_hmac("sha256", $threadByte, $salt, true), 0, 16));
 
-	$options = array("cost" => $cost, "salt" => $salt_bcryptBase64);
+	$options = array("cost" => $cost, "salt" => $threadSalt);
 	$hash = password_hash($threadPassHex, PASSWORD_BCRYPT, $options);
 
 	//remove the first 29 non-unique characters
@@ -26,14 +32,10 @@ function parallel_bcrypt($nThreads, $pass, $salt, $cost) {
 	if (strlen($salt) != 16)
 		throw new Exception("wrong salt length");
 
-	//encode salt as bcrypt-base64
-	$saltB64 = bcrypt_base64_encode($salt);
-
-	printf("saltB64 %s\n", $saltB64);
 
 	$hashes = "";
 	for ($i = 0; $i < $nThreads; $i++) {
-		$hashes .= _parallel_bcrypt_thread($i, $pass, $saltB64, $cost);
+		$hashes .= _parallel_bcrypt_thread($i, $pass, $salt, $cost);
 	}
 
 	return hash("sha256", $hashes, true);
@@ -66,7 +68,7 @@ function test2() {
 function test3() {
 	$salt = hex2bin("71d79f8218a39259a7a29aabb2dbafc3");
 
-	printf("parallel_bcrypt: %s\n", bin2hex(parallel_bcrypt(4, "Super Secret Password", $salt, 13)));
+	printf("parallel_bcrypt: %s\n", bin2hex(parallel_bcrypt(4, "Super Secret Password", $salt, 5)));
 }
 
 test3();

@@ -102,11 +102,12 @@ func bytesToHex(data []byte) []byte {
 	return res
 }
 
-
 func bcryptThread(plaintextPassword, salt []byte, cost, threadIndex int, result chan *thread_result) {
 
-	//Derive a distinct password for this thread to work on:
-	threadPassword := util.HmacSha256(plaintextPassword, []byte{byte(threadIndex + 1)})
+	//Derive a distinct password and salt for this thread to work on:
+	threadByte := []byte{byte(threadIndex + 1)}
+	threadPassword := util.HmacSha256(plaintextPassword, threadByte)
+	threadSalt := util.HmacSha256(salt, threadByte)[0:BcryptSaltLen]
 
 	//Some bcrypt implementations are broken (eg PHP) because they truncate
 	// the password at the first null byte!  Therefore I'll pass 64 hex characters.
@@ -115,12 +116,17 @@ func bcryptThread(plaintextPassword, salt []byte, cost, threadIndex int, result 
 
 	var tr thread_result
 	tr.threadIndex = threadIndex
-	tr.bcryptHash, tr.err = bcrypt.GenerateFromPasswordAndSalt(hexPass, salt, cost)
+	tr.bcryptHash, tr.err = bcrypt.GenerateFromPasswordAndSalt(hexPass, threadSalt, cost)
 
-	//remove the salt and cost prefix (first 29 chars)
+	
 	if tr.err == nil {
-		util.Erase(tr.bcryptHash[0:29])
-		tr.bcryptHash = tr.bcryptHash[29:]
+		//sanity: bcrypt hashes are always 60 characters
+		if len(tr.bcryptHash) != 60 {
+			tr.err = errors.New("wrong bcrypt output length")
+		} else {
+			//remove the salt and cost prefix (first 29 chars)
+			tr.bcryptHash = tr.bcryptHash[29:]
+		}
 	}
 
 	util.Erase(threadPassword)
