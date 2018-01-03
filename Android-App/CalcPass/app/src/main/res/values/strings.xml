@@ -45,7 +45,8 @@ Do you agree to the terms of the GPLv3 license?
     <string name="decrypt_time">Decryption took %1$dms</string>
     <string name="btnStoreSeed">Store</string>
     <string name="keystoreNotice">Tap Store to install this seed into the Android Keystore on this device. The Android Keystore is a highly secured area for storing cryptographic keys.  Once stored, Android will ensure that only CalcPass can access this seed, and only when you authorize it to using your screen unlock sequence.</string>
-    <string name="importNotice">The import process is highly sensitive.  You might want to force quit all other Apps before proceeding.  If you switch to another app during this process the import will be aborted.  Now would also be a good time to check if this device has a Hardware-backed Keystore.</string>
+    <string name="importNotice">The import process is very sensitive.  Now would be a good time to verify that there are no malicious Apps on this device.  <a href="https://www.android.com/play-protect/">Google Play Protect</a> can help with that.  Now would also be a good time to check if this device has a Hardware-backed Keystore.</string>
+    <string name="importNotice2">Switching to another App during the import will abort the import.</string>
     <string name="title_activity_decrypt_success">DecryptSuccessActivity</string>
 
 </resources>
