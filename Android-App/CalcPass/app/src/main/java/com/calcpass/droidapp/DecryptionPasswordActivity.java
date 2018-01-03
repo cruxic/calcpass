@@ -1,12 +1,12 @@
 package com.calcpass.droidapp;
 
+import android.content.Intent;
+import android.content.res.Resources;
 import android.os.Bundle;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
 import android.text.method.PasswordTransformationMethod;
 import android.view.View;
-import android.widget.CheckBox;
-import android.widget.CompoundButton;
 import android.widget.EditText;
 import android.widget.ProgressBar;
 import android.widget.TextView;
@@ -14,15 +14,13 @@ import android.widget.TextView;
 import com.calcpass.ImportResult;
 
 public class DecryptionPasswordActivity extends AppCompatActivity
-		implements CompoundButton.OnCheckedChangeListener, DecryptionTask.GlueToUI
+		implements DecryptionTask.GlueToUI
 {
 
-	//Data is passed static because I fear Intent extra could be persisted on the whim of the OS (Parcelable)
+	//Data is passed static because I fear Intent extras could be persisted on the whim of the OS (Parcelable)
 	public static DataToImport dataToImport;
 
 	private ProgressBar progBar;
-
-	private long t1;
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
@@ -31,16 +29,25 @@ public class DecryptionPasswordActivity extends AppCompatActivity
 		Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
 		setSupportActionBar(toolbar);
 
+		Resources res = getResources();
+
 		if (dataToImport == null)
 			finish();
+
+		setTitle(res.getString(R.string.decrypt_title, dataToImport.metaData.seedName));
+
+		TextView lblSeedInfo = findViewById(R.id.lblSeedInfo);
+		String lines = res.getString(R.string.decrypt_info_seedName, dataToImport.metaData.seedName) + "\n" +
+				res.getString(R.string.decrypt_info_formatVer, dataToImport.metaData.formatVer) + "\n" +
+				res.getString(R.string.decrypt_info_encKDFType, dataToImport.metaData.encryptionKDF.name());
+		lblSeedInfo.setText(lines);
 
 		findViewById(R.id.lblErr).setVisibility(View.INVISIBLE);
 		progBar = findViewById(R.id.progBar);
 		progBar.setVisibility(View.INVISIBLE);
 
-
-		CheckBox chkShowPass = findViewById(R.id.chkShowPass);
-		chkShowPass.setOnCheckedChangeListener(this);
+		EditText txtPassword = findViewById(R.id.txtPassword);
+		txtPassword.setText("Super Secret");
 	}
 
 
@@ -63,17 +70,13 @@ public class DecryptionPasswordActivity extends AppCompatActivity
 	}
 
 
-	//Called when the chkShowPass is clicked
-	@Override
-	public void onCheckedChanged(CompoundButton compoundButton, boolean isChecked) {
-		if (compoundButton == findViewById(R.id.chkShowPass)) {
-
-			EditText txtPassword = findViewById(R.id.txtPassword);
-			if (isChecked)
-				txtPassword.setTransformationMethod(null);
-			else
-				txtPassword.setTransformationMethod(new PasswordTransformationMethod());
-		}
+	public void onClick_btnShowHide(View v) {
+		EditText txtPassword = findViewById(R.id.txtPassword);
+		boolean showingPass = txtPassword.getTransformationMethod() == null;
+		if (showingPass)
+			txtPassword.setTransformationMethod(new PasswordTransformationMethod());
+		else
+			txtPassword.setTransformationMethod(null);
 	}
 
 	private void showError(String msg) {
@@ -107,7 +110,6 @@ public class DecryptionPasswordActivity extends AppCompatActivity
 		progBar.setVisibility(View.VISIBLE);
 		progBar.setProgress(0);
 
-		t1 = System.currentTimeMillis();
 		DecryptionTask task = new DecryptionTask(this, dataToImport, password);
 		task.execute();
 	}
@@ -119,8 +121,8 @@ public class DecryptionPasswordActivity extends AppCompatActivity
 
 	@Override
 	public void onDecryptFailed(String err) {
-		long elapsedMs = System.currentTimeMillis() - t1;
-		showError(err + "; took " + elapsedMs);
+		//long elapsedMs = System.currentTimeMillis() - startTime;
+		showError(err);
 
 		progBar.setVisibility(View.INVISIBLE);
 
@@ -130,13 +132,11 @@ public class DecryptionPasswordActivity extends AppCompatActivity
 
 	@Override
 	public void onDecryptSuccess(ImportResult importResult) {
-		//TODO: go somewhere
 
-		long elapsedMs = System.currentTimeMillis() - t1;
-		showError("took " + elapsedMs);
+		DecryptSuccessActivity.decryptedData = importResult;
+		startActivity(new Intent(this, DecryptSuccessActivity.class));
 
-
-		findViewById(R.id.btnDecrypt).setEnabled(true);
-
+		dataToImport = null;
+		finish();
 	}
 }

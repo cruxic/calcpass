@@ -23,6 +23,7 @@ Do you agree to the terms of the GPLv3 license?
     <string name="welcome_btnImport">Import Seed</string>
     <string name="title_activity_import_seed">ImportSeedActivity</string>
     <string name="import_fromQR">Scan QR Code</string>
+    <string name="import_checkKeystore">Check Keystore Type</string>
     <string name="import_typed">Type with Keyboard</string>
     <string name="feature_not_implemented">Sorry, this feature is not yet implemented.</string>
     <string name="title_activity_import_from_keyboard">ImportFromKeyboardActivity</string>
@@ -35,5 +36,16 @@ Do you agree to the terms of the GPLv3 license?
     <string name="import_decryption_password">Enter decryption password</string>
     <string name="reveal_password">Show Password</string>
     <string name="btn_decrypt">Decrypt</string>
+
+    <string name="decrypt_title">Decrypt \"%1$s\"</string>
+    <string name="decrypt_info_seedName">Seed Name: \"%1$s\"</string>
+    <string name="decrypt_info_formatVer">Encoding Format: %1$d</string>
+    <string name="decrypt_info_encKDFType">Encryption KDF: %1$s</string>
+    <string name="decrypt_success">Store "%1$s"</string>
+    <string name="decrypt_time">Decryption took %1$dms</string>
+    <string name="btnStoreSeed">Store</string>
+    <string name="keystoreNotice">Tap Store to install this seed into the Android Keystore on this device. The Android Keystore is a highly secured area for storing cryptographic keys.  Once stored, Android will ensure that only CalcPass can access this seed, and only when you authorize it to using your screen unlock sequence.</string>
+    <string name="importNotice">The import process is highly sensitive.  You might want to force quit all other Apps before proceeding.  If you switch to another app during this process the import will be aborted.  Now would also be a good time to check if this device has a Hardware-backed Keystore.</string>
+    <string name="title_activity_decrypt_success">DecryptSuccessActivity</string>
 
 </resources>

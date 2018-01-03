@@ -8,5 +8,7 @@ public class ImportResult {
 	public int formatVer;
 	public String seedName;
 
+	public int decryptMillis;
+
 	public Seed seed;
 }

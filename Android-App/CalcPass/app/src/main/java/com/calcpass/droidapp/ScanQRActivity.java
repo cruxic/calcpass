@@ -67,8 +67,16 @@ public class ScanQRActivity extends AppCompatActivity implements SurfaceHolder.C
 				havePermission = true;
 				setupScanner();
 			}
-			else
-				finish();
+			else {
+				if (!ActivityCompat.shouldShowRequestPermissionRationale(this, Manifest.permission.CAMERA)) {
+					//User said to "Never ask again"
+					showError("Please enable Camera permission from Android Settings->Apps...");
+				}
+				else {
+					//User denied once
+					finish();
+				}
+			}
 		}
 	}
 
@@ -115,32 +123,6 @@ public class ScanQRActivity extends AppCompatActivity implements SurfaceHolder.C
 
 	}
 
-    //Called in the UI thread when a QR was scanned
-    private void processScannedCode(String qrData) {
-    	if (!acceptScans)
-    		return;  //ignore it
-
-		DataToImport dti = new DataToImport();
-
-    	try {
-    		//pass null decryption key to verify only
-			dti.metaData = Import.ImportFromQRCode(qrData, null, null);
-
-			//Ignore any further scans
-			acceptScans = false;
-
-			dti.qrData = qrData;
-
-			//Pass statically to avoid Parcelable limitation or unintentional persistence to disk
-			DecryptionPasswordActivity.dataToImport = dti;
-
-			startActivity(new Intent(this, DecryptionPasswordActivity.class));
-			finish();
-		}
-		catch (ImportEx ix) {
-    		showError(ix.getMessage());
-		}
-	}
 
 	private void setupScanner() {
 		BarcodeDetector detector =
@@ -210,6 +192,33 @@ public class ScanQRActivity extends AppCompatActivity implements SurfaceHolder.C
 				}
 			});
 		}
+	}
 
+
+	//Called in the UI thread when a QR was scanned
+	private void processScannedCode(String qrData) {
+		if (!acceptScans)
+			return;  //ignore it
+
+		DataToImport dti = new DataToImport();
+
+		try {
+			//pass null decryption key to verify only
+			dti.metaData = Import.ImportFromQRCode(qrData, null, null);
+
+			//Ignore any further scans
+			acceptScans = false;
+
+			dti.qrData = qrData;
+
+			//Pass statically to avoid Parcelable limitation or unintentional persistence to disk
+			DecryptionPasswordActivity.dataToImport = dti;
+
+			startActivity(new Intent(this, DecryptionPasswordActivity.class));
+			finish();
+		}
+		catch (ImportEx ix) {
+			showError(ix.getMessage());
+		}
 	}
 }

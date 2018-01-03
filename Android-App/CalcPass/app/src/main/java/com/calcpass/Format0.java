@@ -54,6 +54,8 @@ class Format0 {
 	static ImportResult ImportRaw(byte[] dat, String decryptionPassword, KDFProgressListener progressCallback)
 			throws ImportEx
 	{
+		long startMs = System.currentTimeMillis();
+
 		int d = dat.length;
 		if (d <= 29) {
 			throw new ImportEx("Data too short for format 0");
@@ -132,6 +134,7 @@ class Format0 {
 		seed.bytes = Util.slice(dat, 10, 26);
 
 		res.seed = seed;
+		res.decryptMillis = (int)(System.currentTimeMillis() - startMs);
 		return res;
 	}
 
