@@ -1,0 +1,39 @@
+<resources>
+    <string name="app_name">CalcPass</string>
+    <string name="action_settings">Settings</string>
+    <string name="welcome_message">Welcome to CalcPass!</string>
+
+    <!-- TODO: Remove or change this placeholder text -->
+    <string name="eula_header">Welcome to CalcPass!</string>
+
+    <string name="eula_warning">"<b>Warning</b>: CalcPass is security software and has not yet undergone thorough peer review.  Only use this app if you were invited to test it by the developer or a security professional who has reviewed it's source code.
+
+CalcPass is open-source under the GNU General Public License, Version 3 (GPLv3).  <b>This software is provided "AS IS", without warranty of any kind, express or implied.</b>
+
+Do you agree to the terms of the GPLv3 license?
+"
+    </string>
+
+    <string name="eula_agree">I Agree</string>
+    <string name="eula_quit">Quit</string>
+    <string name="title_activity_eula">EULAActivity</string>
+    <string name="title_activity_welcome">WelcomeActivity</string>
+    <string name="welcome_header">Welcome to CalcPass!</string>
+    <string name="welcome_message1">If you are new to CalcPass take a moment to learn <a href="https://calcpass.com/how-calcpass-works.html">How CalcPass Works</a>.  After you have created a seed tap Import below.</string>
+    <string name="welcome_btnImport">Import Seed</string>
+    <string name="title_activity_import_seed">ImportSeedActivity</string>
+    <string name="import_fromQR">Scan QR Code</string>
+    <string name="import_typed">Type with Keyboard</string>
+    <string name="feature_not_implemented">Sorry, this feature is not yet implemented.</string>
+    <string name="title_activity_import_from_keyboard">ImportFromKeyboardActivity</string>
+    <string name="import_seedname">Seed Name (exactly as it appears on card)</string>
+    <string name="import_btnDone">Done</string>
+    <string name="title_activity_scan_qr">ScanQRActivity</string>
+    <string name="import_or">or</string>
+    <string name="import_dataPlacholder">Data (spaces optional)</string>
+    <string name="title_activity_decryption_password">DecryptionPasswordActivity</string>
+    <string name="import_decryption_password">Enter decryption password</string>
+    <string name="reveal_password">Show Password</string>
+    <string name="btn_decrypt">Decrypt</string>
+
+</resources>

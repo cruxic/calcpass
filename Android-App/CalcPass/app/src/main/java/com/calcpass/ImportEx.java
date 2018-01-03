@@ -1,8 +1,10 @@
 package com.calcpass;
 
 /**
- * Created by cruxic on 12/26/17.
+ * Problem importing from QR code or bytewords.
  */
-
-public class ImportFormatEx {
+public class ImportEx extends Exception {
+	public ImportEx(String msg) {
+		super(msg);
+	}
 }

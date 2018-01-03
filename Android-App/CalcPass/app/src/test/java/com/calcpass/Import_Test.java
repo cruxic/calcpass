@@ -1,8 +1,90 @@
 package com.calcpass;
 
-/**
- * Created by cruxic on 12/26/17.
- */
+import com.calcpass.util.Base64Implementation;
+import com.calcpass.util.Java8Base64Implementation;
 
-public class Test_Import {
+import static org.junit.Assert.*;
+import org.junit.Test;
+
+
+public class Import_Test {
+	public Import_Test() {
+		Base64Implementation.instance = new Java8Base64Implementation();
+	}
+
+
+	@Test
+	public void test_import_format0() throws Exception {
+		byte[] expect = new byte[16];
+		for (int i = 0; i < 16; i++)
+			expect[i] = (byte)(i+1);
+
+
+		//Illegal base64
+		try {
+			Import.ImportFromQRCode("abcdefg*&&^%&$%&$&", "Super Secret");
+			fail();
+		}
+		catch (ImportEx ie) {
+			assertEquals("Illegal Base64", ie.getMessage());
+		}
+
+		String qrCodeText = "AAzg6d3YaDLhp1ymm6Tnek2elqkIQyKwNVC5W1Rlc3QtU2VlZBjtA9KznA";
+		ImportResult ir = Import.ImportFromQRCode(qrCodeText, "Super Secret");
+		assertEquals(0, ir.formatVer);
+		assertEquals(KDFType.QuadBcrypt12, ir.encryptionKDF);
+		assertEquals(ir.seedName, "Test-Seed");
+		
+		assertEquals(ir.seed.name, "Test-Seed");
+		assertArrayEquals(expect, ir.seed.bytes);
+		assertEquals(PassFmt.Friendly9, ir.seed.DefaultPasswordFormat);
+		assertEquals(KDFType.QuadBcrypt12, ir.seed.HighValueKDFType);
+
+		//Same data as bytewords
+		String words = 
+				"ace ape toy " +
+				"wad tin tar " +
+				"ink did try " +
+				"pin hid pig " +
+				"out pen vex " +
+				"lie fur pad " +
+				"oat pop all " +
+				"fax bus ran " +
+				"dip gas rim " +
+				"hex bay wax " +
+				"age sum raw " +
+				"owl ";
+		ir = Import.ImportPrinted("Test-Seed", words, "Super Secret");
+		assertEquals(0, ir.formatVer);
+		assertEquals(KDFType.QuadBcrypt12, ir.encryptionKDF);
+		assertEquals(ir.seedName, "Test-Seed");
+		
+		assertEquals(ir.seed.name, "Test-Seed");
+		assertArrayEquals(expect, ir.seed.bytes);
+		assertEquals(PassFmt.Friendly9, ir.seed.DefaultPasswordFormat);
+		assertEquals(KDFType.QuadBcrypt12, ir.seed.HighValueKDFType);
+
+
+
+
+/*
+Test-Seed
+ace ape toy
+wad tin tar
+ink did try
+pin hid pig
+out pen vex
+lie fur pad
+oat pop all
+fax bus ran
+dip gas rim
+hex bay wax
+age sum raw
+owl
+
+AAzg6d3YaDLhp1ymm6Tnek2elqkIQyKwNVC5W1Rlc3QtU2VlZBjtA9KznA==
+
+
+*/
+	}
 }

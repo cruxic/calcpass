@@ -1,8 +1,11 @@
 package com.calcpass.util;
 
 /**
- * Created by cruxic on 12/29/17.
+ * A KDFProgressListener which does nothing.
  */
+public class NopKDFProgressListener implements KDFProgressListener {
+	@Override
+	public void onKDFProgress(float percentDone) {
 
-public class NopKDFProgressListener {
+	}
 }

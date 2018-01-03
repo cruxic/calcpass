@@ -1,8 +1,12 @@
 package com.calcpass;
 
 /**
- * Created by cruxic on 12/29/17.
+ * Result of Import.ImportFromQRCode() etc
  */
-
 public class ImportResult {
+	public KDFType encryptionKDF;
+	public int formatVer;
+	public String seedName;
+
+	public Seed seed;
 }

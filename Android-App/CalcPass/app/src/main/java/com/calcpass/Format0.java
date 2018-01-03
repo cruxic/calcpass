@@ -1,5 +1,6 @@
 package com.calcpass;
 
+import com.calcpass.util.KDFProgressListener;
 import com.calcpass.util.Util;
 
 import java.io.UnsupportedEncodingException;
@@ -50,7 +51,7 @@ class Format0 {
 	/**
 	 * @param decryptionPassword pass null to only verify basic data integrity and return only the seed name.
 	 * */
-	static ImportResult ImportRaw(byte[] dat, String decryptionPassword)
+	static ImportResult ImportRaw(byte[] dat, String decryptionPassword, KDFProgressListener progressCallback)
 			throws ImportEx
 	{
 		int d = dat.length;
@@ -99,7 +100,7 @@ class Format0 {
 			return res;
 
 		//Derive decryption key
-		byte[] key = KeyDerivation.ExecKDF(encryptionKDFType, decryptionPassword, salt128);
+		byte[] key = KeyDerivation.ExecKDF(encryptionKDFType, decryptionPassword, salt128, progressCallback);
 
 		//XOR decrypt
 		for (int i = 10; i < 28; i++) {
