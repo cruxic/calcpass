@@ -137,7 +137,7 @@ func SecureShuffleBytes(array []byte, rng ByteSource) error {
 	}
 
 	//Create a random integer for every element of the array.
-	//We must should duplicates to ensure predictable sorting.
+	//We must avoid duplicates to ensure predictable sorting.
 	var r int
 	var err error
 	var b1, b2 byte

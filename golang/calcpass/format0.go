@@ -20,13 +20,13 @@ Format 0:
 	1    : encryptionKDFType
 	2-9  : KDF-Salt
 	--- Encrypted
-	10-26: seed.Bytes (16 bytes)
+	10-25: seed.Bytes (16 bytes)
 	26   : seed.DefaultPasswordFormat
 	27   : seed.HighValueKDFType
 	--- End Encrypted
 	28-N : Seed Name (Not included in printed bytewords)
-	N-N+4: Inner MAC (HmacSha256 of all the above before encryption truncated to 4 bytes)
-	N+4-N+6: Outer Checksum (sha256 truncated to 2 bytes)
+	N+1-N+4: Inner MAC (HmacSha256 of all the above before encryption truncated to 4 bytes)
+	N+5-N+6: Outer Checksum (sha256 truncated to 2 bytes)
 
 */
 type Format0Exported struct {
@@ -176,7 +176,7 @@ func Format0_ImportRaw(dat []byte, encryptionPassword []byte) (*Seed, error) {
 		HighValueKDFType: KDFType(dat[27]),
 	}
 
-	copy(seed.Bytes[:], dat[10:27])
+	copy(seed.Bytes[:], dat[10:26])
 
 	return seed, nil		
 }
