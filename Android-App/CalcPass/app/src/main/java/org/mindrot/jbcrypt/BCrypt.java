@@ -17,6 +17,11 @@ package org.mindrot.jbcrypt;
 import java.io.UnsupportedEncodingException;
 import java.security.SecureRandom;
 
+//
+// cruxic: this code is forked from version 0.4 of jBcrypt.  My changes allow
+//   progress reporting via my BCryptProgressCallback.
+//
+
 /**
  * BCrypt implements OpenBSD-style Blowfish password hashing using
  * the scheme described in "A Future-Adaptable Password Scheme" by
@@ -604,10 +609,11 @@ public class BCrypt {
 	 * @param log_rounds	the binary logarithm of the number
 	 * of rounds of hashing to apply
 	 * @param cdata         the plaintext to encrypt
+	 * @param progCallback added by cruxic
 	 * @return	an array containing the binary hashed password
 	 */
 	public byte[] crypt_raw(byte password[], byte salt[], int log_rounds,
-	    int cdata[]) {
+	    int cdata[], BCryptProgressCallback progCallback) {
 		int rounds, i, j;
 		int clen = cdata.length;
 		byte ret[];
@@ -621,6 +627,11 @@ public class BCrypt {
 		init_key();
 		ekskey(salt, password);
 		for (i = 0; i != rounds; i++) {
+			//report progress every 256 rounds.
+			if ((i & 0xff) == 0) {
+				progCallback.onBcryptProgress((i / (float)rounds));
+			}
+
 			key(password);
 			key(salt);
 		}
@@ -637,6 +648,9 @@ public class BCrypt {
 			ret[j++] = (byte)((cdata[i] >> 8) & 0xff);
 			ret[j++] = (byte)(cdata[i] & 0xff);
 		}
+
+		progCallback.onBcryptProgress(1.0f);
+
 		return ret;
 	}
 
@@ -645,9 +659,10 @@ public class BCrypt {
 	 * @param password	the password to hash
 	 * @param salt	the salt to hash with (perhaps generated
 	 * using BCrypt.gensalt)
+	 * @param progCallback added by cruxic
 	 * @return	the hashed password
 	 */
-	public static String hashpw(String password, String salt) {
+	public static String hashpw(String password, String salt, BCryptProgressCallback progCallback) {
 		BCrypt B;
 		String real_salt;
 		byte passwordb[], saltb[], hashed[];
@@ -682,7 +697,7 @@ public class BCrypt {
 
 		B = new BCrypt();
 		hashed = B.crypt_raw(passwordb, saltb, rounds,
-		    (int[])bf_crypt_ciphertext.clone());
+		    (int[])bf_crypt_ciphertext.clone(), progCallback);
 
 		rs.append("$2");
 		if (minor >= 'a')
@@ -751,6 +766,19 @@ public class BCrypt {
 	}
 
 	/**
+	 * Construct a progress callback that does nothing
+	 * */
+	public static BCryptProgressCallback getNopProgressCallback() {
+		return new BCryptProgressCallback() {
+			@Override
+			public void onBcryptProgress(float percentDone) {
+				System.out.println("BCryptProgressCallback: " + percentDone);
+
+			}
+		};
+	}
+
+	/**
 	 * Check that a plaintext password matches a previously hashed
 	 * one
 	 * @param plaintext	the plaintext password to verify
@@ -761,7 +789,7 @@ public class BCrypt {
 		byte hashed_bytes[];
 		byte try_bytes[];
 		try {
-			String try_pw = hashpw(plaintext, hashed);
+			String try_pw = hashpw(plaintext, hashed, getNopProgressCallback());
 			hashed_bytes = hashed.getBytes("UTF-8");
 			try_bytes = try_pw.getBytes("UTF-8");
 		} catch (UnsupportedEncodingException uee) {
