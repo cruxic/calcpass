@@ -26,7 +26,7 @@ public class WelcomeActivity extends AppCompatActivity {
     }
 
     public void onClickImport(View v) {
-        startActivity(new Intent(this, ImportSeedActivity.class));
+        startActivity(new Intent(this, TestKeyStoreActivity.class));
     }
 
 }

@@ -56,6 +56,10 @@
         <activity
             android:name=".DecryptSuccessActivity"
             android:label="@string/title_activity_decrypt_success"
+            android:theme="@style/AppTheme.NoActionBar" />
+        <activity
+            android:name=".TestKeyStoreActivity"
+            android:label="@string/title_activity_test_key_store"
             android:theme="@style/AppTheme.NoActionBar"></activity>
     </application>
 
