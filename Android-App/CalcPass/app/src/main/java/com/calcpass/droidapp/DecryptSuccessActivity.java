@@ -22,9 +22,9 @@ public class DecryptSuccessActivity extends AppCompatActivity {
 
 	private TextView lblError;
 
-	private byte[] expectedMAC;
 	private String keyID;
 	private KeyStoreOperations keystore;
+	private DataStore dataStore;
 
 
 	@Override
@@ -47,6 +47,8 @@ public class DecryptSuccessActivity extends AppCompatActivity {
 
 		lblError = findViewById(R.id.lblError);
 		lblError.setVisibility(View.INVISIBLE);
+
+		dataStore = new DataStore(getApplicationContext());
 	}
 
 	private void showError(String msg) {
@@ -71,20 +73,33 @@ public class DecryptSuccessActivity extends AppCompatActivity {
 	}
 
 	public void onClick_btnStore(View v) {
+		//Only allow one attempt
 		findViewById(R.id.btnStoreSeed).setEnabled(false);
 
-		Seed seed = decryptedData.seed;
+		//move bytes to local variable
+		byte[] keyBytes = decryptedData.seed.bytes;
+		decryptedData.seed.bytes = null;
 
-		//Compute the expected test MAC which will be used to verify the integrity of the seed henceforth
-		expectedMAC = Util.hmacSha256(seed.bytes, KeyStoreOperations.getTestMessage());
+		InstalledSeed installedSeed = new InstalledSeed();
+		installedSeed.properties = decryptedData.seed;
+		installedSeed.dateAdded = 1;  //TODO: set this
 
+		//Compute verifier MACs
+		installedSeed.keyVerifierMAC = Util.hmacSha256(keyBytes, KeyStoreOperations.getTestMessage());
+		installedSeed.propertiesVerifierMAC = Util.hmacSha256(keyBytes, installedSeed.getPropertiesVerifierMessage());
+
+		//Persist everything except keyBytes
+		dataStore.installSeed(installedSeed);
+
+		//Store the keyBytes in the Android Keystore
 		try {
 			keystore = new KeyStoreOperations(getResources());
 
-			keyID = seed.name;
-			keystore.installHmacSha256Key(keyID, seed.bytes);
+			keyID = installedSeed.properties.name;
+			keystore.installHmacSha256Key(keyID, keyBytes);
 
-			keystore.requestKeyUnlock(seed.name, this);
+			//Request unlock so we can verify it stored correctly
+			keystore.requestKeyUnlock(keyID, this);
 			//onActivityResult() will be called next
 		} catch (KeyStoreOperationEx ex) {
 			showError(ex.getMessage());
@@ -93,19 +108,17 @@ public class DecryptSuccessActivity extends AppCompatActivity {
 
 	private void afterUnlocked() {
 		try {
-			byte[] gotMAC = keystore.hmacSha256(keyID, KeyStoreOperations.getTestMessage());
-
-			if (Util.constantTimeCompare(gotMAC, expectedMAC)) {
-				startActivity(new Intent(this, WelcomeActivity.class));
-				finish();
-			}
-			else
-				showError("Verify failed!");
-
+			InstalledSeed installedSeed = dataStore.getInstalledSeed(keyID);
+			installedSeed.verifyAll(keystore);
 		} catch (KeyStoreOperationEx ex) {
 			showError(ex.getMessage());
 			ex.printStackTrace();
+			return;
 		}
+
+		//Success!
+		startActivity(new Intent(this, WelcomeActivity.class));
+		finish();
 	}
 
 	@Override

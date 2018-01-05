@@ -17,7 +17,7 @@ public class EULAActivity extends AppCompatActivity {
     }
 
     public void onClickAgree(View v) {
-        new Prefs(getApplicationContext()).setAcceptedEULA(true);
+        new DataStore(getApplicationContext()).setAcceptedEULA(true);
         startActivity(new Intent(this, MainActivity.class));
         finish();
     }

@@ -12,13 +12,13 @@ import java.util.Set;
 /**
  * Persistent key/value store for this app.
  * */
-public class Prefs {
+public class DataStore {
     private SharedPreferences sp;
 
-    public Prefs(Context context) {
+    public DataStore(Context context) {
         //MODE_PRIVATE
         //   "file can only be accessed by the calling application (or all applications sharing the same user ID)"
-        sp = context.getSharedPreferences("PREFS", Context.MODE_PRIVATE);
+        sp = context.getSharedPreferences("DataStore", Context.MODE_PRIVATE);
     }
 
     public boolean hasAcceptedEULA() {
@@ -46,6 +46,14 @@ public class Prefs {
             res = new ArrayList<>(0);
 
         return res;
+    }
+
+    public void installSeed(InstalledSeed inst) {
+        WIP
+    }
+
+    public InstalledSeed getInstalledSeed(String seedName) {
+        WIP
     }
 
 }

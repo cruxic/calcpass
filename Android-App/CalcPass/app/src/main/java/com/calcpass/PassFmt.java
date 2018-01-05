@@ -22,5 +22,9 @@ public enum PassFmt {
 		return null;
 	}
 
+	public byte asByte() {
+		return (byte)intValue;
+	}
+
 
 }

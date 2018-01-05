@@ -24,7 +24,7 @@ public class MainActivity extends AppCompatActivity {
         if (Base64Implementation.instance == null)
             Base64Implementation.instance = new AndroidBase64Implementation();
 
-        Prefs prefs = new Prefs(getApplicationContext());
+        DataStore prefs = new DataStore(getApplicationContext());
 
         //User must first accept the license
         if (!prefs.hasAcceptedEULA()) {

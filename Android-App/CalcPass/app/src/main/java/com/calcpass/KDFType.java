@@ -27,4 +27,9 @@ public enum KDFType {
 		return null;
 	}
 
+	public byte asByte() {
+		return (byte)intValue;
+	}
+
+
 }
