@@ -30,7 +30,7 @@ public class KeyStoreOperations {
 
     public static final String TEST_KEY_ID = "__CalcPassTestKeyID__";
 
-    /**An arbitrary 32 byte (256bit) string*/
+    /**An arbitrary 32 bytes (256bit) encoded as hex.  Call {@link #getTestMessage} to decode it*/
     public static final String TEST_MESSAGE = "505152535455565758595a5b5c5d5e5f606162636465666768696a6b6c6d6e6f";
     private static final String TEST_KEY = "a0a1a2a3a4a5a6a7a8a9aaabacadaeaf";
     private static final String TEST_EXPECTED_HMAC = "b0284a5aac73958ff35aba283491aee72d800e71344a4ef93e9d433ad99f992a";
@@ -53,6 +53,13 @@ public class KeyStoreOperations {
         } catch (Exception e) {
             throw new KeyStoreOperationEx(e);
         }
+	}
+
+	/**
+	 * Get {@link #TEST_MESSAGE} as 32 raw bytes
+	 * */
+	public static byte[] getTestMessage() {
+		return Util.hexDecode(TEST_MESSAGE);
 	}
 
 	public void installHmacSha256Key(String keyID, byte[] keyBytes) throws KeyStoreOperationEx {
@@ -167,7 +174,7 @@ public class KeyStoreOperations {
 	}
 
 	public void verifyTestKey() throws KeyStoreOperationEx {
-		byte[] msg = Util.hexDecode(TEST_MESSAGE);
+		byte[] msg = getTestMessage();
 		byte[] got = hmacSha256(TEST_KEY_ID, msg);
 		String gotStr = Util.hexEncode(got);
 		System.out.println(gotStr);

@@ -27,7 +27,7 @@ public class TestKeyStoreActivity extends AppCompatActivity {
 	}
 
 	private void showError(String msg) {
-		showResult(msg, 0x990000);  //red
+		showResult(msg, getColor(R.color.errorText));
 	}
 
 	private void showResult(String msg, int rgbColor) {

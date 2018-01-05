@@ -16,23 +16,22 @@ Do you agree to the terms of the GPLv3 license?
 
     <string name="eula_agree">I Agree</string>
     <string name="eula_quit">Quit</string>
-    <string name="title_activity_eula">EULAActivity</string>
-    <string name="title_activity_welcome">WelcomeActivity</string>
-    <string name="welcome_header">Welcome to CalcPass!</string>
+    <string name="title_activity_eula">License Agreement</string>
+    <string name="title_activity_welcome">Welcome to CalcPass!</string>
     <string name="welcome_message1">If you are new to CalcPass take a moment to learn <a href="https://calcpass.com/how-calcpass-works.html">How CalcPass Works</a>.  After you have created a seed tap Import below.</string>
     <string name="welcome_btnImport">Import Seed</string>
-    <string name="title_activity_import_seed">ImportSeedActivity</string>
+    <string name="title_activity_import_seed">Choose Import Method</string>
     <string name="import_fromQR">Scan QR Code</string>
     <string name="import_checkKeystore">Check Keystore Hardware</string>
     <string name="import_typed">Type with Keyboard</string>
     <string name="feature_not_implemented">Sorry, this feature is not yet implemented.</string>
-    <string name="title_activity_import_from_keyboard">ImportFromKeyboardActivity</string>
+    <string name="title_activity_import_from_keyboard">Import Using Keyboard</string>
     <string name="import_seedname">Seed Name (exactly as it appears on card)</string>
     <string name="import_btnDone">Done</string>
-    <string name="title_activity_scan_qr">ScanQRActivity</string>
+    <string name="title_activity_scan_qr">Scan QR Code</string>
     <string name="import_or">or</string>
     <string name="import_dataPlacholder">Data (spaces optional)</string>
-    <string name="title_activity_decryption_password">DecryptionPasswordActivity</string>
+    <string name="title_activity_decryption_password">Decrypt Seed</string>
     <string name="import_decryption_password">Enter decryption password</string>
     <string name="reveal_password">Show Password</string>
     <string name="btn_decrypt">Decrypt</string>
@@ -41,14 +40,13 @@ Do you agree to the terms of the GPLv3 license?
     <string name="decrypt_info_seedName">Seed Name: \"%1$s\"</string>
     <string name="decrypt_info_formatVer">Encoding Format: %1$d</string>
     <string name="decrypt_info_encKDFType">Encryption KDF: %1$s</string>
-    <string name="decrypt_success">Store "%1$s"</string>
     <string name="decrypt_time">Decryption took %1$dms</string>
     <string name="btnStoreSeed">Store</string>
-    <string name="keystoreNotice">Tap Store to install this seed into the Android Keystore on this device. The Android Keystore is a highly secured area for storing cryptographic keys.  Once stored, Android will ensure that only CalcPass can access this seed, and only when you authorize it to using your screen unlock sequence.</string>
+    <string name="tapToStore">Tap Store to install \"%1$s\" into the Android Keystore on this device. Android will prompt for your screen unlock sequence.</string>
     <string name="importNotice">Your seed is most vulnerable during the import process.  Now would be a good time to verify that there are no malicious Apps on this device.  <a href="https://www.android.com/play-protect/">Google Play Protect</a> can help with that.</string>
     <string name="importNotice2">Switching to another App during the import will abort the import.</string>
-    <string name="title_activity_decrypt_success">DecryptSuccessActivity</string>
-    <string name="title_activity_test_key_store">TestKeyStoreActivity</string>
+    <string name="title_activity_decrypt_success">Ready to Store</string>
+    <string name="title_activity_test_key_store">Check Keystore Type</string>
     <string name="test_keystore_msg1">Your CalcPass seed will be imported into the <a href="https://developer.android.com/training/articles/keystore.html">Android Keystore</a>. The Android Keystore is a highly secured area for storing cryptographic keys.  Once stored, Android will ensure that only CalcPass can access this seed, and only when you authorize it to using your screen unlock sequence.</string>
     <string name="test_keystore_msg2">Many Android devices implement a \"Hardware-backed\" Keystore.  Such devices are able to prevent extraction of cryptographic keys even if the Android kernel becomes compromised. If this feature is important to you then you can test for it now.  Android will prompt for your screen unlock sequence.</string>
     <string name="test_keystore_btnCheck">Check Keystore Hardware</string>
@@ -59,5 +57,6 @@ Do you agree to the terms of the GPLv3 license?
     <string name="KeyStore_unlockDescription">Unlock Seed \"%1$s\"</string>
     <string name="KeyStore_keyIDNotExist">\"%1$s\" does not exist in the Keystore</string>
     <string name="lowercase_or">or</string>
+    <string name="scan_qr_instructions">Aim camera at your CalcPass QR code.</string>
 
 </resources>

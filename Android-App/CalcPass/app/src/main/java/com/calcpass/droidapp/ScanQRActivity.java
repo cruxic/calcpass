@@ -107,6 +107,7 @@ public class ScanQRActivity extends AppCompatActivity implements SurfaceHolder.C
     	if (msg != null) {
 			lblErr.setText(msg);
 			lblErr.setVisibility(View.VISIBLE);
+			lblErr.setTextColor(getColor(R.color.errorText));
 
 			//Erase after 4s
 			lblErr.postDelayed(new Runnable() {
