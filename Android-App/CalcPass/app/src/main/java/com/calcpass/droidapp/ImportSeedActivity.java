@@ -14,6 +14,8 @@ public class ImportSeedActivity extends AppCompatActivity {
         setContentView(R.layout.activity_import_seed);
         Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
+
+        DroidUtil.enableTextViewHyperlinks(findViewById(R.id.lblMsg1));
     }
 
     public void onClickFromQR(View v) {

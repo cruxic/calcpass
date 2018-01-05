@@ -2,16 +2,15 @@ package com.calcpass.droidapp;
 
 import android.content.Intent;
 import android.os.Bundle;
-import android.support.design.widget.FloatingActionButton;
-import android.support.design.widget.Snackbar;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
 import android.view.View;
+import android.widget.Button;
 import android.widget.TextView;
 
 public class TestKeyStoreActivity extends AppCompatActivity {
 	private TextView lblResult;
-	private CalcpassKeyStore keystore;
+	private KeyStoreOperations keystore;
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
@@ -22,54 +21,62 @@ public class TestKeyStoreActivity extends AppCompatActivity {
 
 		lblResult = findViewById(R.id.lblResult);
 		lblResult.setVisibility(View.INVISIBLE);
+
+		DroidUtil.enableTextViewHyperlinks(findViewById(R.id.lblMsg1));
+		DroidUtil.enableTextViewHyperlinks(findViewById(R.id.lblMsg2));
 	}
 
-	private void showResult(String msg, boolean isError) {
+	private void showError(String msg) {
+		showResult(msg, 0x990000);  //red
+	}
+
+	private void showResult(String msg, int rgbColor) {
 		if (msg == null) {
 			lblResult.setVisibility(View.INVISIBLE);
 			return;
 		}
 
-		if (isError)
-			lblResult.setTextColor(0xFF880000);  //red
-		else
-			lblResult.setTextColor(0xFF008800);  //green
-
+		lblResult.setTextColor(0xFF000000 | rgbColor);
 		lblResult.setText(msg);
-
 		lblResult.setVisibility(View.VISIBLE);
 	}
 
 	public void onBtnCheck(View v) {
 		//Clear previous error
-		showResult(null, false);
+		showError(null);
 
 		try {
 			//Init key store
 			if (keystore == null)
-				keystore = new CalcpassKeyStore(getResources());
+				keystore = new KeyStoreOperations(getResources());
 
-			if (!keystore.doesKeyExist(CalcpassKeyStore.TEST_KEY_ID)) {
-				keystore.installHmacSha256Key(CalcpassKeyStore.TEST_KEY_ID, keystore.makeTestSeed());
-			}
+			keystore.installTestKey();
 
-			keystore.requestKeyUnlock(CalcpassKeyStore.TEST_KEY_ID, this);
+			keystore.requestKeyUnlock(KeyStoreOperations.TEST_KEY_ID, this);
 			//onActivityResult will be called next
 
-		} catch (CalcpassKeystoreEx ex) {
-			showResult(ex.getMessage(), true);
+		} catch (KeyStoreOperationEx ex) {
+			showError(ex.getMessage());
 		}
 	}
 
 	private void afterUnlocked() {
 		try {
-			boolean ok = keystore.verifyHmacSha256Key(CalcpassKeyStore.TEST_KEY_ID, keystore.makeTestSeed());
-			if (ok)
-				showResult("Success!", false);
+			keystore.verifyTestKey();
+
+			boolean hardwareBacked = keystore.getKeyInfo(KeyStoreOperations.TEST_KEY_ID).isInsideSecureHardware();
+
+			if (hardwareBacked)
+				showResult("Keystore is Hardware-backed.", 0x00aa00);  //green
 			else
-				showResult("Wrong HMAC result!", true);
-		} catch (CalcpassKeystoreEx ex) {
-			showResult(ex.getMessage(), true);
+				showResult("Software-only Keystore.", 0x000000);  //black
+
+			//Change "Skip" button to "Next"
+			Button btnSkip = findViewById(R.id.btnSkip);
+			btnSkip.setText(R.string.test_keystore_btnNext);
+
+		} catch (KeyStoreOperationEx ex) {
+			showError(ex.getMessage());
 			ex.printStackTrace();
 		}
 	}
@@ -77,12 +84,12 @@ public class TestKeyStoreActivity extends AppCompatActivity {
 	@Override
 	protected void onActivityResult(int requestCode, int resultCode, Intent data) {
 		// Check which request we're responding to
-		if (requestCode == CalcpassKeyStore.UNLOCK_REQUEST_CODE) {
+		if (requestCode == KeyStoreOperations.UNLOCK_REQUEST_CODE) {
 			if (resultCode == RESULT_OK) {
 				afterUnlocked();
 			}
 			else {
-				showResult("User denied unlock", true);
+				showError("User denied unlock");
 			}
 		}
 	}

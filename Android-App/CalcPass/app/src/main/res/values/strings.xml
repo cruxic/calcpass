@@ -55,8 +55,9 @@ Do you agree to the terms of the GPLv3 license?
     <string name="test_keystore_btnSkip">Skip</string>
     <string name="test_keystore_btnNext">Next</string>
 
-    <string name="CalcpassKeyStore_unlockTitle">Unlock Seed</string>
-    <string name="CalcpassKeyStore_unlockDescription">Unlock Seed \"%1$s\"</string>
-    <string name="CalcpassKeyStore_keyIDNotExist">\"%1$s\" does not exist in the Keystore</string>
+    <string name="KeyStore_unlockTitle">Unlock Seed</string>
+    <string name="KeyStore_unlockDescription">Unlock Seed \"%1$s\"</string>
+    <string name="KeyStore_keyIDNotExist">\"%1$s\" does not exist in the Keystore</string>
+    <string name="lowercase_or">or</string>
 
 </resources>

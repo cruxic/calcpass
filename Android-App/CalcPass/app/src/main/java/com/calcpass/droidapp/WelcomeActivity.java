@@ -17,12 +17,7 @@ public class WelcomeActivity extends AppCompatActivity {
         Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
 
-
-        //enable hyperlinks
-        //https://stackoverflow.com/questions/2734270/how-do-i-make-links-in-a-textview-clickable
-        TextView message1 = findViewById(R.id.message1);
-        message1.setMovementMethod(LinkMovementMethod.getInstance());
-
+        DroidUtil.enableTextViewHyperlinks(findViewById(R.id.message1));
     }
 
     public void onClickImport(View v) {

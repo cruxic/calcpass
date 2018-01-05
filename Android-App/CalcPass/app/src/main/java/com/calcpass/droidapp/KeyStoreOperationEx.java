@@ -3,15 +3,15 @@ package com.calcpass.droidapp;
 /**
  * A problem talking to the Android Keystore
  */
-public class CalcpassKeystoreEx extends Exception {
+public class KeyStoreOperationEx extends Exception {
 	private String msg;
 
-	public CalcpassKeystoreEx(Exception cause) {
+	public KeyStoreOperationEx(Exception cause) {
 		super(cause);
 
 	}
 
-	public CalcpassKeystoreEx(String message) {
+	public KeyStoreOperationEx(String message) {
 		msg = message;
 	}
 
