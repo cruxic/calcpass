@@ -88,7 +88,7 @@ public class DecryptSuccessActivity extends AppCompatActivity {
 		installedSeed.keyVerifierMAC = Util.hmacSha256(keyBytes, KeyStoreOperations.getTestMessage());
 		installedSeed.propertiesVerifierMAC = Util.hmacSha256(keyBytes, installedSeed.getPropertiesVerifierMessage());
 
-		//Persist everything except keyBytes
+		//Persist the non-secret stuff
 		dataStore.installSeed(installedSeed);
 
 		//Store the keyBytes in the Android Keystore

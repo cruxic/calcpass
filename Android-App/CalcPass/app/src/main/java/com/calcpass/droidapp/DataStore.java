@@ -49,11 +49,11 @@ public class DataStore {
     }
 
     public void installSeed(InstalledSeed inst) {
-        WIP
+
     }
 
     public InstalledSeed getInstalledSeed(String seedName) {
-        WIP
+
     }
 
 }

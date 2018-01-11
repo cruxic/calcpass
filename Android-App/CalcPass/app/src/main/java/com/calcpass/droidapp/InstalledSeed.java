@@ -2,6 +2,8 @@ package com.calcpass.droidapp;
 
 import com.calcpass.Seed;
 import com.calcpass.util.Util;
+import com.grack.nanojson.JsonStringWriter;
+import com.grack.nanojson.JsonWriter;
 
 /**
  * Properties of a seed which has been installed.  The actual bytes of the seed are not
@@ -15,23 +17,8 @@ public class InstalledSeed {
 	 * */
 	public long dateAdded;
 
-	/**256bits.  Used to verify the integrity of the seed key in the keystore.*/
+	/**32 bytes used to verify the integrity of the seed key in the keystore.*/
 	public byte[] keyVerifierMAC;
-
-	/**256bits.  Used to verify the integrity of the seed properties.*/
-	public byte[] propertiesVerifierMAC;
-
-	public byte[] getPropertiesVerifierMessage() {
-		byte[] purpose = Util.encodeUTF8("CALCPASS VERIFIER");
-		byte[] keyVerifier = keyVerifierMAC;
-		byte[] misc = new byte[] {properties.DefaultPasswordFormat.asByte(), properties.HighValueKDFType.asByte()};
-		byte[] nameUTF = Util.encodeUTF8(properties.name);
-		//TODO: dateAdded
-
-		byte[] all = Util.concatAll(purpose, misc, nameUTF, keyVerifier);
-
-		return Util.sha256(all);
-	}
 
 	public void verifyAll(KeyStoreOperations keystore) throws KeyStoreOperationEx {
 		String keyID = properties.name;
@@ -49,5 +36,23 @@ public class InstalledSeed {
 		}
 
 		//All OK :)
+	}
+
+
+
+	/**
+	 * Convert all fields to a multiline string.
+	 * */
+	public String serializeToJson() {
+		JsonStringWriter obj = JsonWriter.string().object();
+
+		obj.value("Name", properties.name);
+		obj.value("DefaultPasswordFormat", properties.DefaultPasswordFormat.intValue);
+		obj.value("HighValueKDFType", properties.HighValueKDFType.intValue);
+		obj.value("DateAdded", dateAdded);
+		obj.value("KeyVerifierMAC", Util.hexEncode(keyVerifierMAC));
+
+		obj.end();
+		return obj.done();
 	}
 }
