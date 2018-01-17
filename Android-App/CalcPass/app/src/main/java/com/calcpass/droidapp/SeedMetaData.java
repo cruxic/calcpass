@@ -9,7 +9,7 @@ import com.grack.nanojson.JsonWriter;
  * Properties of a seed which has been installed.  The actual bytes of the seed are not
  * available - those live in the Android Keystore.
  */
-public class InstalledSeed {
+public class SeedMetaData {
 	public Seed properties;
 
 	/**
@@ -17,8 +17,6 @@ public class InstalledSeed {
 	 * */
 	public long dateAdded;
 
-	/**32 bytes used to verify the integrity of the seed key in the keystore.*/
-	public byte[] keyVerifierMAC;
 
 	public void verifyAll(KeyStoreOperations keystore) throws KeyStoreOperationEx {
 		String keyID = properties.name;
@@ -48,9 +46,8 @@ public class InstalledSeed {
 
 		obj.value("Name", properties.name);
 		obj.value("DefaultPasswordFormat", properties.DefaultPasswordFormat.intValue);
-		obj.value("HighValueKDFType", properties.HighValueKDFType.intValue);
+		obj.value("Algorithm", properties.algorithm.intValue);
 		obj.value("DateAdded", dateAdded);
-		obj.value("KeyVerifierMAC", Util.hexEncode(keyVerifierMAC));
 
 		obj.end();
 		return obj.done();

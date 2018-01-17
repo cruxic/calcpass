@@ -17,7 +17,7 @@ import java.io.UnsupportedEncodingException;
 	 --- Encrypted
 	 10-25: seed.Bytes (16 bytes)
 	 26   : seed.DefaultPasswordFormat
-	 27   : seed.HighValueKDFType
+	 27   : seed.Algorithm
 	 --- End Encrypted
 	 28-N : Seed Name (Not included in printed bytewords)
 	 N+1-N+4: Inner MAC (HmacSha256 of all the above before encryption truncated to 4 bytes)
@@ -127,9 +127,9 @@ class Format0 {
 
 		//high value KDF type
 		v = dat[27] & 0xFF;
-		seed.HighValueKDFType = KDFType.fromIntValue(v);
-		if (seed.HighValueKDFType == null)
-			throw new ImportEx("Unsupported KDF type " + v);
+		seed.algorithm = AlgorithmType.fromIntValue(v);
+		if (seed.algorithm == null)
+			throw new ImportEx("Unsupported Algorithm type " + v);
 
 		seed.bytes = Util.slice(dat, 10, 26);
 

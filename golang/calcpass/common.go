@@ -5,6 +5,12 @@ import (
 	"fmt"
 )
 
+type AlgorithmType byte
+
+const (
+	AlgType_2018a AlgorithmType = 1
+)
+
 /**
 The seed and it's associated parameters.
 These values should be considered fixed for the life of the seed.
@@ -15,11 +21,11 @@ type Seed struct {
 	//The 128bit random seed
 	Bytes [16]byte
 
+	//The algorithm which is used to calculate the password from the seed
+	Algorithm AlgorithmType
+
 	//The default password output format
 	DefaultPasswordFormat PassFmt
-
-	//The KDF function to use when calculating "high value" passwords.
-	HighValueKDFType KDFType
 }
 
 //Expand the key to 32 bytes for compatibility with hardware backed keystores
@@ -39,6 +45,15 @@ func (seed *Seed) CalculatePassword(sitename string, revision int) (string, erro
 	hash32 := util.HmacSha256(seed.MakeKey32(), []byte(message))
 
 	return MakePassword(hash32, seed.DefaultPasswordFormat)
+}
+
+func AlgorithmTypeToString(alg AlgorithmType) string {
+	switch alg {
+	case AlgType_2018a:
+		return "2018a"
+	default:
+		return ""
+	}
 }
 
 

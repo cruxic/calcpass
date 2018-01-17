@@ -15,7 +15,7 @@ func makeTestSeed() *Seed {
 	seed := &Seed{
 		Name: "Test-Seed",
 		DefaultPasswordFormat: PassFmt_Friendly9,
-		HighValueKDFType: KDFType_QuadBcrypt12,		
+		Algorithm: AlgType_2018a,		
 	}
 
 	copy(seed.Bytes[:], util.ByteSequence(1, 16))
@@ -37,6 +37,9 @@ func Test_Format0(t *testing.T) {
 
 	assert.Equal(seed.Name, exp.SeedName)
 
+	t.Log(exp.ByteWordLines)
+	t.Log(exp.Base64ForQRCode)
+
 	seed2, err := Format0_ImportPrinted(seed.Name, exp.ByteWordLines, pass)
 	if err != nil {
 		t.Error(err)
@@ -46,7 +49,7 @@ func Test_Format0(t *testing.T) {
 	assert.Equal(seed.Name, seed2.Name)
 	assert.Equal(seed.Bytes[:], seed2.Bytes[:])
 	assert.Equal(seed.DefaultPasswordFormat, seed2.DefaultPasswordFormat)
-	assert.Equal(seed.HighValueKDFType, seed2.HighValueKDFType)
+	assert.Equal(seed.Algorithm, seed2.Algorithm)
 
 
 	//Decode again from QR data
@@ -61,6 +64,6 @@ func Test_Format0(t *testing.T) {
 	assert.Equal(seed.Name, seed2.Name)
 	assert.Equal(seed.Bytes[:], seed2.Bytes[:])
 	assert.Equal(seed.DefaultPasswordFormat, seed2.DefaultPasswordFormat)
-	assert.Equal(seed.HighValueKDFType, seed2.HighValueKDFType)
+	assert.Equal(seed.Algorithm, seed2.Algorithm)
 }
 

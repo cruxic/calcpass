@@ -22,7 +22,7 @@ Format 0:
 	--- Encrypted
 	10-25: seed.Bytes (16 bytes)
 	26   : seed.DefaultPasswordFormat
-	27   : seed.HighValueKDFType
+	27   : seed.Algorithm
 	--- End Encrypted
 	28-N : Seed Name (Not included in printed bytewords)
 	N+1-N+4: Inner MAC (HmacSha256 of all the above before encryption truncated to 4 bytes)
@@ -68,7 +68,7 @@ func Format0_Export(seed *Seed, encryptionPassword []byte, encryptionKDFType KDF
 	dat = append(dat, salt64...)
 	dat = append(dat, seed.Bytes[:]...)
 	dat = append(dat, byte(seed.DefaultPasswordFormat))
-	dat = append(dat, byte(seed.HighValueKDFType))
+	dat = append(dat, byte(seed.Algorithm))
 	dat = append(dat, rawSeedName...)
 
 	//append MAC
@@ -173,7 +173,7 @@ func Format0_ImportRaw(dat []byte, encryptionPassword []byte) (*Seed, error) {
 	seed := &Seed{
 		Name: seedName,
 		DefaultPasswordFormat: PassFmt(dat[26]),
-		HighValueKDFType: KDFType(dat[27]),
+		Algorithm: AlgorithmType(dat[27]),
 	}
 
 	copy(seed.Bytes[:], dat[10:26])

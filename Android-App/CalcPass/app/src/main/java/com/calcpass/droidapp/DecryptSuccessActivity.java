@@ -3,16 +3,12 @@ package com.calcpass.droidapp;
 import android.content.Intent;
 import android.content.res.Resources;
 import android.os.Bundle;
-import android.support.design.widget.FloatingActionButton;
-import android.support.design.widget.Snackbar;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
 import android.view.View;
-import android.widget.Button;
 import android.widget.TextView;
 
 import com.calcpass.ImportResult;
-import com.calcpass.Seed;
 import com.calcpass.util.Util;
 
 public class DecryptSuccessActivity extends AppCompatActivity {
@@ -80,9 +76,13 @@ public class DecryptSuccessActivity extends AppCompatActivity {
 		byte[] keyBytes = decryptedData.seed.bytes;
 		decryptedData.seed.bytes = null;
 
-		InstalledSeed installedSeed = new InstalledSeed();
+		//Serialize seed meta-data
+		SeedMetaData installedSeed = new SeedMetaData();
 		installedSeed.properties = decryptedData.seed;
 		installedSeed.dateAdded = 1;  //TODO: set this
+
+
+
 
 		//Compute verifier MACs
 		installedSeed.keyVerifierMAC = Util.hmacSha256(keyBytes, KeyStoreOperations.getTestMessage());
@@ -108,7 +108,7 @@ public class DecryptSuccessActivity extends AppCompatActivity {
 
 	private void afterUnlocked() {
 		try {
-			InstalledSeed installedSeed = dataStore.getInstalledSeed(keyID);
+			SeedMetaData installedSeed = dataStore.getInstalledSeed(keyID);
 			installedSeed.verifyAll(keystore);
 		} catch (KeyStoreOperationEx ex) {
 			showError(ex.getMessage());

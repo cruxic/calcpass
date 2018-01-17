@@ -12,9 +12,8 @@ public class Seed {
 	//The 128bit random seed (always 16 bytes)
 	public byte[] bytes;
 
+	public AlgorithmType algorithm;
+
 	//The default password output format
 	public PassFmt DefaultPasswordFormat;
-
-	//The KDF function to use when calculating "high value" passwords.
-	public KDFType HighValueKDFType;
 }

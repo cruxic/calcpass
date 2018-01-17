@@ -4,6 +4,8 @@ package com.calcpass.droidapp;
 import android.content.Context;
 import android.content.SharedPreferences;
 
+import com.calcpass.util.Util;
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -48,11 +50,30 @@ public class DataStore {
         return res;
     }
 
-    public void installSeed(InstalledSeed inst) {
+    /**
+	 * @param seedRawBytes the 128bit seed which will be used to compute a MAC for the stored data
+	 * */
+    public void setSeedMetaData(SeedMetaData smd, byte[] seedRawBytes) {
+    	here: verify not already exists?
 
+        String json = smd.serializeToJson();
+
+        //Create MAC to prevent tampering
+        byte[] json_mac = Util.hmacSha256(seedRawBytes, Util.encodeUTF8(json));
+
+		String propKey = "SeedMetaData_" + smd.properties.name;
+		String macPropKey = "MAC_" + propKey;
+
+		SharedPreferences.Editor edit = sp.edit();
+		edit.putString(propKey, json);
+		edit.putString(macPropKey, Util.hexEncode(json_mac));
+		here: also update SEED_NAMES
+		boolean ok = edit.commit();  //commit instead of apply for synchronous
+		if (!ok)
+			throw new RuntimeException("setSeedMetaData: commit failed");
     }
 
-    public InstalledSeed getInstalledSeed(String seedName) {
+    public SeedMetaData getSeedMetaData(String seedName) {
 
     }
 

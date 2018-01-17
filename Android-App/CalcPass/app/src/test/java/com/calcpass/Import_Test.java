@@ -38,7 +38,7 @@ public class Import_Test {
 		assertEquals(ir.seed.name, "Test-Seed");
 		assertArrayEquals(expect, ir.seed.bytes);
 		assertEquals(PassFmt.Friendly9, ir.seed.DefaultPasswordFormat);
-		assertEquals(KDFType.QuadBcrypt12, ir.seed.HighValueKDFType);
+		assertEquals(AlgorithmType.Alg2018a, ir.seed.algorithm);
 
 		//Same data as bytewords
 		String words = 
@@ -62,7 +62,7 @@ public class Import_Test {
 		assertEquals(ir.seed.name, "Test-Seed");
 		assertArrayEquals(expect, ir.seed.bytes);
 		assertEquals(PassFmt.Friendly9, ir.seed.DefaultPasswordFormat);
-		assertEquals(KDFType.QuadBcrypt12, ir.seed.HighValueKDFType);
+		assertEquals(AlgorithmType.Alg2018a, ir.seed.algorithm);
 
 
 
