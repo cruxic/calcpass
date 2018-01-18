@@ -13,8 +13,8 @@ public enum AlgorithmType {
 	}
 
 	/**
-	 * Create a KDFType given the integer value.
-	 * returns null if KDFType is unknown.
+	 * Create a AlgorithmType given the integer value.
+	 * returns null if AlgorithmType is unknown.
 	 * */
 	public static AlgorithmType fromIntValue(int v) {
 		for (AlgorithmType t: values()) {

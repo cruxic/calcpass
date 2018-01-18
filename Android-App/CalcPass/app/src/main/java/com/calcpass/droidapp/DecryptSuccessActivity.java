@@ -68,34 +68,25 @@ public class DecryptSuccessActivity extends AppCompatActivity {
 		decryptedData = null;
 	}
 
-	public void onClick_btnStore(View v) {
+	public void onClick_btnStore(View v) throws DataStoreEx {
 		//Only allow one attempt
 		findViewById(R.id.btnStoreSeed).setEnabled(false);
+
+		keyID = decryptedData.seed.name;
 
 		//move bytes to local variable
 		byte[] keyBytes = decryptedData.seed.bytes;
 		decryptedData.seed.bytes = null;
 
-		//Serialize seed meta-data
-		SeedMetaData installedSeed = new SeedMetaData();
-		installedSeed.properties = decryptedData.seed;
-		installedSeed.dateAdded = 1;  //TODO: set this
-
-
-
-
-		//Compute verifier MACs
-		installedSeed.keyVerifierMAC = Util.hmacSha256(keyBytes, KeyStoreOperations.getTestMessage());
-		installedSeed.propertiesVerifierMAC = Util.hmacSha256(keyBytes, installedSeed.getPropertiesVerifierMessage());
-
 		//Persist the non-secret stuff
-		dataStore.installSeed(installedSeed);
+		SeedMetaData smd = new SeedMetaData(decryptedData.seed);
+		smd.dateAdded = 1;  //TODO: set this
+		dataStore.setSeedMetaData(smd, keyBytes);
 
 		//Store the keyBytes in the Android Keystore
 		try {
 			keystore = new KeyStoreOperations(getResources());
 
-			keyID = installedSeed.properties.name;
 			keystore.installHmacSha256Key(keyID, keyBytes);
 
 			//Request unlock so we can verify it stored correctly
@@ -108,12 +99,15 @@ public class DecryptSuccessActivity extends AppCompatActivity {
 
 	private void afterUnlocked() {
 		try {
-			SeedMetaData installedSeed = dataStore.getInstalledSeed(keyID);
-			installedSeed.verifyAll(keystore);
+			dataStore.getSeedMetaData(keyID, keystore);
+			//Above will throw if MAC verification fails
 		} catch (KeyStoreOperationEx ex) {
 			showError(ex.getMessage());
 			ex.printStackTrace();
 			return;
+		} catch (DataStoreEx ex) {
+			showError(ex.getMessage());
+			ex.printStackTrace();
 		}
 
 		//Success!
