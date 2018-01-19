@@ -9,12 +9,18 @@ import android.support.v7.widget.Toolbar;
 import android.view.View;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.widget.AdapterView;
+import android.widget.ArrayAdapter;
+import android.widget.ListView;
 
 import com.calcpass.util.Base64Implementation;
 
 import java.util.List;
 
-public class MainActivity extends AppCompatActivity {
+public class MainActivity extends AppCompatActivity implements AdapterView.OnItemClickListener {
+
+    private ListView seedListView;
+    private List<String> seedNames;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -34,7 +40,7 @@ public class MainActivity extends AppCompatActivity {
         }
 
         //If no seeds, prompt user to import one
-        List<String> seedNames = prefs.getSeedNames();
+        seedNames = prefs.getSeedNames();
         if (seedNames.isEmpty()) {
             startActivity(new Intent(this, WelcomeActivity.class));
             finish();
@@ -45,6 +51,13 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
         Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
+
+        //Setup seed list view
+		// https://www.raywenderlich.com/124438/android-listview-tutorial
+        seedListView = findViewById(R.id.seedListView);
+        ArrayAdapter<String> adapter = new ArrayAdapter<String>(this, android.R.layout.simple_list_item_1, seedNames);
+        seedListView.setAdapter(adapter);
+        seedListView.setOnItemClickListener(this);
 
         FloatingActionButton fab = (FloatingActionButton) findViewById(R.id.fab);
         fab.setOnClickListener(new View.OnClickListener() {
@@ -78,4 +91,13 @@ public class MainActivity extends AppCompatActivity {
 
         return super.onOptionsItemSelected(item);
     }
+
+	@Override
+	public void onItemClick(AdapterView<?> adapterView, View view, int position, long id) {
+		String seedName = seedNames.get(position);
+
+		Intent intent = new Intent(this, SiteListActivity.class);
+		intent.putExtra("seedName", seedName);
+		startActivity(intent);
+	}
 }

@@ -134,6 +134,7 @@ public class ScanQRActivity extends AppCompatActivity implements SurfaceHolder.C
 		CameraSource camSrc = new CameraSource
 				.Builder(this, detector)
 				.setRequestedPreviewSize(320, 320)
+				.setAutoFocusEnabled(true)
 				.build();
 
 
@@ -186,10 +187,12 @@ public class ScanQRActivity extends AppCompatActivity implements SurfaceHolder.C
 		final SparseArray<Barcode> barcodes = detections.getDetectedItems();
 
 		if (barcodes.size() > 0) {
+			final String qrData = barcodes.valueAt(0).displayValue;
+
 			View v = findViewById(R.id.surfaceView);
 			v.post(new Runnable() {
 				public void run() {
-					processScannedCode(barcodes.valueAt(0).displayValue);
+					processScannedCode(qrData);
 				}
 			});
 		}
