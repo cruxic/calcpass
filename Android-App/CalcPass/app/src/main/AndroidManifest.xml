@@ -64,6 +64,10 @@
         <activity
             android:name=".SiteListActivity"
             android:label="@string/title_activity_site_list"
+            android:theme="@style/AppTheme.NoActionBar" />
+        <activity
+            android:name=".SiteParametersActivity"
+            android:label="@string/title_activity_site_parameters"
             android:theme="@style/AppTheme.NoActionBar"></activity>
     </application>
 

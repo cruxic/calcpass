@@ -59,9 +59,10 @@ Do you agree to the terms of the GPLv3 license?
     <string name="lowercase_or">or</string>
     <string name="scan_qr_instructions">Aim camera at your CalcPass QR code.</string>
     <string name="main_listHeader">Select a seed</string>
-    <string name="title_activity_site_list">SiteListActivity</string>
-    <string name="sitelist_header">Tap the icon below to add a website</string>
+    <string name="title_activity_site_list">Seed \"%1$s\"</string>
+    <string name="sitelist_header">Tap the icon below to calculate a password.</string>
 
     <string name="list_tap_and_hold">(Tap and hold for more options)</string>
+    <string name="title_activity_site_parameters">SiteParametersActivity</string>
 
 </resources>

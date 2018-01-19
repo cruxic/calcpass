@@ -4,4 +4,5 @@
     <color name="colorPrimaryDark">#303F9F</color>
     <color name="colorAccent">#FF4081</color>
     <color name="errorText">#aa0000</color>
+    <color name="colorAddButtonBackground">#66bb6a</color>
 </resources>
