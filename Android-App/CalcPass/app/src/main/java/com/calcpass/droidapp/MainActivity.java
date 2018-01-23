@@ -63,8 +63,9 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
         fab.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                Snackbar.make(view, "Replace with your own action", Snackbar.LENGTH_LONG)
-                        .setAction("Action", null).show();
+                MainActivity.this.startActivity(new Intent(MainActivity.this, SiteParametersActivity.class));
+                //Snackbar.make(view, "Replace with your own action", Snackbar.LENGTH_LONG)
+                //        .setAction("Action", null).show();
             }
         });
     }

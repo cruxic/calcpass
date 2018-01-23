@@ -64,5 +64,8 @@ Do you agree to the terms of the GPLv3 license?
 
     <string name="list_tap_and_hold">(Tap and hold for more options)</string>
     <string name="title_activity_site_parameters">SiteParametersActivity</string>
+    <string name="siteparam_sitename_header">Website Name</string>
+    <string name="siteparam_revision_header">Revision</string>
+    <string name="siteparam_revision_default">Default</string>
 
 </resources>
