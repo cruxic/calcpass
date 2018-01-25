@@ -67,5 +67,11 @@ Do you agree to the terms of the GPLv3 license?
     <string name="siteparam_sitename_header">Website Name</string>
     <string name="siteparam_revision_header">Revision</string>
     <string name="siteparam_revision_default">Default</string>
-
+    <string name="siteparam_format_header">Password Format</string>
+    <string name="siteparam_format_default">Default</string>
+    <string name="siteparam_username_header">User Name</string>
+    <string name="siteparam_username_default">Default</string>
+    <string name="siteparam_remember_header">Save in List</string>
+    <string name="siteparam_remember_desc">Remember this website</string>
+    <string name="siteparam_calcbutton_text">Calculate</string>
 </resources>

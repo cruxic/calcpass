@@ -42,8 +42,9 @@ class SiteParametersListAdapter extends BaseAdapter {
 	static final int ITEM_REVISION = 1;
 	static final int ITEM_FORMAT = 2;
 	static final int ITEM_USERNAME = 3;
-	static final int ITEM_CALC_BUTTON = 4;
-	static final int ITEM_count_ = 5;
+	static final int ITEM_REMEMBER = 4;
+	static final int ITEM_CALC_BUTTON = 5;
+	static final int ITEM_count_ = 6;
 
 	private LayoutInflater mInflater;
 	private Context mContext;
@@ -74,11 +75,42 @@ class SiteParametersListAdapter extends BaseAdapter {
 
 	@Override
 	public View getView(int position, View convertView, ViewGroup parent) {
-		View v = mInflater.inflate(R.layout.siteparam_row_sitename, parent, false);
+		View v;
 
-		if (position == ITEM_SITENAME) {
-			TextView sitename = (TextView)v.findViewById(R.id.lblSitename);
-			sitename.setText("very long site name");
+		switch (position) {
+			case ITEM_SITENAME: {
+				v = mInflater.inflate(R.layout.siteparam_row_sitename, parent, false);
+				TextView sitename = (TextView)v.findViewById(R.id.lblSitename);
+				sitename.setText("very long site name");
+				break;
+			}
+			case ITEM_REVISION: {
+				v = mInflater.inflate(R.layout.siteparam_row_revision, parent, false);
+				break;
+			}
+			case ITEM_FORMAT: {
+				v = mInflater.inflate(R.layout.siteparam_row_format, parent, false);
+				break;
+			}
+			case ITEM_USERNAME: {
+				v = mInflater.inflate(R.layout.siteparam_row_username, parent, false);
+				break;
+			}
+			case ITEM_REMEMBER: {
+				v = mInflater.inflate(R.layout.siteparam_row_remember, parent, false);
+				break;
+			}
+			case ITEM_CALC_BUTTON: {
+				v = mInflater.inflate(R.layout.siteparam_row_calc_button, parent, false);
+				break;
+			}
+			default: {
+				//should not happen
+				v = new TextView(mContext);
+				((TextView)v).setText("UNKNOWN-ITEM #" + position);
+				break;
+			}
+
 		}
 
 		return v;

@@ -11,6 +11,7 @@
 
     <ListView
         android:id="@+id/listView"
+        style="@style/Widget.AppCompat.ListView"
         android:layout_width="0dp"
         android:layout_height="0dp"
         android:layout_marginBottom="8dp"

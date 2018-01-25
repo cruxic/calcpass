@@ -13,7 +13,7 @@
         android:layout_marginBottom="8dp"
         android:layout_marginStart="8dp"
         android:layout_marginTop="8dp"
-        app:layout_constraintBottom_toBottomOf="@+id/lblSitename"
+        app:layout_constraintBottom_toBottomOf="@+id/lblRevision"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="@+id/textView6"
         app:srcCompat="@android:drawable/btn_star" />
@@ -25,17 +25,17 @@
         android:layout_height="wrap_content"
         android:layout_marginStart="8dp"
         android:layout_marginTop="8dp"
-        android:text="@string/siteparam_sitename_header"
+        android:text="@string/siteparam_revision_header"
         android:textAppearance="@style/TextAppearance.AppCompat.Subhead"
         app:layout_constraintStart_toEndOf="@+id/imageView"
         app:layout_constraintTop_toTopOf="parent" />
 
     <TextView
-        android:id="@+id/lblSitename"
+        android:id="@+id/lblRevision"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginStart="8dp"
-        android:text="example.com"
+        android:text="@string/siteparam_revision_default"
         android:textAppearance="@style/TextAppearance.AppCompat.Small"
         app:layout_constraintStart_toEndOf="@+id/imageView"
         app:layout_constraintTop_toBottomOf="@+id/textView6" />
