@@ -74,4 +74,11 @@ Do you agree to the terms of the GPLv3 license?
     <string name="siteparam_remember_header">Save in List</string>
     <string name="siteparam_remember_desc">Remember this website</string>
     <string name="siteparam_calcbutton_text">Calculate</string>
+    <string name="title_activity_edit_website_name">EditWebsiteNameActivity</string>
+    <string name="sitename_prompt">Enter the name of what you\'re signing in to.</string>
+    <string name="example_website_name">example.com</string>
+    <string name="sitename_btnPaste">Paste</string>
+    <string name="tips">Tips:</string>
+    <string name="sitename_tip1">\u2022 Just paste the full address. It will be parsed.</string>
+    <string name="sitename_tip2">\u2022 Changing even one letter will produce an entirely different password.</string>
 </resources>

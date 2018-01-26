@@ -9,12 +9,14 @@ import android.support.v7.widget.Toolbar;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.AdapterView;
 import android.widget.BaseAdapter;
 import android.widget.ListView;
 import android.widget.TextView;
 
-public class SiteParametersActivity extends AppCompatActivity {
+public class SiteParametersActivity extends AppCompatActivity  implements AdapterView.OnItemClickListener {
 	private ListView listView;
+	private SiteParametersListAdapter listAdapter;
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
@@ -25,7 +27,9 @@ public class SiteParametersActivity extends AppCompatActivity {
 
 
 		listView = (ListView)findViewById(R.id.listView);
-		listView.setAdapter(new SiteParametersListAdapter(this));
+		listAdapter = new SiteParametersListAdapter(this);
+		listView.setAdapter(listAdapter);
+		listView.setOnItemClickListener(this);
 
 		//Use this?
 		//https://developer.android.com/guide/topics/ui/settings.html
@@ -35,16 +39,51 @@ public class SiteParametersActivity extends AppCompatActivity {
 
 	}
 
+	@Override
+	public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
+		//id is one of ParamType.*
+		int paramType = (int)id;
+		switch (paramType) {
+			case ParamType.SITENAME: {
+				break;
+			}
+			case ParamType.REVISION: {
+				break;
+			}
+			case ParamType.FORMAT: {
+				break;
+			}
+			case ParamType.USERNAME: {
+				break;
+			}
+			case ParamType.REMEMBER: {
+				break;
+			}
+			case ParamType.CALC_BUTTON: {
+				break;
+			}
+			default: {
+				//should not happen
+				break;
+			}	
+		}
+		
+		
+	}
+}
+
+class ParamType {
+	static final int SITENAME = 0;
+	static final int REVISION = 1;
+	static final int FORMAT = 2;
+	static final int USERNAME = 3;
+	static final int REMEMBER = 4;
+	static final int CALC_BUTTON = 5;
+	static final int _count_ = 6;	
 }
 
 class SiteParametersListAdapter extends BaseAdapter {
-	static final int ITEM_SITENAME = 0;
-	static final int ITEM_REVISION = 1;
-	static final int ITEM_FORMAT = 2;
-	static final int ITEM_USERNAME = 3;
-	static final int ITEM_REMEMBER = 4;
-	static final int ITEM_CALC_BUTTON = 5;
-	static final int ITEM_count_ = 6;
+
 
 	private LayoutInflater mInflater;
 	private Context mContext;
@@ -53,14 +92,12 @@ class SiteParametersListAdapter extends BaseAdapter {
 		//https://www.raywenderlich.com/124438/android-listview-tutorial
 		mInflater = (LayoutInflater) context.getSystemService(Context.LAYOUT_INFLATER_SERVICE);
 		mContext = context;
-
-
 	}
 
 
 	@Override
 	public int getCount() {
-		return ITEM_count_;
+		return ParamType._count_;
 	}
 
 	@Override
@@ -78,29 +115,29 @@ class SiteParametersListAdapter extends BaseAdapter {
 		View v;
 
 		switch (position) {
-			case ITEM_SITENAME: {
+			case ParamType.SITENAME: {
 				v = mInflater.inflate(R.layout.siteparam_row_sitename, parent, false);
 				TextView sitename = (TextView)v.findViewById(R.id.lblSitename);
 				sitename.setText("very long site name");
 				break;
 			}
-			case ITEM_REVISION: {
+			case ParamType.REVISION: {
 				v = mInflater.inflate(R.layout.siteparam_row_revision, parent, false);
 				break;
 			}
-			case ITEM_FORMAT: {
+			case ParamType.FORMAT: {
 				v = mInflater.inflate(R.layout.siteparam_row_format, parent, false);
 				break;
 			}
-			case ITEM_USERNAME: {
+			case ParamType.USERNAME: {
 				v = mInflater.inflate(R.layout.siteparam_row_username, parent, false);
 				break;
 			}
-			case ITEM_REMEMBER: {
+			case ParamType.REMEMBER: {
 				v = mInflater.inflate(R.layout.siteparam_row_remember, parent, false);
 				break;
 			}
-			case ITEM_CALC_BUTTON: {
+			case ParamType.CALC_BUTTON: {
 				v = mInflater.inflate(R.layout.siteparam_row_calc_button, parent, false);
 				break;
 			}

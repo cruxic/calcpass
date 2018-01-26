@@ -68,6 +68,10 @@
         <activity
             android:name=".SiteParametersActivity"
             android:label="@string/title_activity_site_parameters"
+            android:theme="@style/AppTheme.NoActionBar" />
+        <activity
+            android:name=".EditWebsiteNameActivity"
+            android:label="@string/title_activity_edit_website_name"
             android:theme="@style/AppTheme.NoActionBar"></activity>
     </application>
 
