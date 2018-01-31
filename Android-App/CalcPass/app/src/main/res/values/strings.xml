@@ -67,18 +67,23 @@ Do you agree to the terms of the GPLv3 license?
     <string name="siteparam_sitename_header">Website Name</string>
     <string name="siteparam_revision_header">Revision</string>
     <string name="siteparam_revision_default">Default</string>
-    <string name="siteparam_format_header">Password Format</string>
+    <string name="siteparam_format_header">Format</string>
     <string name="siteparam_format_default">Default</string>
+    <string name="siteparam_type_header">Type</string>
+    <string name="siteparam_type_calculated">Calculated</string>
     <string name="siteparam_username_header">User Name</string>
     <string name="siteparam_username_default">Default</string>
     <string name="siteparam_remember_header">Save in List</string>
     <string name="siteparam_remember_desc">Remember this website</string>
     <string name="siteparam_calcbutton_text">Calculate</string>
-    <string name="title_activity_edit_website_name">EditWebsiteNameActivity</string>
+    <string name="title_activity_edit_website_name">Website Name</string>
     <string name="sitename_prompt">Enter the name of what you\'re signing in to.</string>
     <string name="example_website_name">example.com</string>
     <string name="sitename_btnPaste">Paste</string>
     <string name="tips">Tips:</string>
-    <string name="sitename_tip1">\u2022 Just paste the full address. It will be parsed.</string>
-    <string name="sitename_tip2">\u2022 Changing even one letter will produce an entirely different password.</string>
+    <string name="sitename_tip1">\u2022 Paste the full address from your browser. The domain name will be extracted.</string>
+    <string name="sitename_tip2">\u2022 A domain name is often best but any text is valid.</string>
+    <string name="sitename_tip3">\u2022 Changing even one letter will produce an entirely different password.</string>
+    <string name="sitename_tip4">\u2022 Case insensitive.</string>
+    <string name="title_activity_select_domain_scope">SelectDomainScopeActivity</string>
 </resources>

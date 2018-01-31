@@ -2,6 +2,7 @@ package com.calcpass;
 
 import com.calcpass.util.Base64Implementation;
 import com.calcpass.util.Java8Base64Implementation;
+import com.calcpass.util.NopKDFProgressListener;
 
 import static org.junit.Assert.*;
 import org.junit.Test;
@@ -19,10 +20,11 @@ public class Import_Test {
 		for (int i = 0; i < 16; i++)
 			expect[i] = (byte)(i+1);
 
+		NopKDFProgressListener progress = new NopKDFProgressListener();
 
 		//Illegal base64
 		try {
-			Import.ImportFromQRCode("abcdefg*&&^%&$%&$&", "Super Secret");
+			Import.ImportFromQRCode("abcdefg*&&^%&$%&$&", "Super Secret", progress);
 			fail();
 		}
 		catch (ImportEx ie) {
@@ -30,7 +32,7 @@ public class Import_Test {
 		}
 
 		String qrCodeText = "AAzg6d3YaDLhp1ymm6Tnek2elqkIQyKwNVC5W1Rlc3QtU2VlZBjtA9KznA";
-		ImportResult ir = Import.ImportFromQRCode(qrCodeText, "Super Secret");
+		ImportResult ir = Import.ImportFromQRCode(qrCodeText, "Super Secret", progress);
 		assertEquals(0, ir.formatVer);
 		assertEquals(KDFType.QuadBcrypt12, ir.encryptionKDF);
 		assertEquals(ir.seedName, "Test-Seed");
@@ -54,7 +56,7 @@ public class Import_Test {
 				"hex bay wax " +
 				"age sum raw " +
 				"owl ";
-		ir = Import.ImportPrinted("Test-Seed", words, "Super Secret");
+		ir = Import.ImportPrinted("Test-Seed", words, "Super Secret", progress);
 		assertEquals(0, ir.formatVer);
 		assertEquals(KDFType.QuadBcrypt12, ir.encryptionKDF);
 		assertEquals(ir.seedName, "Test-Seed");

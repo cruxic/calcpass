@@ -72,7 +72,7 @@
         <activity
             android:name=".EditWebsiteNameActivity"
             android:label="@string/title_activity_edit_website_name"
-            android:theme="@style/AppTheme.NoActionBar"></activity>
+            android:theme="@style/AppTheme.NoActionBar" />
     </application>
 
 </manifest>

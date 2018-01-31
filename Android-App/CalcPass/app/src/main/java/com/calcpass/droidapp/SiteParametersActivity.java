@@ -1,9 +1,9 @@
 package com.calcpass.droidapp;
 
+import android.app.Activity;
 import android.content.Context;
+import android.content.Intent;
 import android.os.Bundle;
-import android.support.design.widget.FloatingActionButton;
-import android.support.design.widget.Snackbar;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
 import android.view.LayoutInflater;
@@ -12,6 +12,7 @@ import android.view.ViewGroup;
 import android.widget.AdapterView;
 import android.widget.BaseAdapter;
 import android.widget.ListView;
+import android.widget.Switch;
 import android.widget.TextView;
 
 public class SiteParametersActivity extends AppCompatActivity  implements AdapterView.OnItemClickListener {
@@ -25,18 +26,27 @@ public class SiteParametersActivity extends AppCompatActivity  implements Adapte
 		Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
 		setSupportActionBar(toolbar);
 
-
 		listView = (ListView)findViewById(R.id.listView);
 		listAdapter = new SiteParametersListAdapter(this);
 		listView.setAdapter(listAdapter);
 		listView.setOnItemClickListener(this);
+	}
 
-		//Use this?
-		//https://developer.android.com/guide/topics/ui/settings.html
+	@Override
+	protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+		if (resultCode == Activity.RESULT_OK) {
+			switch (requestCode) {
+				case ParamType.SITENAME: {
+					apply_SITENAME(data.getStringExtra("sitename"));
+					break;
+				}
+			}
+		}
+	}
 
-		//Otherwise use a ScrollView with nested constraint layout.
-
-
+	private void apply_SITENAME(String newSitename) {
+		TextView lblSitename = findViewById(R.id.lblSitename);
+		lblSitename.setText(newSitename);
 	}
 
 	@Override
@@ -44,7 +54,11 @@ public class SiteParametersActivity extends AppCompatActivity  implements Adapte
 		//id is one of ParamType.*
 		int paramType = (int)id;
 		switch (paramType) {
+			case ParamType.TYPE: {
+				break;
+			}
 			case ParamType.SITENAME: {
+				startActivityForResult(new Intent(this, EditWebsiteNameActivity.class), paramType);
 				break;
 			}
 			case ParamType.REVISION: {
@@ -57,6 +71,8 @@ public class SiteParametersActivity extends AppCompatActivity  implements Adapte
 				break;
 			}
 			case ParamType.REMEMBER: {
+				Switch switchRemember = findViewById(R.id.switchRemember);
+				switchRemember.setChecked(!switchRemember.isChecked());
 				break;
 			}
 			case ParamType.CALC_BUTTON: {
@@ -73,13 +89,14 @@ public class SiteParametersActivity extends AppCompatActivity  implements Adapte
 }
 
 class ParamType {
-	static final int SITENAME = 0;
-	static final int REVISION = 1;
-	static final int FORMAT = 2;
-	static final int USERNAME = 3;
-	static final int REMEMBER = 4;
-	static final int CALC_BUTTON = 5;
-	static final int _count_ = 6;	
+	static final int TYPE = 0;
+	static final int SITENAME = 1;
+	static final int REVISION = 2;
+	static final int FORMAT = 3;
+	static final int USERNAME = 4;
+	static final int REMEMBER = 5;
+	static final int CALC_BUTTON = 6;
+	static final int _count_ = 7;
 }
 
 class SiteParametersListAdapter extends BaseAdapter {
@@ -88,10 +105,13 @@ class SiteParametersListAdapter extends BaseAdapter {
 	private LayoutInflater mInflater;
 	private Context mContext;
 
+	private View[] loadedViews;
+
 	SiteParametersListAdapter(Context context) {
 		//https://www.raywenderlich.com/124438/android-listview-tutorial
 		mInflater = (LayoutInflater) context.getSystemService(Context.LAYOUT_INFLATER_SERVICE);
 		mContext = context;
+		loadedViews = new View[ParamType._count_];
 	}
 
 
@@ -114,11 +134,16 @@ class SiteParametersListAdapter extends BaseAdapter {
 	public View getView(int position, View convertView, ViewGroup parent) {
 		View v;
 
+		if (loadedViews[position] != null)
+			return loadedViews[position];
+
 		switch (position) {
+			case ParamType.TYPE: {
+				v = mInflater.inflate(R.layout.siteparam_row_type, parent, false);
+				break;
+			}
 			case ParamType.SITENAME: {
 				v = mInflater.inflate(R.layout.siteparam_row_sitename, parent, false);
-				TextView sitename = (TextView)v.findViewById(R.id.lblSitename);
-				sitename.setText("very long site name");
 				break;
 			}
 			case ParamType.REVISION: {
@@ -149,6 +174,8 @@ class SiteParametersListAdapter extends BaseAdapter {
 			}
 
 		}
+
+		loadedViews[position] = v;
 
 		return v;
 	}
