@@ -1,9 +1,7 @@
 package com.calcpass.droidapp;
 
-import android.app.Activity;
 import android.content.ClipData;
 import android.content.ClipboardManager;
-import android.content.Intent;
 import android.os.Bundle;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
@@ -15,7 +13,7 @@ import android.widget.TextView;
 
 import com.calcpass.Misc;
 
-public class EditWebsiteNameActivity extends AppCompatActivity {
+public class EditWebsiteNameActivity extends AppCompatActivity implements ChooseFromListDialog.Listener {
 	private EditText txtSitename;
 
 	@Override
@@ -41,10 +39,26 @@ public class EditWebsiteNameActivity extends AppCompatActivity {
 	}
 
 	private void handleDone() {
+
+		ChooseFromListDialog.showNewInstance(new String[]{"foo", "bar"}, getSupportFragmentManager());
+
+
+
+		/*
+
+
 		Intent intent = new Intent();
 		intent.putExtra("sitename", txtSitename.getText().toString());
 		setResult(Activity.RESULT_OK, intent);
-		//finish();
+		finish();*/
+	}
+
+	@Override
+	public void onChooseFromListDialog(int chosenIndex) {
+		System.out.println("You chose " + chosenIndex);
+		//TODO: better if showNewInstance allowed name and ID
+		//TODO: need to handle dismiss
+
 	}
 
 	public void onClick_btnPaste(View v) {
@@ -87,4 +101,6 @@ public class EditWebsiteNameActivity extends AppCompatActivity {
 	}
 
 
+
 }
+
