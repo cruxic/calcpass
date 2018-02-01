@@ -2,6 +2,7 @@ package com.calcpass;
 
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.util.List;
 
 public class Misc {
 
@@ -26,6 +27,59 @@ public class Misc {
 
 		return parts;
 	}
+
+
+	/**
+	 * For the given domain name, strip off each successive sub-domain.  For example
+	 * removed.  For example: "a.b.c.d" would return
+	 * ["a.b.c.d", "b.c.d", "c.d"]
+	 * */
+	public List<String> getDomainScopes(String host) {
+		here: test isDomain() and implement this
+
+	}
+
+	/**
+	 * Determine if the given text appears to be a valid domain name.
+	 * Unicode is allowed but code-points below U+007E ('~') must be A-Z, a-z, 0-9 or dash.
+	 * For example, if the text contains ' ' or ':' or '_' it will not be considered a valid domain name.
+	 *
+	 * Additionally there must be at least 1 character between each dot and the last component must have
+	 * at least 2 characters.
+	 * */
+	public boolean isDomainName(String text) {
+		int slen = text.length();
+		char c;
+		boolean ok;
+		int compLen = 0;
+		int numComponents = 0;
+		for (int i = 0; i < slen; i++) {
+			c = text.charAt(i);
+
+			if (c == '.') {
+				//cannot have empty component
+				if (compLen == 0)
+					return false;
+
+				compLen = 0;
+				numComponents++;
+			}
+
+			if (c < '~') {
+				//characters in the ASCII range must be A-Z, a-z, 0-9 or dash
+				ok = (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '-';
+				if (!ok)
+					return false;
+			}
+			//else accept any Unicode character
+
+			compLen++;
+		}
+
+		//Must have at least two components and the last must be at least 2 chars long
+		return numComponents > 1 && compLen >= 2;
+	}
+
 
 	/**
 	 * Attempt to parse the scheme, hostname and port number from the given URL.

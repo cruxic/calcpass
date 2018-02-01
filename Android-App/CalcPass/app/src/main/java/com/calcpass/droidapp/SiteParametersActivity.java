@@ -15,7 +15,11 @@ import android.widget.ListView;
 import android.widget.Switch;
 import android.widget.TextView;
 
-public class SiteParametersActivity extends AppCompatActivity  implements AdapterView.OnItemClickListener {
+import com.calcpass.Misc;
+
+public class SiteParametersActivity extends AppCompatActivity  implements AdapterView.OnItemClickListener, OnDialogResult {
+	private static final int DIALOG_SITENAME_SCOPE = 1;
+
 	private ListView listView;
 	private SiteParametersListAdapter listAdapter;
 
@@ -44,9 +48,23 @@ public class SiteParametersActivity extends AppCompatActivity  implements Adapte
 		}
 	}
 
+	@Override
+	public void onDialogResult(int requestCode, int resultCode, Intent data) {
+		if (resultCode == Activity.RESULT_OK) {
+			switch (requestCode) {
+				case DIALOG_SITENAME_SCOPE:
+
+					break;
+			}
+		}
+
+	}
+
 	private void apply_SITENAME(String newSitename) {
 		TextView lblSitename = findViewById(R.id.lblSitename);
 		lblSitename.setText(newSitename);
+
+		//Misc.splitDomainName()
 	}
 
 	@Override
