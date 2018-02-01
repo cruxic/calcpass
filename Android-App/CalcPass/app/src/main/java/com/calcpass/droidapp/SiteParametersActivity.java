@@ -17,6 +17,8 @@ import android.widget.TextView;
 
 import com.calcpass.Misc;
 
+import java.util.List;
+
 public class SiteParametersActivity extends AppCompatActivity  implements AdapterView.OnItemClickListener, OnDialogResult {
 	private static final int DIALOG_SITENAME_SCOPE = 1;
 
@@ -64,7 +66,11 @@ public class SiteParametersActivity extends AppCompatActivity  implements Adapte
 		TextView lblSitename = findViewById(R.id.lblSitename);
 		lblSitename.setText(newSitename);
 
-		//Misc.splitDomainName()
+		//If it's a domain name with a subdomain then suggest to the user to remove the subdomain(s)
+		String[] parts = Misc.parseDomainName(newSitename);
+		if (parts != null && parts.length > 2) {
+			here
+		}
 	}
 
 	@Override

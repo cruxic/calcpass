@@ -30,42 +30,71 @@ public class Misc_test {
 	}
 
 	@Test
-	public void test_splitDomainName() {
-		String[] res = Misc.splitDomainName("");
-		assertEquals(res.length, 1);
-		assertEquals(res[0], "");
+	public void test_parseDomainName() {
+		String[] res = Misc.parseDomainName("");
+		assertNull(res);
 
-		res = Misc.splitDomainName("A");
-		assertEquals(res.length, 1);
-		assertEquals(res[0], "A");
+		//Missing dot
+		assertNull(Misc.parseDomainName("a"));
 
-		res = Misc.splitDomainName("a.b");
+		//last component must have 2 chars
+		assertNull(Misc.parseDomainName("a.b"));
+
+		assertNull(Misc.parseDomainName("1.2.3.4"));
+		assertNull(Misc.parseDomainName("192.168.12.34"));
+
+		//illegal space
+		assertNull(Misc.parseDomainName("foo bar.com"));
+		//illegal underscore
+		assertNull(Misc.parseDomainName("foo_bar.com"));
+		//illegal colon
+		assertNull(Misc.parseDomainName("foobar.com:8080"));
+		//illegal slash
+		assertNull(Misc.parseDomainName("foobar.com/path"));
+
+		//Valid
+		res = Misc.parseDomainName("a.bc");
 		assertEquals(res.length, 2);
 		assertEquals(res[0], "a");
-		assertEquals(res[1], "b");
+		assertEquals(res[1], "bc");
 
-		res = Misc.splitDomainName("foo.bar.yar.com");
+		//Dash OK
+		res = Misc.parseDomainName("foo-bar.com");
+		assertEquals(res.length, 2);
+		assertEquals(res[0], "foo-bar");
+		assertEquals(res[1], "com");
+
+		//Unicode OK
+		res = Misc.parseDomainName("foo\u01CDbar.com");
+		assertEquals(res.length, 2);
+		assertEquals(res[0], "foo\u01CDbar");
+		assertEquals(res[1], "com");
+
+		//All legal ascii characters
+		res = Misc.parseDomainName("abcdefghijkl-mnopqrstuvwxyz.ABCDEFGHIJKLMNOPQRSTUVWXYZ.0123456789.io");
+		assertEquals(res.length, 4);
+		assertEquals(res[0], "abcdefghijkl-mnopqrstuvwxyz");
+		assertEquals(res[1], "ABCDEFGHIJKLMNOPQRSTUVWXYZ");
+		assertEquals(res[2], "0123456789");
+		assertEquals(res[3], "io");
+
+		//many components
+		res = Misc.parseDomainName("foo.bar.yar.com");
 		assertEquals(res.length, 4);
 		assertEquals(res[0], "foo");
 		assertEquals(res[1], "bar");
 		assertEquals(res[2], "yar");
 		assertEquals(res[3], "com");
 
-		res = Misc.splitDomainName("1.2.3.4");
-		assertEquals(res.length, 1);
-		assertEquals(res[0], "1.2.3.4");
-
-		//does not split because digit as first char of toplevel domain
-		res = Misc.splitDomainName("digit.1com");
-		assertEquals(res.length, 1);
-		assertEquals(res[0], "digit.1com");
+		//does not split because leading digit in last component
+		res = Misc.parseDomainName("digit.1com");
+		assertNull(res);
 
 		//test all digits
 		for (int i = 0; i < 10; i++) {
 			String host = "digit."+i+"com";
-			res = Misc.splitDomainName(host);
-			assertEquals(res.length, 1);
-			assertEquals(res[0], host);
+			res = Misc.parseDomainName(host);
+			assertNull(res);
 		}
 
 

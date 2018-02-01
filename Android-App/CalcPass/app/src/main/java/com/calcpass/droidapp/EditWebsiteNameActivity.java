@@ -41,8 +41,13 @@ public class EditWebsiteNameActivity extends AppCompatActivity {
 	}
 
 	private void handleDone() {
+		String sitename = txtSitename.getText().toString();
+
+		//trim spaces and for lower case
+		sitename = sitename.trim().toLowerCase();
+
 		Intent intent = new Intent();
-		intent.putExtra("sitename", txtSitename.getText().toString());
+		intent.putExtra("sitename", sitename);
 		setResult(Activity.RESULT_OK, intent);
 		finish();
 	}

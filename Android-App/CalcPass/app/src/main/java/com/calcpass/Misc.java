@@ -6,78 +6,76 @@ import java.util.List;
 
 public class Misc {
 
+
 	/**
-	 * Split a domain name such as "foo.bar.com" into ["foo", "bar", "com"].
+	 * Determine if the given text appears to be a valid domain name and return each component in a list.
+	 * For example "foo.bar.com" returns ["foo", "bar", "com"].
 	 *
-	 * This function should only be passed the "host" portion of a URL, not the full URL.  The
-	 *
-	 * If the rightmost part of the domain name starts with a digit then it is assumed that the given hostname
-	 * is an IPv4 address and it will not be split
-	 * (RFC 1738, "The rightmost domain label will never start with a digit...")
-	 */
-	public static String[] splitDomainName(String hostname) {
-		String[] parts = hostname.split("\\.");
-
-		String lastPart = parts[parts.length - 1];
-		if (lastPart.length() > 0) {
-			char c = lastPart.charAt(0);
-			if (c >= '0' && c <= '9')
-				parts = new String[]{hostname};
-		}
-
-		return parts;
-	}
-
-
-	/**
-	 * For the given domain name, strip off each successive sub-domain.  For example
-	 * removed.  For example: "a.b.c.d" would return
-	 * ["a.b.c.d", "b.c.d", "c.d"]
-	 * */
-	public List<String> getDomainScopes(String host) {
-		here: test isDomain() and implement this
-
-	}
-
-	/**
-	 * Determine if the given text appears to be a valid domain name.
+	 * Returns null if the given text is not a valid domain name.
 	 * Unicode is allowed but code-points below U+007E ('~') must be A-Z, a-z, 0-9 or dash.
-	 * For example, if the text contains ' ' or ':' or '_' it will not be considered a valid domain name.
+	 * For example, if the text contains ' ' or ':' or '_' its not valid.
 	 *
 	 * Additionally there must be at least 1 character between each dot and the last component must have
-	 * at least 2 characters.
+	 * at least 2 characters.  Also the last component cannot begin with a digit because this distinguishes
+	 * an IPv4 address from a domain name (RFC 1738, "The rightmost domain label will never start with a digit...")
 	 * */
-	public boolean isDomainName(String text) {
+	public static String[] parseDomainName(String text) {
 		int slen = text.length();
 		char c;
-		boolean ok;
-		int compLen = 0;
-		int numComponents = 0;
+
+		//Count dots
+		int j = 0;
 		for (int i = 0; i < slen; i++) {
 			c = text.charAt(i);
+			if (c == '.')
+				j++;
+		}
+
+		//Must have at least 1 dot
+		if (j == 0)
+			return null;
+
+		String[] components = new String[j+1];
+
+		boolean ok;
+		int compStartIndex = 0;
+		j = 0;
+		for (int i = 0; i <= slen; i++) {
+			if (i == slen)
+				c = '.';  //forces flush
+			else
+				c = text.charAt(i);
 
 			if (c == '.') {
 				//cannot have empty component
-				if (compLen == 0)
-					return false;
+				if (i - compStartIndex <= 0)
+					return null;
 
-				compLen = 0;
-				numComponents++;
+				components[j++] = text.substring(compStartIndex, i);
+				compStartIndex = i+1;
 			}
-
-			if (c < '~') {
+			else if (c < '~') {
 				//characters in the ASCII range must be A-Z, a-z, 0-9 or dash
 				ok = (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '-';
 				if (!ok)
-					return false;
+					return null;
 			}
 			//else accept any Unicode character
-
-			compLen++;
 		}
 
-		//Must have at least two components and the last must be at least 2 chars long
-		return numComponents > 1 && compLen >= 2;
+		//Last must have at least 2 chars
+		//c >= '0' && c <= '9'
+		String last = components[components.length - 1];
+		if (last.length() < 2)
+			return null;
+		else {
+			//RFC 1738: "The rightmost domain label will never start with a digit..."
+			c = last.charAt(0);
+			if (c >= '0' && c <= '9')
+				return null;
+		}
+
+		return components;
 	}
 
 
