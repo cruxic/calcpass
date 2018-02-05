@@ -78,6 +78,32 @@ public class Misc {
 		return components;
 	}
 
+	/**
+	 * Convert ["foo", "bar", "com"] to ["bar.com", "foo.bar.com"]
+	 * */
+	public static String[] domainOptions(String[] parts) {
+		String[] res = new String[parts.length - 1];
+
+		StringBuilder sb = new StringBuilder(64);
+
+		int k = 0;
+		int j = parts.length - 2;
+		while (j >= 0) {
+			sb.setLength(0);
+			for (int i = j; i < parts.length; i++) {
+				if (i != j)
+					sb.append('.');
+
+				sb.append(parts[i]);
+			}
+
+			j--;
+			res[k++] = sb.toString();
+		}
+
+		return res;
+	}
+
 
 	/**
 	 * Attempt to parse the scheme, hostname and port number from the given URL.

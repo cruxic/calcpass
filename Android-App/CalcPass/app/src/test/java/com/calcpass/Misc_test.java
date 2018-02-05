@@ -96,6 +96,28 @@ public class Misc_test {
 			res = Misc.parseDomainName(host);
 			assertNull(res);
 		}
+	}
+
+	@Test
+	public void test_domainOptions() {
+		String[] res = Misc.domainOptions(new String[]{"foo", "bar", "com"});
+		assertEquals(res.length, 2);
+		assertEquals(res[0], "bar.com");
+		assertEquals(res[1], "foo.bar.com");
+
+		res = Misc.domainOptions(new String[]{"example", "com"});
+		assertEquals(res.length, 1);
+		assertEquals(res[0], "example.com");
+
+		res = Misc.domainOptions(new String[]{"invaild"});
+		assertEquals(res.length, 0);
+
+		res = Misc.domainOptions(new String[]{"a", "b", "c", "d"});
+		assertEquals(res.length, 3);
+		assertEquals(res[0], "c.d");
+		assertEquals(res[1], "b.c.d");
+		assertEquals(res[2], "a.b.c.d");
+
 
 
 	}

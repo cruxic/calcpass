@@ -17,10 +17,11 @@ import android.widget.TextView;
 
 import com.calcpass.Misc;
 
+import java.util.ArrayList;
 import java.util.List;
 
 public class SiteParametersActivity extends AppCompatActivity  implements AdapterView.OnItemClickListener, OnDialogResult {
-	private static final int DIALOG_SITENAME_SCOPE = 1;
+	private static final int REQ_DIALOG_DOMAIN_SCOPE = 1;
 
 	private ListView listView;
 	private SiteParametersListAdapter listAdapter;
@@ -54,7 +55,7 @@ public class SiteParametersActivity extends AppCompatActivity  implements Adapte
 	public void onDialogResult(int requestCode, int resultCode, Intent data) {
 		if (resultCode == Activity.RESULT_OK) {
 			switch (requestCode) {
-				case DIALOG_SITENAME_SCOPE:
+				case REQ_DIALOG_DOMAIN_SCOPE:
 
 					break;
 			}
@@ -66,10 +67,17 @@ public class SiteParametersActivity extends AppCompatActivity  implements Adapte
 		TextView lblSitename = findViewById(R.id.lblSitename);
 		lblSitename.setText(newSitename);
 
-		//If it's a domain name with a subdomain then suggest to the user to remove the subdomain(s)
+		//If it's a domain name with a subdomain then suggest removal of the subdomain.
+		//Many websites use a subdomain for sign-in (eg secure.newegg.com)
 		String[] parts = Misc.parseDomainName(newSitename);
 		if (parts != null && parts.length > 2) {
-			here
+			List<ListOption> options = new ArrayList<ListOption>();
+
+			for (String domain: Misc.domainOptions(parts)) {
+				options.add(new ListOption(domain, domain));
+			}
+
+			ChooseFromListDialog.showNewInstance(REQ_DIALOG_DOMAIN_SCOPE, options, getSupportFragmentManager());
 		}
 	}
 
