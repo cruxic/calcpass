@@ -16,15 +16,19 @@ import android.widget.Switch;
 import android.widget.TextView;
 
 import com.calcpass.Misc;
+import com.calcpass.PassFmt;
 
 import java.util.ArrayList;
 import java.util.List;
 
 public class SiteParametersActivity extends AppCompatActivity  implements AdapterView.OnItemClickListener, OnDialogResult {
-	private static final int REQ_DIALOG_DOMAIN_SCOPE = 1;
+	//Start at 100 to because ParamType.* as request codes
+	private static final int REQ_DIALOG_DOMAIN_SCOPE = 100;
 
 	private ListView listView;
 	private SiteParametersListAdapter listAdapter;
+
+	private PasswordEntry params;
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
@@ -32,6 +36,9 @@ public class SiteParametersActivity extends AppCompatActivity  implements Adapte
 		setContentView(R.layout.activity_site_parameters);
 		Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
 		setSupportActionBar(toolbar);
+
+		params = new PasswordEntry();
+		params.format = PassFmt.Friendly9;  //TODO: from seed parameters
 
 		listView = (ListView)findViewById(R.id.listView);
 		listAdapter = new SiteParametersListAdapter(this);
@@ -41,6 +48,8 @@ public class SiteParametersActivity extends AppCompatActivity  implements Adapte
 
 	@Override
 	protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+		super.onActivityResult(requestCode, resultCode, data);
+
 		if (resultCode == Activity.RESULT_OK) {
 			switch (requestCode) {
 				case ParamType.SITENAME: {
@@ -55,15 +64,21 @@ public class SiteParametersActivity extends AppCompatActivity  implements Adapte
 	public void onDialogResult(int requestCode, int resultCode, Intent data) {
 		if (resultCode == Activity.RESULT_OK) {
 			switch (requestCode) {
-				case REQ_DIALOG_DOMAIN_SCOPE:
+				case REQ_DIALOG_DOMAIN_SCOPE: {
+					params.sitename = data.getStringExtra("chosenId");
 
+					TextView lblSitename = findViewById(R.id.lblSitename);
+					lblSitename.setText(params.sitename);
 					break;
+				}
 			}
 		}
 
 	}
 
 	private void apply_SITENAME(String newSitename) {
+		params.sitename = newSitename;
+
 		TextView lblSitename = findViewById(R.id.lblSitename);
 		lblSitename.setText(newSitename);
 
@@ -78,6 +93,7 @@ public class SiteParametersActivity extends AppCompatActivity  implements Adapte
 			}
 
 			ChooseFromListDialog.showNewInstance(REQ_DIALOG_DOMAIN_SCOPE, options, getSupportFragmentManager());
+			//onDialogResult will be called next
 		}
 	}
 
@@ -90,7 +106,9 @@ public class SiteParametersActivity extends AppCompatActivity  implements Adapte
 				break;
 			}
 			case ParamType.SITENAME: {
-				startActivityForResult(new Intent(this, EditWebsiteNameActivity.class), paramType);
+				Intent intent = new Intent(this, EditWebsiteNameActivity.class);
+				intent.putExtra("sitename", params.sitename);
+				startActivityForResult(intent, paramType);
 				break;
 			}
 			case ParamType.REVISION: {

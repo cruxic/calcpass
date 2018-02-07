@@ -37,6 +37,8 @@ public class ChooseFromListDialog extends DialogFragment implements DialogInterf
 
 		String tag = dlg.getClass().getSimpleName() + "_req" + requestCode;
 		dlg.show(v4_fragmentManager, tag);
+		//If you get an "IllegalStateException: Can not perform this action after onSaveInstanceState"
+		// then make sure you called super.onActivityResult() before showing the dialog
 	}
 
 	@Override

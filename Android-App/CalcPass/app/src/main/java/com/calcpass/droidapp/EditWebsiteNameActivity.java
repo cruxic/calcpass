@@ -5,9 +5,11 @@ import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.Intent;
 import android.os.Bundle;
+import android.support.v4.app.NavUtils;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
 import android.view.KeyEvent;
+import android.view.MenuItem;
 import android.view.View;
 import android.view.inputmethod.EditorInfo;
 import android.widget.EditText;
@@ -25,7 +27,14 @@ public class EditWebsiteNameActivity extends AppCompatActivity {
 		Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
 		setSupportActionBar(toolbar);
 
+		getSupportActionBar().setDisplayHomeAsUpEnabled(true);
+
+
 		txtSitename = findViewById(R.id.txtSitename);
+		Intent intent = getIntent();
+		String sitename = intent.getStringExtra("sitename");
+		if (sitename != null)
+			txtSitename.setText(sitename);
 
 		txtSitename.setOnEditorActionListener(new TextView.OnEditorActionListener() {
 			@Override
@@ -38,6 +47,21 @@ public class EditWebsiteNameActivity extends AppCompatActivity {
 				return false;
 			}
 		});
+	}
+
+	@Override
+	public boolean onOptionsItemSelected(MenuItem item) {
+		System.out.println("you options item" + item.getItemId());
+
+		/*
+		switch (item.getItemId()) {
+			// Respond to the action bar's Up/Home button
+			case android.R.id.home:
+				NavUtils.navigateUpFromSameTask(this);
+				return true;
+		}*/
+		
+		return super.onOptionsItemSelected(item);
 	}
 
 	private void handleDone() {
