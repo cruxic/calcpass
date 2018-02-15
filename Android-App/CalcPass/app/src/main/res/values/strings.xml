@@ -88,4 +88,5 @@ Do you agree to the terms of the GPLv3 license?
     <string name="title_activity_select_domain_scope">SelectDomainScopeActivity</string>
     <string name="domainscope_dialog_title">How specific should this password be?</string>
     <string name="domainscope_dialog_recommended">$1s (recommended)</string>
+    <string name="siteparam_more_options">More options...</string>
 </resources>

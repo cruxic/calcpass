@@ -139,14 +139,15 @@ public class SiteParametersActivity extends AppCompatActivity  implements Adapte
 }
 
 class ParamType {
-	static final int TYPE = 0;
-	static final int SITENAME = 1;
-	static final int REVISION = 2;
+	static final int SITENAME = 0;
+	static final int MORE_BUTTON = 1;
+	static final int CALC_BUTTON = 2;
+	static final int REVISION = 22;
 	static final int FORMAT = 3;
 	static final int USERNAME = 4;
 	static final int REMEMBER = 5;
-	static final int CALC_BUTTON = 6;
-	static final int _count_ = 7;
+	static final int TYPE = 6;
+	static final int _count_ = 3;
 }
 
 class SiteParametersListAdapter extends BaseAdapter {
@@ -214,6 +215,10 @@ class SiteParametersListAdapter extends BaseAdapter {
 			}
 			case ParamType.CALC_BUTTON: {
 				v = mInflater.inflate(R.layout.siteparam_row_calc_button, parent, false);
+				break;
+			}
+			case ParamType.MORE_BUTTON: {
+				v = mInflater.inflate(R.layout.siteparam_row_more, parent, false);
 				break;
 			}
 			default: {
