@@ -46,3 +46,42 @@ export function UnbiasedSmallInt(source:ByteSource, n:number):number {
 			return r % n;
 	}
 }
+
+/**
+Sort the given array randomly, without modulo bias.
+*/
+export function secureShuffle(array, randSource:ByteSource) {
+	if (array.length > 0x8000)
+		throw new Error('array too large');
+
+	var used = {};	
+
+	var tuples = new Array(array.length);
+	var i, r, k;
+	for (i = 0; i < array.length; i++) {
+		//Make a random 16bit integer.
+		//The integer must be unique to ensure stable sorting.
+		while (true) {
+			r = (randSource.NextByte() << 8) | randSource.NextByte();
+
+			//Skip 
+			k = 'R' + r;
+			if (!used[k]) {
+				used[k] = true;
+				break;
+			}				
+		}		
+	
+		tuples[i] = [array[i], r];
+	}
+
+	//sort by the random integer
+	tuples.sort(function(a, b) {
+		return a[1] - b[1];
+	});
+
+	for (i = 0; i < array.length; i++)
+		array[i] = tuples[i][0];
+
+	return array;
+}

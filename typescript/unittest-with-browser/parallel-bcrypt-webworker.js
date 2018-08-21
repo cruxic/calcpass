@@ -1,10 +1,10 @@
-(function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);var f=new Error("Cannot find module '"+o+"'");throw f.code="MODULE_NOT_FOUND",f}var l=n[o]={exports:{}};t[o][0].call(l.exports,function(e){var n=t[o][1][e];return s(n?n:e)},l,l.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
+(function(){function r(e,n,t){function o(i,f){if(!n[i]){if(!e[i]){var c="function"==typeof require&&require;if(!f&&c)return c(i,!0);if(u)return u(i,!0);var a=new Error("Cannot find module '"+i+"'");throw a.code="MODULE_NOT_FOUND",a}var p=n[i]={exports:{}};e[i][0].call(p.exports,function(r){var n=e[i][1][r];return o(n||r)},p,p.exports,r,e,n,t)}return n[i].exports}for(var u="function"==typeof require&&require,i=0;i<t.length;i++)o(t[i]);return o}return r})()({1:[function(require,module,exports){
+"use strict";
 /*The following is a bcrypt implementation which implements the bare minimum necessary
 for calcpass.  It is mostly a simplification of bcrypt.js (https://github.com/dcodeIO/bcrypt.js).
 Because much of the interals are copy/paste (with minor tweaks) it is a derived work and
 thus retains the original copyright notice:
 */
-"use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 /*
  Copyright (c) 2012 Nevins Bartolomeo <nevins.bartolomeo@gmail.com>
@@ -553,8 +553,8 @@ var C_ORIG = [
 ];
 
 },{}],2:[function(require,module,exports){
-/**Convert arrays of octets to and from hex strings*/
 "use strict";
+/**Convert arrays of octets to and from hex strings*/
 Object.defineProperty(exports, "__esModule", { value: true });
 function encode(octetArray) {
     return _encode(octetArray);
@@ -814,7 +814,7 @@ function hashBlocks(w, v, p, pos, len) {
     return pos;
 }
 // Hash implements SHA256 hash algorithm.
-var Hash = (function () {
+var Hash = /** @class */ (function () {
     function Hash() {
         this.digestLength = exports.digestLength;
         this.blockSize = exports.blockSize;
@@ -945,7 +945,7 @@ var Hash = (function () {
 }());
 exports.Hash = Hash;
 // HMAC implements HMAC-SHA256 message authentication algorithm.
-var HMAC = (function () {
+var HMAC = /** @class */ (function () {
     function HMAC(key) {
         this.inner = new Hash();
         this.outer = new Hash();
@@ -1085,8 +1085,8 @@ exports.hmac = hmac;
 }*/
 
 },{}],6:[function(require,module,exports){
-/**Convert a unicode string to a Uint8Array of UTF-8 octets.*/
 "use strict";
+/**Convert a unicode string to a Uint8Array of UTF-8 octets.*/
 Object.defineProperty(exports, "__esModule", { value: true });
 function stringToUTF8(str) {
     if (typeof (str) != 'string')

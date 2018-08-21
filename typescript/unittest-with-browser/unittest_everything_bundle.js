@@ -1,10 +1,10 @@
-(function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);var f=new Error("Cannot find module '"+o+"'");throw f.code="MODULE_NOT_FOUND",f}var l=n[o]={exports:{}};t[o][0].call(l.exports,function(e){var n=t[o][1][e];return s(n?n:e)},l,l.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
+(function(){function r(e,n,t){function o(i,f){if(!n[i]){if(!e[i]){var c="function"==typeof require&&require;if(!f&&c)return c(i,!0);if(u)return u(i,!0);var a=new Error("Cannot find module '"+i+"'");throw a.code="MODULE_NOT_FOUND",a}var p=n[i]={exports:{}};e[i][0].call(p.exports,function(r){var n=e[i][1][r];return o(n||r)},p,p.exports,r,e,n,t)}return n[i].exports}for(var u="function"==typeof require&&require,i=0;i<t.length;i++)o(t[i]);return o}return r})()({1:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 var sha256 = require("./sha256");
 var util_1 = require("./util");
 //implements ByteSource
-var HmacCounterByteSource = (function () {
+var HmacCounterByteSource = /** @class */ (function () {
     function HmacCounterByteSource(key, maxCounter) {
         this.key = key;
         this.maxCounter = maxCounter;
@@ -37,7 +37,7 @@ var HmacCounterByteSource = (function () {
 }());
 exports.HmacCounterByteSource = HmacCounterByteSource;
 
-},{"./sha256":15,"./util":20}],2:[function(require,module,exports){
+},{"./sha256":13,"./util":18}],2:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 var HmacCounterByteSource_1 = require("./HmacCounterByteSource");
@@ -77,7 +77,7 @@ function HmacCounterByteSource_test() {
 }
 exports.HmacCounterByteSource_test = HmacCounterByteSource_test;
 
-},{"./HmacCounterByteSource":1,"./assert":3,"./hex":11,"./util":20}],3:[function(require,module,exports){
+},{"./HmacCounterByteSource":1,"./assert":3,"./hex":9,"./util":18}],3:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.config = {
@@ -218,12 +218,12 @@ function assert_test() {
 exports.default = assert_test;
 
 },{"./assert":3}],5:[function(require,module,exports){
+"use strict";
 /*The following is a bcrypt implementation which implements the bare minimum necessary
 for calcpass.  It is mostly a simplification of bcrypt.js (https://github.com/dcodeIO/bcrypt.js).
 Because much of the interals are copy/paste (with minor tweaks) it is a derived work and
 thus retains the original copyright notice:
 */
-"use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 /*
  Copyright (c) 2012 Nevins Bartolomeo <nevins.bartolomeo@gmail.com>
@@ -820,402 +820,9 @@ function byteSeq(n) {
     return res;
 }
 
-},{"./assert":3,"./bcrypt":5,"./hex":11,"./utf8":18}],7:[function(require,module,exports){
+},{"./assert":3,"./bcrypt":5,"./hex":9,"./utf8":16}],7:[function(require,module,exports){
 "use strict";
-var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : new P(function (resolve) { resolve(result.value); }).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
-var __generator = (this && this.__generator) || function (thisArg, body) {
-    var _ = { label: 0, sent: function() { if (t[0] & 1) throw t[1]; return t[1]; }, trys: [], ops: [] }, f, y, t;
-    return { next: verb(0), "throw": verb(1), "return": verb(2) };
-    function verb(n) { return function (v) { return step([n, v]); }; }
-    function step(op) {
-        if (f) throw new TypeError("Generator is already executing.");
-        while (_) try {
-            if (f = 1, y && (t = y[op[0] & 2 ? "return" : op[0] ? "throw" : "next"]) && !(t = t.call(y, op[1])).done) return t;
-            if (y = 0, t) op = [0, t.value];
-            switch (op[0]) {
-                case 0: case 1: t = op; break;
-                case 4: _.label++; return { value: op[1], done: false };
-                case 5: _.label++; y = op[1]; op = [0]; continue;
-                case 7: op = _.ops.pop(); _.trys.pop(); continue;
-                default:
-                    if (!(t = _.trys, t = t.length > 0 && t[t.length - 1]) && (op[0] === 6 || op[0] === 2)) { _ = 0; continue; }
-                    if (op[0] === 3 && (!t || (op[1] > t[0] && op[1] < t[3]))) { _.label = op[1]; break; }
-                    if (op[0] === 6 && _.label < t[1]) { _.label = t[1]; t = op; break; }
-                    if (t && _.label < t[2]) { _.label = t[2]; _.ops.push(op); break; }
-                    if (t[2]) _.ops.pop();
-                    _.trys.pop(); continue;
-            }
-            op = body.call(thisArg, _);
-        } catch (e) { op = [6, e]; y = 0; } finally { f = t = 0; }
-        if (op[0] & 5) throw op[1]; return { value: op[0] ? op[1] : void 0, done: true };
-    }
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-var sha256 = require("./sha256");
-var utf8_1 = require("./utf8");
-var util_1 = require("./util");
-var HmacCounterByteSource_1 = require("./HmacCounterByteSource");
-var bcryptCost_2017a = 13;
-var StretchedMaster = (function () {
-    function StretchedMaster() {
-    }
-    return StretchedMaster;
-}());
-exports.StretchedMaster = StretchedMaster;
-var SiteKey = (function () {
-    function SiteKey() {
-    }
-    return SiteKey;
-}());
-exports.SiteKey = SiteKey;
-var SiteCardMix = (function () {
-    function SiteCardMix() {
-    }
-    return SiteCardMix;
-}());
-exports.SiteCardMix = SiteCardMix;
-var PasswordSeed = (function () {
-    function PasswordSeed() {
-    }
-    return PasswordSeed;
-}());
-exports.PasswordSeed = PasswordSeed;
-function isSaneEmail(s) {
-    //a@b.c
-    return s.length >= 4 && s.indexOf("@") != -1 && s.indexOf(".") != -1;
-}
-exports.isSaneEmail = isSaneEmail;
-var ParallelBcrypt = (function () {
-    function ParallelBcrypt() {
-    }
-    return ParallelBcrypt;
-}());
-exports.ParallelBcrypt = ParallelBcrypt;
-function StretchMasterPassword(plaintextPassword, userEmail, pbcrypt) {
-    return __awaiter(this, void 0, void 0, function () {
-        var fullSalt, salt16, sm, _a;
-        return __generator(this, function (_b) {
-            switch (_b.label) {
-                case 0:
-                    if (plaintextPassword.length < 8) {
-                        throw new Error("password too short");
-                    }
-                    userEmail = userEmail.trim().toLowerCase();
-                    if (!isSaneEmail(userEmail)) {
-                        throw new Error("Invalid email address");
-                    }
-                    fullSalt = utf8_1.stringToUTF8("calcpass2017a " + userEmail);
-                    salt16 = sha256.hash(fullSalt).slice(0, 16);
-                    sm = new StretchedMaster();
-                    _a = sm;
-                    return [4 /*yield*/, pbcrypt.execute(4, plaintextPassword, salt16, bcryptCost_2017a, pbcrypt.progressCallback)];
-                case 1:
-                    _a.bytes = _b.sent();
-                    return [2 /*return*/, new Promise(function (resolve) { resolve(sm); })];
-            }
-        });
-    });
-}
-exports.StretchMasterPassword = StretchMasterPassword;
-function MakeSiteKey(stretchedMaster, websiteName, revision) {
-    if (!websiteName || websiteName.length < 2) {
-        throw new Error("website name too short");
-    }
-    //ensure integer
-    revision = Math.floor(revision);
-    if (revision < 0) {
-        throw new Error("revision cannot be negative");
-    }
-    //Ensure websiteName is case insensitive
-    // (eg "CalcPass.com" should be hash the same as "calcpass.com")
-    websiteName = websiteName.trim().toLowerCase();
-    var message = utf8_1.stringToUTF8(websiteName + " " + revision);
-    var sk = new SiteKey();
-    sk.bytes = sha256.hmac(stretchedMaster.bytes, message);
-    return sk;
-}
-exports.MakeSiteKey = MakeSiteKey;
-/**Mix SiteKey and card characters using HmacSha256.*/
-function MixSiteAndCard(siteKey, charactersFromCard) {
-    //2017a cards are all lower case.  Also trim white space
-    charactersFromCard = charactersFromCard.trim().toLowerCase();
-    if (charactersFromCard.length < 8) {
-        throw new Error("Too few characters from card");
-    }
-    var rawChars = utf8_1.stringToUTF8(charactersFromCard);
-    //verify a-z
-    for (var i = 0; i < rawChars.length; i++) {
-        if (rawChars[i] < 0x61 || rawChars[i] > 0x7A)
-            throw new Error("charactersFromCard must be a through z");
-    }
-    var mix = new SiteCardMix();
-    mix.bytes = sha256.hmac(siteKey.bytes, rawChars);
-    util_1.erase(rawChars);
-    return mix;
-}
-exports.MixSiteAndCard = MixSiteAndCard;
-function StretchSiteCardMix(siteCardMix, pbcrypt) {
-    return __awaiter(this, void 0, void 0, function () {
-        var key, salt, ps, _a;
-        return __generator(this, function (_b) {
-            switch (_b.label) {
-                case 0:
-                    key = siteCardMix.bytes.slice(0, 16);
-                    salt = siteCardMix.bytes.slice(16);
-                    ps = new PasswordSeed();
-                    _a = ps;
-                    return [4 /*yield*/, pbcrypt.execute(4, key, salt, bcryptCost_2017a, pbcrypt.progressCallback)];
-                case 1:
-                    _a.bytes = _b.sent();
-                    return [2 /*return*/, new Promise(function (resolve) { resolve(ps); })];
-            }
-        });
-    });
-}
-exports.StretchSiteCardMix = StretchSiteCardMix;
-function MakeFriendlyPassword12a(seed) {
-    var rng = new HmacCounterByteSource_1.HmacCounterByteSource(seed.bytes, 128);
-    var chars = '';
-    var b;
-    var ascii_a = 0x61;
-    var ascii_A = 0x41;
-    var ascii_0 = 0x30;
-    //Select 11 a-z characters
-    for (var i = 0; i < 11; i++) {
-        b = util_1.UnbiasedSmallInt(rng, 26);
-        //Capitalize the first char
-        if (i == 0) {
-            chars += String.fromCharCode(ascii_A + b);
-        }
-        else {
-            chars += String.fromCharCode(ascii_a + b);
-        }
-    }
-    //Select 0-9
-    b = util_1.UnbiasedSmallInt(rng, 10);
-    chars += String.fromCharCode(b + ascii_0);
-    return chars;
-}
-exports.MakeFriendlyPassword12a = MakeFriendlyPassword12a;
-var CARD_xNames = "ABCDEFGHJKLMNPQRSTUVWX"; //skip I and O to avoid ambiguity when rendered with certain fonts
-var CARD_W = 22;
-var CARD_H = 15;
-function xNameFunc(index) {
-    if (index >= CARD_xNames.length) {
-        throw new Error("XName index out of range");
-    }
-    return CARD_xNames[index];
-}
-function yNameFunc(index) {
-    return (index + 1).toString();
-}
-var CardCoord = (function () {
-    function CardCoord() {
-    }
-    CardCoord.prototype.toString = function () {
-        //number then letter
-        return this.HumanY + this.HumanX;
-    };
-    return CardCoord;
-}());
-function makeCardCoordinatesFromSource(src, count, cardSizeX, cardSizeY, xNameFunc, yNameFunc) {
-    var coords = new Array(count);
-    var coord;
-    for (var i = 0; i < count; i++) {
-        coord = new CardCoord();
-        coord.X = util_1.UnbiasedSmallInt(src, cardSizeX);
-        coord.Y = util_1.UnbiasedSmallInt(src, cardSizeY);
-        coord.HumanX = xNameFunc(coord.X);
-        coord.HumanY = yNameFunc(coord.Y);
-        coords[i] = coord;
-    }
-    return coords;
-}
-function MakeSiteCoordinates(siteKey, count) {
-    if (count < 1 || count > 100) {
-        throw new Error("invalid coordinate count");
-    }
-    var src = new HmacCounterByteSource_1.HmacCounterByteSource(siteKey.bytes, 128);
-    return makeCardCoordinatesFromSource(src, count, CARD_W, CARD_H, xNameFunc, yNameFunc);
-}
-exports.MakeSiteCoordinates = MakeSiteCoordinates;
-
-},{"./HmacCounterByteSource":1,"./sha256":15,"./utf8":18,"./util":20}],8:[function(require,module,exports){
-"use strict";
-var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : new P(function (resolve) { resolve(result.value); }).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
-var __generator = (this && this.__generator) || function (thisArg, body) {
-    var _ = { label: 0, sent: function() { if (t[0] & 1) throw t[1]; return t[1]; }, trys: [], ops: [] }, f, y, t;
-    return { next: verb(0), "throw": verb(1), "return": verb(2) };
-    function verb(n) { return function (v) { return step([n, v]); }; }
-    function step(op) {
-        if (f) throw new TypeError("Generator is already executing.");
-        while (_) try {
-            if (f = 1, y && (t = y[op[0] & 2 ? "return" : op[0] ? "throw" : "next"]) && !(t = t.call(y, op[1])).done) return t;
-            if (y = 0, t) op = [0, t.value];
-            switch (op[0]) {
-                case 0: case 1: t = op; break;
-                case 4: _.label++; return { value: op[1], done: false };
-                case 5: _.label++; y = op[1]; op = [0]; continue;
-                case 7: op = _.ops.pop(); _.trys.pop(); continue;
-                default:
-                    if (!(t = _.trys, t = t.length > 0 && t[t.length - 1]) && (op[0] === 6 || op[0] === 2)) { _ = 0; continue; }
-                    if (op[0] === 3 && (!t || (op[1] > t[0] && op[1] < t[3]))) { _.label = op[1]; break; }
-                    if (op[0] === 6 && _.label < t[1]) { _.label = t[1]; t = op; break; }
-                    if (t && _.label < t[2]) { _.label = t[2]; _.ops.push(op); break; }
-                    if (t[2]) _.ops.pop();
-                    _.trys.pop(); continue;
-            }
-            op = body.call(thisArg, _);
-        } catch (e) { op = [6, e]; y = 0; } finally { f = t = 0; }
-        if (op[0] & 5) throw op[1]; return { value: op[0] ? op[1] : void 0, done: true };
-    }
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-var assert = require("./assert");
-var hex = require("./hex");
-var sha256 = require("./sha256");
-var utf8_1 = require("./utf8");
-var util_1 = require("./util");
-var calcpass2017a = require("./calcpass2017a");
-var execute_parallel_bcrypt_webworkers_1 = require("./execute_parallel_bcrypt_webworkers");
-function emptyPromise() {
-    return new Promise(function (resolve) { resolve(true); });
-}
-//returns a ParallelBcrypt object
-function setup_bcrypt() {
-    var pbcrypt = new calcpass2017a.ParallelBcrypt();
-    pbcrypt.execute = execute_parallel_bcrypt_webworkers_1.execute_parallel_bcrypt_webworkers;
-    var lastPercent = 0.0;
-    pbcrypt.progressCallback = function (percent) {
-        if ((percent - lastPercent) >= 0.25 || percent == 1.0) {
-            lastPercent = percent;
-            console.log('  ' + Math.floor(percent * 100.0) + '%');
-        }
-    };
-    return pbcrypt;
-}
-function Test_StretchMasterPassword() {
-    return __awaiter(this, void 0, void 0, function () {
-        var pass, sm;
-        return __generator(this, function (_a) {
-            switch (_a.label) {
-                case 0:
-                    pass = utf8_1.stringToUTF8('Hello World');
-                    console.log('  stretching...');
-                    return [4 /*yield*/, calcpass2017a.StretchMasterPassword(pass, 'a@b.c', setup_bcrypt())];
-                case 1:
-                    sm = _a.sent();
-                    assert.equal(hex.encode(sm.bytes), "f60f7cd075e3242879d04f3f10546f2cd5c2c1ab7790d466f9bca47864dfcce0");
-                    return [2 /*return*/, emptyPromise()];
-            }
-        });
-    });
-}
-function Test_MakeSiteKey() {
-    var stretchedMaster = new calcpass2017a.StretchedMaster();
-    stretchedMaster.bytes = util_1.byteSeq(1, 32);
-    var sitekey = calcpass2017a.MakeSiteKey(stretchedMaster, " \t\nExAmPle.CoM \r", 0);
-    assert.equal(hex.encode(sitekey.bytes), "6c95536db40ee491011c5159a5990e39a5ff09dae396559fe7b2413c4308bc62");
-}
-function Test_MixSiteAndCard() {
-    var sitekey = new calcpass2017a.SiteKey();
-    sitekey.bytes = util_1.byteSeq(1, 32);
-    var mixed = calcpass2017a.MixSiteAndCard(sitekey, " \n\tQwErTyUi \r\t");
-    assert.equal(hex.encode(mixed.bytes), "6e8c0b5448f31396a04b1139b0ec43308e55192340610a564107bfde8dccc8dc");
-}
-function Test_StretchSiteCardMix() {
-    return __awaiter(this, void 0, void 0, function () {
-        var mixed, pwseed;
-        return __generator(this, function (_a) {
-            switch (_a.label) {
-                case 0:
-                    mixed = new calcpass2017a.SiteCardMix();
-                    mixed.bytes = util_1.byteSeq(1, 32);
-                    console.log('  stretching...');
-                    return [4 /*yield*/, calcpass2017a.StretchSiteCardMix(mixed, setup_bcrypt())];
-                case 1:
-                    pwseed = _a.sent();
-                    assert.equal(hex.encode(pwseed.bytes), "0fb2c41f1a71834186bc515889f881d892efcd248eabf88ff68abfa7afdc6df7");
-                    return [2 /*return*/, emptyPromise()];
-            }
-        });
-    });
-}
-function Test_MakeFriendlyPassword12a() {
-    var seed = new calcpass2017a.PasswordSeed();
-    seed.bytes = util_1.byteSeq(1, 32);
-    assert.equal(calcpass2017a.MakeFriendlyPassword12a(seed), 'Scvqduejxmm5');
-    //change seed
-    seed.bytes[31]++;
-    assert.equal(calcpass2017a.MakeFriendlyPassword12a(seed), 'Ikvruuyldov1');
-    //checksum of 20 different seeds (verified against Go program)
-    seed.bytes = util_1.byteSeq(1, 32);
-    var sha = new sha256.Hash();
-    var pass;
-    var j = 0;
-    for (var i = 0; i < 20; i++) {
-        //modify seed
-        seed.bytes[j % 32]++;
-        j++;
-        pass = calcpass2017a.MakeFriendlyPassword12a(seed);
-        sha.update(utf8_1.stringToUTF8(pass));
-    }
-    assert.equal(hex.encode(sha.digest()), '008634126acab8fdd6c34f123495a8d2d3ae9cd073e705cd12d506d71e63234a');
-}
-function Test_MakeSiteCoordinates() {
-    var sitekey = new calcpass2017a.SiteKey();
-    sitekey.bytes = util_1.byteSeq(1, 32);
-    var coords = calcpass2017a.MakeSiteCoordinates(sitekey, 2);
-    assert.equal(coords.length, 2);
-    assert.equal(coords[0].toString(), "13A");
-    assert.equal(coords[1].toString(), "8M");
-    //change key
-    sitekey.bytes[31]++;
-    coords = calcpass2017a.MakeSiteCoordinates(sitekey, 2);
-    assert.equal(coords.length, 2);
-    assert.equal(coords[0].toString(), "8S");
-    assert.equal(coords[1].toString(), "13E");
-}
-function calcpass2017a_test() {
-    return __awaiter(this, void 0, void 0, function () {
-        return __generator(this, function (_a) {
-            switch (_a.label) {
-                case 0:
-                    assert.isTrue(calcpass2017a.isSaneEmail('a@b.c'));
-                    Test_MakeSiteKey();
-                    Test_MixSiteAndCard();
-                    Test_MakeFriendlyPassword12a();
-                    Test_MakeSiteCoordinates();
-                    return [4 /*yield*/, Test_StretchMasterPassword()];
-                case 1:
-                    _a.sent();
-                    return [4 /*yield*/, Test_StretchSiteCardMix()];
-                case 2:
-                    _a.sent();
-                    return [2 /*return*/, emptyPromise()];
-            }
-        });
-    });
-}
-exports.calcpass2017a_test = calcpass2017a_test;
-
-},{"./assert":3,"./calcpass2017a":7,"./execute_parallel_bcrypt_webworkers":9,"./hex":11,"./sha256":15,"./utf8":18,"./util":20}],9:[function(require,module,exports){
 /**Spawn Web Worker threads to compute part of the parallel bcrypt hash.*/
-"use strict";
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
     return new (P || (P = Promise))(function (resolve, reject) {
         function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
@@ -1225,8 +832,8 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 var __generator = (this && this.__generator) || function (thisArg, body) {
-    var _ = { label: 0, sent: function() { if (t[0] & 1) throw t[1]; return t[1]; }, trys: [], ops: [] }, f, y, t;
-    return { next: verb(0), "throw": verb(1), "return": verb(2) };
+    var _ = { label: 0, sent: function() { if (t[0] & 1) throw t[1]; return t[1]; }, trys: [], ops: [] }, f, y, t, g;
+    return g = { next: verb(0), "throw": verb(1), "return": verb(2) }, typeof Symbol === "function" && (g[Symbol.iterator] = function() { return this; }), g;
     function verb(n) { return function (v) { return step([n, v]); }; }
     function step(op) {
         if (f) throw new TypeError("Generator is already executing.");
@@ -1362,7 +969,7 @@ function execute_parallel_bcrypt_webworkers(numThreads, plaintextPassword, salt,
 }
 exports.execute_parallel_bcrypt_webworkers = execute_parallel_bcrypt_webworkers;
 
-},{"./hex":11,"./parallel_bcrypt":13}],10:[function(require,module,exports){
+},{"./hex":9,"./parallel_bcrypt":11}],8:[function(require,module,exports){
 "use strict";
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
     return new (P || (P = Promise))(function (resolve, reject) {
@@ -1373,8 +980,8 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 var __generator = (this && this.__generator) || function (thisArg, body) {
-    var _ = { label: 0, sent: function() { if (t[0] & 1) throw t[1]; return t[1]; }, trys: [], ops: [] }, f, y, t;
-    return { next: verb(0), "throw": verb(1), "return": verb(2) };
+    var _ = { label: 0, sent: function() { if (t[0] & 1) throw t[1]; return t[1]; }, trys: [], ops: [] }, f, y, t, g;
+    return g = { next: verb(0), "throw": verb(1), "return": verb(2) }, typeof Symbol === "function" && (g[Symbol.iterator] = function() { return this; }), g;
     function verb(n) { return function (v) { return step([n, v]); }; }
     function step(op) {
         if (f) throw new TypeError("Generator is already executing.");
@@ -1428,9 +1035,9 @@ function execute_parallel_bcrypt_webworkers_test() {
 }
 exports.execute_parallel_bcrypt_webworkers_test = execute_parallel_bcrypt_webworkers_test;
 
-},{"./assert":3,"./execute_parallel_bcrypt_webworkers":9,"./hex":11,"./utf8":18}],11:[function(require,module,exports){
-/**Convert arrays of octets to and from hex strings*/
+},{"./assert":3,"./execute_parallel_bcrypt_webworkers":7,"./hex":9,"./utf8":16}],9:[function(require,module,exports){
 "use strict";
+/**Convert arrays of octets to and from hex strings*/
 Object.defineProperty(exports, "__esModule", { value: true });
 function encode(octetArray) {
     return _encode(octetArray);
@@ -1483,7 +1090,7 @@ function decode(str) {
 }
 exports.decode = decode;
 
-},{}],12:[function(require,module,exports){
+},{}],10:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 var hex = require("./hex");
@@ -1523,7 +1130,7 @@ function hex_test() {
 }
 exports.default = hex_test;
 
-},{"./assert":3,"./hex":11}],13:[function(require,module,exports){
+},{"./assert":3,"./hex":9}],11:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 var bcrypt = require("./bcrypt");
@@ -1604,7 +1211,7 @@ function hashWithSingleThread(numSimulatedThreads, plaintextPassword, salt, cost
 }
 exports.hashWithSingleThread = hashWithSingleThread;
 
-},{"./bcrypt":5,"./hex":11,"./sha256":15,"./utf8":18}],14:[function(require,module,exports){
+},{"./bcrypt":5,"./hex":9,"./sha256":13,"./utf8":16}],12:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 var assert = require("./assert");
@@ -1644,7 +1251,7 @@ function parallel_bcrypt_test() {
 }
 exports.default = parallel_bcrypt_test;
 
-},{"./assert":3,"./bcrypt":5,"./hex":11,"./parallel_bcrypt":13,"./utf8":18}],15:[function(require,module,exports){
+},{"./assert":3,"./bcrypt":5,"./hex":9,"./parallel_bcrypt":11,"./utf8":16}],13:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 //Copied from: https://github.com/dchest/fast-sha256-js
@@ -1735,7 +1342,7 @@ function hashBlocks(w, v, p, pos, len) {
     return pos;
 }
 // Hash implements SHA256 hash algorithm.
-var Hash = (function () {
+var Hash = /** @class */ (function () {
     function Hash() {
         this.digestLength = exports.digestLength;
         this.blockSize = exports.blockSize;
@@ -1866,7 +1473,7 @@ var Hash = (function () {
 }());
 exports.Hash = Hash;
 // HMAC implements HMAC-SHA256 message authentication algorithm.
-var HMAC = (function () {
+var HMAC = /** @class */ (function () {
     function HMAC(key) {
         this.inner = new Hash();
         this.outer = new Hash();
@@ -2005,7 +1612,7 @@ exports.hmac = hmac;
     return dk;
 }*/
 
-},{}],16:[function(require,module,exports){
+},{}],14:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 var sha256 = require("./sha256");
@@ -2123,7 +1730,7 @@ if __name__ == '__main__':
 
 */
 
-},{"./assert":3,"./hex":11,"./sha256":15,"./utf8":18}],17:[function(require,module,exports){
+},{"./assert":3,"./hex":9,"./sha256":13,"./utf8":16}],15:[function(require,module,exports){
 "use strict";
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
     return new (P || (P = Promise))(function (resolve, reject) {
@@ -2134,8 +1741,8 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 var __generator = (this && this.__generator) || function (thisArg, body) {
-    var _ = { label: 0, sent: function() { if (t[0] & 1) throw t[1]; return t[1]; }, trys: [], ops: [] }, f, y, t;
-    return { next: verb(0), "throw": verb(1), "return": verb(2) };
+    var _ = { label: 0, sent: function() { if (t[0] & 1) throw t[1]; return t[1]; }, trys: [], ops: [] }, f, y, t, g;
+    return g = { next: verb(0), "throw": verb(1), "return": verb(2) }, typeof Symbol === "function" && (g[Symbol.iterator] = function() { return this; }), g;
     function verb(n) { return function (v) { return step([n, v]); }; }
     function step(op) {
         if (f) throw new TypeError("Generator is already executing.");
@@ -2170,7 +1777,7 @@ var HmacCounterByteSource_test_1 = require("./HmacCounterByteSource_test");
 var bcrypt_test_1 = require("./bcrypt_test");
 var parallel_bcrypt_test_1 = require("./parallel_bcrypt_test");
 var execute_parallel_bcrypt_webworkers_test_1 = require("./execute_parallel_bcrypt_webworkers_test");
-var calcpass2017a_test_1 = require("./calcpass2017a_test");
+//import {calcpass2017a_test} from './calcpass2017a_test'
 function run_tests() {
     return __awaiter(this, void 0, void 0, function () {
         return __generator(this, function (_a) {
@@ -2196,11 +1803,9 @@ function run_tests() {
                 case 1:
                     _a.sent();
                     console.log('execute_parallel_bcrypt_webworkers_test PASS');
-                    console.log('Testing calcpass2017a...');
-                    return [4 /*yield*/, calcpass2017a_test_1.calcpass2017a_test()];
-                case 2:
-                    _a.sent();
-                    console.log('calcpass2017a PASS');
+                    //console.log('Testing calcpass2017a...');
+                    //await calcpass2017a_test();
+                    //console.log('calcpass2017a PASS');
                     console.log('\nAll tests PASS');
                     return [2 /*return*/];
             }
@@ -2209,9 +1814,9 @@ function run_tests() {
 }
 window.addEventListener("load", function (e) { run_tests(); });
 
-},{"./HmacCounterByteSource_test":2,"./assert_test":4,"./bcrypt_test":6,"./calcpass2017a_test":8,"./execute_parallel_bcrypt_webworkers_test":10,"./hex_test":12,"./parallel_bcrypt_test":14,"./sha256_test":16,"./utf8_test":19,"./util_test":21}],18:[function(require,module,exports){
-/**Convert a unicode string to a Uint8Array of UTF-8 octets.*/
+},{"./HmacCounterByteSource_test":2,"./assert_test":4,"./bcrypt_test":6,"./execute_parallel_bcrypt_webworkers_test":8,"./hex_test":10,"./parallel_bcrypt_test":12,"./sha256_test":14,"./utf8_test":17,"./util_test":19}],16:[function(require,module,exports){
 "use strict";
+/**Convert a unicode string to a Uint8Array of UTF-8 octets.*/
 Object.defineProperty(exports, "__esModule", { value: true });
 function stringToUTF8(str) {
     if (typeof (str) != 'string')
@@ -2240,7 +1845,7 @@ function selfTest() {
 }
 exports.selfTest = selfTest;
 
-},{}],19:[function(require,module,exports){
+},{}],17:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 var utf8 = require("./utf8");
@@ -2257,7 +1862,7 @@ function stringToUTF8_test() {
 }
 exports.default = stringToUTF8_test;
 
-},{"./assert":3,"./utf8":18}],20:[function(require,module,exports){
+},{"./assert":3,"./utf8":16}],18:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 ;
@@ -2298,13 +1903,13 @@ function UnbiasedSmallInt(source, n) {
 }
 exports.UnbiasedSmallInt = UnbiasedSmallInt;
 
-},{}],21:[function(require,module,exports){
+},{}],19:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 var util = require("./util");
 var assert = require("./assert");
 //import * as hex from './hex'
-var SourceOfOne = (function () {
+var SourceOfOne = /** @class */ (function () {
     function SourceOfOne(b) {
         this.b = b;
         this.done = false;
@@ -2370,4 +1975,4 @@ function util_test() {
 }
 exports.default = util_test;
 
-},{"./assert":3,"./util":20}]},{},[17]);
+},{"./assert":3,"./util":18}]},{},[15]);

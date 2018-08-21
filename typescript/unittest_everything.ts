@@ -7,7 +7,7 @@ import {HmacCounterByteSource_test} from './HmacCounterByteSource_test'
 import bcrypt_test from './bcrypt_test'
 import parallel_bcrypt_test from './parallel_bcrypt_test'
 import {execute_parallel_bcrypt_webworkers_test} from './execute_parallel_bcrypt_webworkers_test';
-import {calcpass2017a_test} from './calcpass2017a_test'
+//import {calcpass2017a_test} from './calcpass2017a_test'
 
 async function run_tests() {
 	assert_test();
@@ -37,9 +37,9 @@ async function run_tests() {
 	await execute_parallel_bcrypt_webworkers_test();
 	console.log('execute_parallel_bcrypt_webworkers_test PASS');
 
-	console.log('Testing calcpass2017a...');
-	await calcpass2017a_test();
-	console.log('calcpass2017a PASS');
+	//console.log('Testing calcpass2017a...');
+	//await calcpass2017a_test();
+	//console.log('calcpass2017a PASS');
 
 	console.log('\nAll tests PASS');
 }
