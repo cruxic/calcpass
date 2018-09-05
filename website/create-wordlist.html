@@ -14,12 +14,21 @@ body {
 
 /*Credit card dimensions: 85.60 × 53.98 mm*/
 
-div.card0, div.card1, div.card2, div.card3 {
+#card0, #card1, #card2, #card3 {
 	font-family: sans-serif;
-	border: 1px solid black;
+	/*border: 1px solid black;*/
 	width: 55mm;
 	display: inline-block;
 }
+
+#card0, #card1 {
+	border-right: 1px dashed black;
+}
+
+#card0, #card2 {
+	border-bottom: 1px dashed black;
+}
+
 
 div.num {
 	font-size: 2.75mm;
@@ -38,11 +47,21 @@ div.cell {
 }
 
 div.row {
-	height: 4.25mm;
+	height: 4.0mm;
 	font-size: 3.5mm;
 	font-family: sans-serif;
 	width: 55mm;
 	vertical-align: middle;
+}
+
+div.header {
+	font-size: 2.75mm;
+	font-weight: bold;
+}
+
+div.title {
+	font-size: 2.75mm;
+	text-align: center;	
 }
 
 div.even {
@@ -64,7 +83,9 @@ div.odd {
 </head>
 <body>
 
-<div id="cards"></div>
+<div id="card0"></div><div id="card2"></div>
+<br/>
+<div id="card1"></div><div id="card3"></div>
 
 </body>
 </html>

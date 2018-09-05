@@ -30,6 +30,77 @@ class SecureRandomByteSource {
 	}
 }
 
+function makeCardRows(words: Array<string>): Array<string> {
+	let rowNum = 1;
+	let rows = new Array<string>();
+
+	let footer = '<div class="row odd title">' +
+		'Adam B. 2018 (Type 1)' +
+		'</div>';
+	rows.push(footer);
+	
+
+	let header = '<div class="row even header">' +
+		'<div class="num">#</div>' +
+		'<div class="cell">A</div>' +
+		'<div class="cell">B</div>' +
+		'<div class="cell">C</div>' +
+		'</div>';
+	rows.push(header);
+	
+	let i = 0;
+	let j, tmp, rowClass, html;
+	var w;
+	while (i < words.length) {
+		//Take 3 words
+		w = ['', '', ''];
+		for (j = 0; j < 3 && i < words.length; j++) {
+			w[j] = words[i];
+			i++;
+		}
+
+		//alternate row background color
+		rowClass = (rowNum & 1) ? 'odd' : 'even';
+		if (rowNum < 10)
+			tmp = '0' + rowNum;
+		else
+			tmp = '' + rowNum;
+		rowNum++;
+			
+		html = `<div class="row ${rowClass}"><div class="num">${tmp}</div>`;
+
+		for (j = 0; j < 3; j++) {
+			html += `<div class="cell">${w[j]}</div>`;			
+		}
+
+		html += '</div>';
+
+		rows.push(html);
+	}
+
+	return rows;
+}
+
+function makeCards(rows: Array<string>, nPerCard: number): Array<string> {
+	let cards = new Array<string>();
+
+	let i = 0;
+	let n, lines;
+	while (i < rows.length) {
+		n = rows.length - i;
+		if (n > nPerCard)
+			n = nPerCard;
+			
+		lines = rows.slice(i, i+n).join('\n');
+		
+		cards.push(lines);
+
+		i += n;
+	}
+
+	return cards;
+}
+
 function onLoad() {
 	console.log('Onload!');
 
@@ -46,54 +117,13 @@ function onLoad() {
 
 	//console.log(hex.encode(R));
 
-	var elm = document.getElementById('cards');
+	let cards = makeCards(makeCardRows(words), 22);
 
-	var html = '<div class="card0">';
-
-	let i = 0;
-	let j = 0;
-	var w, tmp, rowClass;
-	let row = 1;
-	let cardN = 1;
-	let N = 0;
-	
-	while (i < words.length) {
-		w = ['', '', ''];
-		for (j = 0; j < 3 && i < words.length; j++) {
-			w[j] = words[i];
-			i++;
-		}
-
-		rowClass = (row & 1) ? 'odd' : 'even';
-		if (row < 10)
-			tmp = '0' + row;
-		else
-			tmp = '' + row;
-		row++;
-			
-		html += `<div class="row ${rowClass}"><div class="num">${tmp}</div>`;
-
-		for (j = 0; j < 3; j++) {
-			html += `<div class="cell">${w[j]}</div>`;			
-		}
-
-		html += '</div>';
-		N++;
-
-		if (N == 22) {
-			html += '</div>';
-			if ((cardN & 1) == 0)
-				html += '<br/>';
-			
-			if (i < words.length)
-				html += `<div class="card${cardN}">`;
-			cardN++;
-			N = 0;
-		}
+	let elm;
+	for (let i = 0; i < cards.length; i++) {
+		elm = document.getElementById('card' + i);
+		elm.innerHTML = cards[i];		
 	}
-	
-	
-	elm.innerHTML = html;
 }
 
 
