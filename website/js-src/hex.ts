@@ -1,1 +1,0 @@
-../../typescript/hex.ts
