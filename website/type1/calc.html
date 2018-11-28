@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Calculate - CalcPass</title>
+<script type="text/javascript" src="../js/module-loader.js"></script>
+<script type="text/javascript" src="calc.js"></script>
+<style type="text/css">
+
+body {
+	font-family: sans-serif;
+	margin: 1em;
+}
+
+div.coords {
+	font-weight: bold;
+	font-size: large;	
+}
+
+div.coords span {
+	margin-right: 1em;
+}
+
+#progbarBorder {
+	border: 1px solid black;
+}
+
+#progbar {
+	width: 0px;
+	background-color: #00FF76;
+}
+
+input, button {
+	font-size: large;
+	width: 100%;
+}
+
+
+
+#fields {
+	width: 50%;
+}
+
+
+</style>
+</head>
+<body>
+
+<div id="fields">
+	<input id="txtSite" type="text" placeholder="Website or service name (eg &quot;example.com&quot; or &quot;wifi&quot; or &quot;laptop&quot;)"/>
+	<p>
+	<input id="txtRevision" type="text" placeholder="Revision or user name (optional)"/>
+	<p>
+
+	<input id="coordPass" type="password" placeholder="Coordinate Password"/>
+	<p>
+	<button id="btnGo">Go</button>
+	<div id="progbarBorder"><div id="progbar">0%</div></div>
+	<p>
+	Word Coordinates:
+	<div class="coords">
+		<span>E33</span>
+		<span>T34</span>
+		<span>S55</span>
+		<span>X19</span>
+	</div>
+</div>
+<textarea id="log"></textarea>
+
+
+</body>
+</html>
