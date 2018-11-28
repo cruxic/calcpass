@@ -37,7 +37,7 @@ export default function parallel_bcrypt_test() {
 	let salt = new Uint8Array([0x71,0xd7,0x9f,0x82,0x18,0xa3,0x92,0x59,0xa7,0xa2,0x9a,0xab,0xb2,0xdb,0xaf,0xc3]); 
 
 	//this result was verified with PHP's bcrypt
-	let expect = "2c70a99f125eaa36561e97f0c9d215e099ab991116ceda19b7c3c93c669ebe7e";
+	let expect = "50bec3b110e540afb4e35ee4fb657a7c7a7187916763a78851418605daa25f8a";
 	
 	let pass = stringToUTF8("Super Secret Password");
 	let hash = parallel_bcrypt.hashWithSingleThread(4, pass, salt, 5);

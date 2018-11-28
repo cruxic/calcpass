@@ -1056,12 +1056,19 @@ define("parallel_bcrypt", ["require", "exports", "bcrypt", "utf8", "sha256", "he
         return hex.encode(threadPassword);
     }
     exports.createDistinctThreadPassword = createDistinctThreadPassword;
-    function bcryptDistinctHex(distinctThreadPasswordAsHex, salt, cost, progressCallback) {
-        checkParams(new Uint8Array([1]), salt, cost);
+    function createDistinctThreadSalt(threadIndex, originalSalt) {
+        if (originalSalt.length != bcrypt.saltSize)
+            throw new Error("wrong originalSalt length!");
+        var newSalt = sha256.hmac(originalSalt, new Uint8Array([threadIndex + 1]));
+        return newSalt.slice(0, bcrypt.saltSize);
+    }
+    exports.createDistinctThreadSalt = createDistinctThreadSalt;
+    function bcryptDistinctHex(distinctThreadPasswordAsHex, distinctThreadSalt, cost, progressCallback) {
+        checkParams(new Uint8Array([1]), distinctThreadSalt, cost);
         if (distinctThreadPasswordAsHex.length !== 64)
             throw new Error('Invalid distinctThreadPasswordAsHex');
         //Hash it!
-        var hash64 = bcrypt.bcrypt(utf8_1.stringToUTF8(distinctThreadPasswordAsHex), salt, cost, progressCallback);
+        var hash64 = bcrypt.bcrypt(utf8_1.stringToUTF8(distinctThreadPasswordAsHex), distinctThreadSalt, cost, progressCallback);
         if (hash64.length != 60)
             throw new Error("bcrypt returned wrong size");
         //remove the salt and cost prefix (first 29 chars)
@@ -1069,13 +1076,14 @@ define("parallel_bcrypt", ["require", "exports", "bcrypt", "utf8", "sha256", "he
         return hash64;
     }
     exports.bcryptDistinctHex = bcryptDistinctHex;
-    /**Do both createDistinctThreadPassword() and bcryptDistinctHex()*/
+    /**Do createDistinctThreadPassword(), createDistinctThreadSalt() and then bcryptDistinctHex()*/
     function hashThread(threadIndex, plaintextPassword, salt, cost) {
         checkParams(plaintextPassword, salt, cost);
         if (threadIndex < 0)
             throw new Error('Negative threadIndex');
         var threadPasswordHex = createDistinctThreadPassword(threadIndex, plaintextPassword);
-        return bcryptDistinctHex(threadPasswordHex, salt, cost);
+        var threadSalt = createDistinctThreadSalt(threadIndex, salt);
+        return bcryptDistinctHex(threadPasswordHex, threadSalt, cost);
     }
     exports.hashThread = hashThread;
     /**
@@ -1120,19 +1128,24 @@ define("parallel-bcrypt-webworker", ["require", "exports", "parallel_bcrypt", "h
     self.onmessage = function (e) {
         if (e.data.START) {
             var threadIndex_1 = e.data.threadIndex;
+            var jobNum_1 = e.data.jobNum;
             var distinctThreadPasswordAsHex = e.data.distinctThreadPasswordAsHex;
             if (distinctThreadPasswordAsHex.length != 64)
                 throw new Error('Invalid distinctThreadPasswordAsHex');
-            var salt = hex.decode(e.data.saltHex);
+            var distinctSaltHex = e.data.distinctSaltHex;
+            if (distinctSaltHex.length != 32)
+                throw new Error('Invalid distinctSaltHex');
+            var distinctSalt = hex.decode(distinctSaltHex);
             var cost = e.data.cost;
             var progressFunc = function (percent) {
-                postMessage({ PROGRESS: true, percent: percent, threadIndex: threadIndex_1 });
+                postMessage({ PROGRESS: true, percent: percent, threadIndex: threadIndex_1, jobNum: jobNum_1 });
             };
             if (!e.data.reportProgress)
                 progressFunc = null;
-            var hash = parallel_bcrypt.bcryptDistinctHex(distinctThreadPasswordAsHex, salt, cost, progressFunc);
-            postMessage({ DONE: true, threadIndex: threadIndex_1, hash: hash });
-            //done with this thread
+            var hash = parallel_bcrypt.bcryptDistinctHex(distinctThreadPasswordAsHex, distinctSalt, cost, progressFunc);
+            postMessage({ DONE: true, threadIndex: threadIndex_1, hash: hash, jobNum: jobNum_1 });
+        }
+        else if (e.data.SHUTDOWN) {
             self.close();
         }
         else

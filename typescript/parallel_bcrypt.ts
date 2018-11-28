@@ -21,14 +21,22 @@ export function createDistinctThreadPassword(threadIndex:number, plaintextPasswo
 	return hex.encode(threadPassword);
 }
 
-export function bcryptDistinctHex(distinctThreadPasswordAsHex:string, salt:Uint8Array, cost:number,
+export function createDistinctThreadSalt(threadIndex:number, originalSalt:Uint8Array): Uint8Array {
+	if (originalSalt.length != bcrypt.saltSize)
+		throw new Error("wrong originalSalt length!");
+	let newSalt = sha256.hmac(originalSalt, new Uint8Array([threadIndex + 1]));
+	return newSalt.slice(0, bcrypt.saltSize);
+}
+
+
+export function bcryptDistinctHex(distinctThreadPasswordAsHex:string, distinctThreadSalt:Uint8Array, cost:number,
 	progressCallback?:(percent:number)=>void): string {
-	checkParams(new Uint8Array([1]), salt, cost);
+	checkParams(new Uint8Array([1]), distinctThreadSalt, cost);
 	if (distinctThreadPasswordAsHex.length !== 64)
 		throw new Error('Invalid distinctThreadPasswordAsHex');
-
+		
 	//Hash it!
-	let hash64 = bcrypt.bcrypt(stringToUTF8(distinctThreadPasswordAsHex), salt, cost, progressCallback);
+	let hash64 = bcrypt.bcrypt(stringToUTF8(distinctThreadPasswordAsHex), distinctThreadSalt, cost, progressCallback);
 
 	if (hash64.length != 60)
 		throw new Error("bcrypt returned wrong size");
@@ -39,15 +47,16 @@ export function bcryptDistinctHex(distinctThreadPasswordAsHex:string, salt:Uint8
 	return hash64;
 }
 
-/**Do both createDistinctThreadPassword() and bcryptDistinctHex()*/
+/**Do createDistinctThreadPassword(), createDistinctThreadSalt() and then bcryptDistinctHex()*/
 export function hashThread(threadIndex:number, plaintextPassword:Uint8Array, salt:Uint8Array, cost:number): string {
 	checkParams(plaintextPassword, salt, cost);
 	if (threadIndex < 0)
 		throw new Error('Negative threadIndex');
 
 	let threadPasswordHex = createDistinctThreadPassword(threadIndex, plaintextPassword);
+	let threadSalt = createDistinctThreadSalt(threadIndex, salt);
 
-	return bcryptDistinctHex(threadPasswordHex, salt, cost);
+	return bcryptDistinctHex(threadPasswordHex, threadSalt, cost);
 }
 
 

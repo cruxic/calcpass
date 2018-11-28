@@ -1,9 +1,12 @@
-/**This is the script which is spawned as a "thread" in using Web Workers
-(https://developer.mozilla.org/en-US/docs/Web/API/Worker)
-to calculate a parallel_bcrypt hash.
+/**
+	This is the script which is spawned as a "thread" using Web Workers
+	to calculate a parallel_bcrypt hash.
 
-Use execute_parallel_bcrypt_webworkers() to spawn the workers and calculate
-the final hash.
+	(https://developer.mozilla.org/en-US/docs/Web/API/Worker)
+
+
+	Use execute_parallel_bcrypt_webworkers() to spawn the workers and calculate
+	the final hash.
 */
 import * as parallel_bcrypt from './parallel_bcrypt'
 import * as hex from './hex'
@@ -15,26 +18,30 @@ declare function postMessage(obj:any);
 self.onmessage = function(e) {
 	if (e.data.START) {
 		let threadIndex:number = e.data.threadIndex;
+		let jobNum = e.data.jobNum;
 
 		let distinctThreadPasswordAsHex:string = e.data.distinctThreadPasswordAsHex;
 		if (distinctThreadPasswordAsHex.length != 64)
 			throw new Error('Invalid distinctThreadPasswordAsHex');
+		let distinctSaltHex:string = e.data.distinctSaltHex;
+		if (distinctSaltHex.length != 32)
+			throw new Error('Invalid distinctSaltHex');
 
-		let salt = hex.decode(e.data.saltHex);
+		let distinctSalt = hex.decode(distinctSaltHex);
 		let cost:number = e.data.cost;
 
 		let progressFunc = (percent:number) => {
-			postMessage({PROGRESS:true, percent:percent, threadIndex:threadIndex});
+			postMessage({PROGRESS:true, percent:percent, threadIndex:threadIndex, jobNum:jobNum});
 		};
 
 		if (!e.data.reportProgress)
 			progressFunc = null;
 
-		let hash = parallel_bcrypt.bcryptDistinctHex(distinctThreadPasswordAsHex, salt, cost, progressFunc);
+		let hash = parallel_bcrypt.bcryptDistinctHex(distinctThreadPasswordAsHex, distinctSalt, cost, progressFunc);
 
-		postMessage({DONE:true, threadIndex:threadIndex, hash:hash});
-
-		//done with this thread
+		postMessage({DONE:true, threadIndex:threadIndex, hash:hash, jobNum:jobNum});
+	}
+	else if (e.data.SHUTDOWN) {
 		self.close();
 	}
 	else

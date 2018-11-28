@@ -32,10 +32,10 @@ function parallel_bcrypt($nThreads, $pass, $salt, $cost) {
 	if (strlen($salt) != 16)
 		throw new Exception("wrong salt length");
 
-
 	$hashes = "";
 	for ($i = 0; $i < $nThreads; $i++) {
-		$hashes .= _parallel_bcrypt_thread($i, $pass, $salt, $cost);
+		$h = _parallel_bcrypt_thread($i, $pass, $salt, $cost);
+		$hashes .= $h;
 	}
 
 	return hash("sha256", $hashes, true);
@@ -67,8 +67,11 @@ function test2() {
 
 function test3() {
 	$salt = hex2bin("71d79f8218a39259a7a29aabb2dbafc3");
+	
+	for ($i = 1; $i <= 8; $i++) {
+		printf("\"%s\", //%d threads\n", bin2hex(parallel_bcrypt($i, "Super Secret Password", $salt, 5)), $i);
+	}
 
-	printf("parallel_bcrypt: %s\n", bin2hex(parallel_bcrypt(4, "Super Secret Password", $salt, 5)));
 }
 
 test3();

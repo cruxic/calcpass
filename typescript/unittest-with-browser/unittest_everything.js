@@ -13,8 +13,8 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
     function step(op) {
         if (f) throw new TypeError("Generator is already executing.");
         while (_) try {
-            if (f = 1, y && (t = y[op[0] & 2 ? "return" : op[0] ? "throw" : "next"]) && !(t = t.call(y, op[1])).done) return t;
-            if (y = 0, t) op = [0, t.value];
+            if (f = 1, y && (t = op[0] & 2 ? y["return"] : op[0] ? y["throw"] || ((t = y["return"]) && t.call(y), 0) : y.next) && !(t = t.call(y, op[1])).done) return t;
+            if (y = 0, t) op = [op[0] & 2, t.value];
             switch (op[0]) {
                 case 0: case 1: t = op; break;
                 case 4: _.label++; return { value: op[1], done: false };
@@ -1621,12 +1621,19 @@ define("parallel_bcrypt", ["require", "exports", "bcrypt", "utf8", "sha256", "he
         return hex.encode(threadPassword);
     }
     exports.createDistinctThreadPassword = createDistinctThreadPassword;
-    function bcryptDistinctHex(distinctThreadPasswordAsHex, salt, cost, progressCallback) {
-        checkParams(new Uint8Array([1]), salt, cost);
+    function createDistinctThreadSalt(threadIndex, originalSalt) {
+        if (originalSalt.length != bcrypt.saltSize)
+            throw new Error("wrong originalSalt length!");
+        var newSalt = sha256.hmac(originalSalt, new Uint8Array([threadIndex + 1]));
+        return newSalt.slice(0, bcrypt.saltSize);
+    }
+    exports.createDistinctThreadSalt = createDistinctThreadSalt;
+    function bcryptDistinctHex(distinctThreadPasswordAsHex, distinctThreadSalt, cost, progressCallback) {
+        checkParams(new Uint8Array([1]), distinctThreadSalt, cost);
         if (distinctThreadPasswordAsHex.length !== 64)
             throw new Error('Invalid distinctThreadPasswordAsHex');
         //Hash it!
-        var hash64 = bcrypt.bcrypt(utf8_3.stringToUTF8(distinctThreadPasswordAsHex), salt, cost, progressCallback);
+        var hash64 = bcrypt.bcrypt(utf8_3.stringToUTF8(distinctThreadPasswordAsHex), distinctThreadSalt, cost, progressCallback);
         if (hash64.length != 60)
             throw new Error("bcrypt returned wrong size");
         //remove the salt and cost prefix (first 29 chars)
@@ -1634,13 +1641,14 @@ define("parallel_bcrypt", ["require", "exports", "bcrypt", "utf8", "sha256", "he
         return hash64;
     }
     exports.bcryptDistinctHex = bcryptDistinctHex;
-    /**Do both createDistinctThreadPassword() and bcryptDistinctHex()*/
+    /**Do createDistinctThreadPassword(), createDistinctThreadSalt() and then bcryptDistinctHex()*/
     function hashThread(threadIndex, plaintextPassword, salt, cost) {
         checkParams(plaintextPassword, salt, cost);
         if (threadIndex < 0)
             throw new Error('Negative threadIndex');
         var threadPasswordHex = createDistinctThreadPassword(threadIndex, plaintextPassword);
-        return bcryptDistinctHex(threadPasswordHex, salt, cost);
+        var threadSalt = createDistinctThreadSalt(threadIndex, salt);
+        return bcryptDistinctHex(threadPasswordHex, threadSalt, cost);
     }
     exports.hashThread = hashThread;
     /**
@@ -1705,7 +1713,7 @@ define("parallel_bcrypt_test", ["require", "exports", "assert", "bcrypt", "paral
         //"abcdefghijklmnopqrstuu" as bcrypt-base64
         var salt = new Uint8Array([0x71, 0xd7, 0x9f, 0x82, 0x18, 0xa3, 0x92, 0x59, 0xa7, 0xa2, 0x9a, 0xab, 0xb2, 0xdb, 0xaf, 0xc3]);
         //this result was verified with PHP's bcrypt
-        var expect = "2c70a99f125eaa36561e97f0c9d215e099ab991116ceda19b7c3c93c669ebe7e";
+        var expect = "50bec3b110e540afb4e35ee4fb657a7c7a7187916763a78851418605daa25f8a";
         var pass = utf8_4.stringToUTF8("Super Secret Password");
         var hash = parallel_bcrypt.hashWithSingleThread(4, pass, salt, 5);
         assert.equal(hash.length, 32);
@@ -1713,146 +1721,407 @@ define("parallel_bcrypt_test", ["require", "exports", "assert", "bcrypt", "paral
     }
     exports.default = parallel_bcrypt_test;
 });
-/**Spawn Web Worker threads to compute part of the parallel bcrypt hash.*/
-define("execute_parallel_bcrypt_webworkers", ["require", "exports", "parallel_bcrypt", "hex"], function (require, exports, parallel_bcrypt, hex) {
+/**Spawn Web Worker threads to compute the parallel bcrypt hash.
+
+(https://developer.mozilla.org/en-US/docs/Web/API/Worker)
+*/
+define("ParallelBcryptWorkers", ["require", "exports", "parallel_bcrypt", "hex", "utf8"], function (require, exports, parallel_bcrypt, hex, utf8_5) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
-    function execute_parallel_bcrypt_webworkers(numThreads, plaintextPassword, salt, cost, progressCallback) {
-        return __awaiter(this, void 0, void 0, function () {
-            var threadPasswords, i, saltHex, promiseCallbacks, promise, failed, nWorkersDone, workerHashes, lastReportedPercent, onAllWorkersDone, onMessageFromWorker, onErrorFromWorker, workers, randint, _loop_1, msg;
-            return __generator(this, function (_a) {
-                threadPasswords = new Array(numThreads);
-                for (i = 0; i < numThreads; i++) {
-                    threadPasswords[i] = parallel_bcrypt.createDistinctThreadPassword(i, plaintextPassword);
-                }
-                saltHex = hex.encode(salt);
-                promiseCallbacks = {
-                    resolve: null,
-                    reject: null
+    /**
+    Spawns the WebWorkers which can be used repeatedly to calculate
+    parallel-bcrypt hashes.
+    */
+    var ParallelBcryptWorkers = /** @class */ (function () {
+        /*Spawn the workers.  It's a good idea to call selftest() afterwards to
+        ensure they are alive and functional.
+        
+        @param numWorkerThreads is the number of threads which are used to
+          calculate the hash.  Changing this number changes the hash result!
+        */
+        function ParallelBcryptWorkers(numWorkerThreads, workerScriptURI) {
+            var _this = this;
+            if (!(numWorkerThreads > 0 && numWorkerThreads < 32))
+                throw Error('numWorkerThreads out of range');
+            this.workers = new Array(numWorkerThreads);
+            this.workerHashes = new Array(numWorkerThreads);
+            this.progressCallback = ignoreProgress;
+            this.lastReportedPercent = 0.0;
+            this.failed = false;
+            this.jobNum = 0;
+            var _loop_1 = function (i) {
+                var worker = new Worker(workerScriptURI);
+                worker.onmessage = function (e) {
+                    _this._onMessageFromWorker(worker, e);
                 };
-                promise = new Promise(function (resolve, reject) {
-                    promiseCallbacks.resolve = resolve;
-                    promiseCallbacks.reject = reject;
+                worker.onerror = function (err) {
+                    _this._onErrorFromWorker(worker, err);
+                };
+                this_1.workers[i] = worker;
+            };
+            var this_1 = this;
+            //Create each worker
+            for (var i = 0; i < this.workers.length; i++) {
+                _loop_1(i);
+            }
+            this.nWorkersDone = numWorkerThreads;
+        }
+        /*
+        Calculate parallel-bcrypt.
+        */
+        ParallelBcryptWorkers.prototype.execute = function (plaintextPassword, salt, cost) {
+            return __awaiter(this, void 0, void 0, function () {
+                var numThreads, threadPasswords, threadSaltsHex, i, promise, msg;
+                var _this = this;
+                return __generator(this, function (_a) {
+                    //failed flag implies a non-recoverable error
+                    if (this.failed)
+                        throw Error('ParallelBcryptWorkers: previous invokation failed');
+                    //assume we will throw an exception before reaching return below.
+                    this.failed = true;
+                    if (this.nWorkersDone != this.workers.length) {
+                        throw Error('ParallelBcryptWorkers: previous calculation did not complete!');
+                    }
+                    numThreads = this.workers.length;
+                    threadPasswords = new Array(numThreads);
+                    threadSaltsHex = new Array(numThreads);
+                    for (i = 0; i < numThreads; i++) {
+                        threadPasswords[i] = parallel_bcrypt.createDistinctThreadPassword(i, plaintextPassword);
+                        threadSaltsHex[i] = hex.encode(parallel_bcrypt.createDistinctThreadSalt(i, salt));
+                        this.workerHashes[i] = '';
+                    }
+                    this.promiseCallbacks = new PromiseCallbacks();
+                    promise = new Promise(function (resolve, reject) {
+                        _this.promiseCallbacks.resolve = resolve;
+                        _this.promiseCallbacks.reject = reject;
+                    });
+                    this.nWorkersDone = 0;
+                    this.lastReportedPercent = 0.0;
+                    this.jobNum++;
+                    //Start each worker
+                    for (i = 0; i < numThreads; i++) {
+                        msg = {
+                            START: true,
+                            threadIndex: i,
+                            distinctThreadPasswordAsHex: threadPasswords[i],
+                            distinctSaltHex: threadSaltsHex[i],
+                            cost: cost,
+                            jobNum: this.jobNum,
+                            //only request progress from the last thread.
+                            //this avoids excessive thread messaging which
+                            //shaves off about 200ms on my (slow) laptop.
+                            //I'm assuming that the last thread launched will
+                            //usually be the last to finish.
+                            reportProgress: i == (numThreads - 1),
+                        };
+                        this.workers[i].postMessage(msg);
+                    }
+                    //success
+                    this.failed = false;
+                    return [2 /*return*/, promise];
                 });
-                failed = false;
-                nWorkersDone = 0;
-                workerHashes = new Array(numThreads);
-                lastReportedPercent = 0.0;
-                onAllWorkersDone = function () {
-                    var finalHash;
-                    try {
-                        finalHash = parallel_bcrypt.combineThreadHashes(workerHashes);
-                        progressCallback(1.0);
-                    }
-                    catch (e) {
-                        failed = true;
-                        promiseCallbacks.reject(e);
-                        return;
-                    }
-                    promiseCallbacks.resolve(finalHash);
-                };
-                onMessageFromWorker = function (workerInstance, e) {
-                    if (!failed) {
-                        var threadIndex = e.data.threadIndex;
-                        if (e.data.PROGRESS) {
-                            var percent = e.data.percent * 0.99; //reserve the last percent for combineThreadHashes()
-                            //report the average percent
-                            //threadPercents[threadIndex] = percent;
-                            //let avg = 0.0;
-                            //let i:number;
-                            //for (i = 0; i < threadPercents.length; i++)
-                            //	avg += threadPercents[i];
-                            //percent = avg / threadPercents.length;
-                            //avoid excessive progress reports - only report in 2% increments
-                            if (percent - lastReportedPercent >= 0.02 || percent >= 1.0) {
-                                progressCallback(percent);
-                                lastReportedPercent = percent;
-                            }
-                        }
-                        else if (e.data.DONE) {
-                            workerHashes[threadIndex] = e.data.hash;
-                            nWorkersDone++;
-                            //All are done?
-                            if (nWorkersDone == numThreads)
-                                onAllWorkersDone();
-                        }
-                    }
-                };
-                onErrorFromWorker = function (workerInstance, error) {
-                    //only reject upon the first error
-                    if (!failed) {
-                        failed = true;
-                        var msg = 'parallel bcrypt worker failed: ' + error.message +
-                            ' (line ' + error.lineno + ' of ' + error.filename + ')';
-                        promiseCallbacks.reject(msg);
-                    }
-                };
-                workers = new Array(numThreads);
-                randint = Math.floor(Math.random() * 10000000);
-                _loop_1 = function () {
-                    var worker = new Worker('parallel-bcrypt-webworker.js?cachebust=' + randint);
-                    worker.onmessage = function (e) {
-                        onMessageFromWorker(worker, e);
-                    };
-                    worker.onerror = function (err) {
-                        onErrorFromWorker(worker, err);
-                    };
-                    workers[i] = worker;
-                };
-                for (i = 0; i < numThreads; i++) {
-                    _loop_1();
-                }
-                //Start each worker
-                for (i = 0; i < numThreads; i++) {
-                    msg = {
-                        START: true,
-                        threadIndex: i,
-                        distinctThreadPasswordAsHex: threadPasswords[i],
-                        saltHex: saltHex,
-                        cost: cost,
-                        //only request progress from the last thread.
-                        //this avoids excessive thread messaging which
-                        //shaves off about 200ms on my (slow) laptop.
-                        //I'm assuming that the last thread launched will
-                        //usually be the last to finish.
-                        reportProgress: i == (numThreads - 1),
-                    };
-                    workers[i].postMessage(msg);
-                }
-                return [2 /*return*/, promise];
             });
+        };
+        ParallelBcryptWorkers.prototype.selftest = function () {
+            return __awaiter(this, void 0, void 0, function () {
+                var salt, pass, hash, hashHex, nThreads, expect;
+                return __generator(this, function (_a) {
+                    switch (_a.label) {
+                        case 0:
+                            salt = new Uint8Array([0x71, 0xd7, 0x9f, 0x82, 0x18, 0xa3, 0x92, 0x59, 0xa7, 0xa2, 0x9a, 0xab, 0xb2, 0xdb, 0xaf, 0xc3]);
+                            pass = utf8_5.stringToUTF8("Super Secret Password");
+                            return [4 /*yield*/, this.execute(pass, salt, 5)];
+                        case 1:
+                            hash = _a.sent();
+                            hashHex = hex.encode(hash);
+                            nThreads = this.workers.length;
+                            expect = [
+                                "8d05d293905269237c122e14e29ebaf9146ad05770614c30dc9495c4c737a3e5",
+                                "8a3554118be10cb0f01c54bae7e97a98ecaf29905c1cb0f7f3fb6cb04849a594",
+                                "9793319bf71161467b20dabb55e0704b7478b095d2ab3442f80bb3273bd4e5f2",
+                                "50bec3b110e540afb4e35ee4fb657a7c7a7187916763a78851418605daa25f8a",
+                                "6eaa8205c036367e3cb44951d41bb9bd0d11ec589c54965f4427935dfcf46e20",
+                                "987cda7ea4937c11c51a915dc9fe38bfcda3aa993ee7c414816cb1d5f7261fc8",
+                                "3b5d9135aeb23961159e15a7fd8893f3aba42e37622bfb20c54af0ce1a329fb1",
+                                "098ba6a0e4d0bb9a89f401bbe7b859c0bbc2f21ed82c58704602fb9ccfe9a978",
+                            ];
+                            if (nThreads <= expect.length) {
+                                if (hashHex != expect[nThreads - 1]) {
+                                    console.log('Got hash ' + hashHex);
+                                    console.log('Expected ' + expect[nThreads - 1]);
+                                    throw Error('ParallelBcryptWorkers.selftest produced wrong hash!');
+                                }
+                            }
+                            else {
+                                console.log('ParallelBcryptWorkers.selftest: correct hash for ' + nThreads + ' threads is unknown.');
+                                return [2 /*return*/];
+                            }
+                            return [2 /*return*/];
+                    }
+                });
+            });
+        };
+        /**
+        Ask the worker threads to quit.
+        */
+        ParallelBcryptWorkers.prototype.shutdown = function () {
+            //prevent further usage of this class
+            this.failed = true;
+            var msg = { SHUTDOWN: true };
+            for (var i = 0; i < this.workers.length; i++) {
+                this.workers[i].postMessage(msg);
+            }
+        };
+        //called when the worker sends a message via postMessage()
+        ParallelBcryptWorkers.prototype._onMessageFromWorker = function (workerInstance, e) {
+            if (!this.failed) {
+                var threadIndex = e.data.threadIndex;
+                //validate job number
+                if (e.data.jobNum !== this.jobNum) {
+                    this.failed = true;
+                    this.promiseCallbacks.reject('worker gave wrong jobNum!');
+                    return;
+                }
+                if (e.data.PROGRESS) {
+                    var percent = e.data.percent * 0.99; //reserve the last percent for combineThreadHashes()
+                    //avoid excessive progress reports - only report in 2% increments
+                    if (percent - this.lastReportedPercent >= 0.02 || percent >= 1.0) {
+                        this.progressCallback(percent);
+                        this.lastReportedPercent = percent;
+                    }
+                }
+                else if (e.data.DONE) {
+                    this.workerHashes[threadIndex] = e.data.hash;
+                    this.nWorkersDone++;
+                    //All are done?
+                    if (this.nWorkersDone == this.workers.length)
+                        this._onAllWorkersDone();
+                }
+            }
+        };
+        ParallelBcryptWorkers.prototype._onAllWorkersDone = function () {
+            var finalHash;
+            try {
+                finalHash = parallel_bcrypt.combineThreadHashes(this.workerHashes);
+                this.progressCallback(1.0);
+            }
+            catch (e) {
+                this.failed = true;
+                this.promiseCallbacks.reject(e);
+                return;
+            }
+            //Success!
+            this.promiseCallbacks.resolve(finalHash);
+            this.promiseCallbacks = null;
+        };
+        //called when the worker throws an exception
+        ParallelBcryptWorkers.prototype._onErrorFromWorker = function (workerInstance, error) {
+            //only reject upon the first error
+            if (!this.failed) {
+                this.failed = true;
+                var msg = 'parallel bcrypt worker failed: ' + error.message +
+                    ' (line ' + error.lineno + ' of ' + error.filename + ')';
+                this.promiseCallbacks.reject(msg);
+            }
+        };
+        return ParallelBcryptWorkers;
+    }());
+    exports.ParallelBcryptWorkers = ParallelBcryptWorkers;
+    /*
+    export async function execute_parallel_bcrypt_webworkers(numThreads:number,
+        plaintextPassword:Uint8Array, salt:Uint8Array, cost:number,
+        progressCallback:(percent:number)=>void): Promise<Uint8Array> {
+    
+        //I don't wish to send the plain text to each spawned worker because it might be inter-process-communication
+        // and I don't know how secure the messaging is.  Instead I'll compute the distinct thread passwords here
+        // and send those.
+        let threadPasswords = new Array(numThreads);
+        let i:number;
+        for (i = 0; i < numThreads; i++) {
+            threadPasswords[i] = parallel_bcrypt.createDistinctThreadPassword(i, plaintextPassword);
+        }
+    
+        let saltHex = hex.encode(salt);
+        
+        let promiseCallbacks = {
+            resolve: null,
+            reject: null
+        };
+    
+        let promise = new Promise<Uint8Array>((resolve, reject) => {
+            promiseCallbacks.resolve = resolve;
+            promiseCallbacks.reject = reject;
         });
+    
+        let failed = false;
+        let nWorkersDone = 0;
+        let workerHashes = new Array(numThreads);
+        let lastReportedPercent = 0.0;
+        
+        //let threadPercents = new Array(numThreads);
+        //for (i = 0; i < numThreads; i++)
+        //	threadPercents[i] = 0.0;
+            
+    
+        let onAllWorkersDone = function() {
+            let finalHash:Uint8Array;
+            try {
+                finalHash = parallel_bcrypt.combineThreadHashes(workerHashes);
+                progressCallback(1.0);
+            }
+            catch (e) {
+                failed = true;
+                promiseCallbacks.reject(e);
+                return;
+            }
+    
+            promiseCallbacks.resolve(finalHash);
+        };
+    
+        //called when the worker sends a message via postMessage()
+        let onMessageFromWorker = function(workerInstance, e) {
+            if (!failed) {
+                let threadIndex:number = e.data.threadIndex;
+                
+                if (e.data.PROGRESS) {
+                    let percent:number = e.data.percent * 0.99;  //reserve the last percent for combineThreadHashes()
+    
+                    //report the average percent
+                    //threadPercents[threadIndex] = percent;
+                    //let avg = 0.0;
+                    //let i:number;
+                    //for (i = 0; i < threadPercents.length; i++)
+                    //	avg += threadPercents[i];
+                    //percent = avg / threadPercents.length;
+    
+                    //avoid excessive progress reports - only report in 2% increments
+                    if (percent - lastReportedPercent >= 0.02 || percent >= 1.0) {
+                        progressCallback(percent);
+                        lastReportedPercent = percent;
+                    }
+                } else if (e.data.DONE) {
+                    workerHashes[threadIndex] = e.data.hash;
+                    nWorkersDone++;
+    
+                    //All are done?
+                    if (nWorkersDone == numThreads)
+                        onAllWorkersDone();
+                }
+            }
+        };
+    
+        //called when the worker throws an exception
+        let onErrorFromWorker = function(workerInstance, error) {
+            //only reject upon the first error
+            if (!failed) {
+                failed = true;
+                let msg = 'parallel bcrypt worker failed: ' + error.message +
+                    ' (line ' + error.lineno + ' of ' + error.filename + ')';
+                promiseCallbacks.reject(msg);
+            }
+        };
+    
+    
+        //Create each worker
+        let workers = new Array(numThreads);
+        let randint = Math.floor(Math.random() * 10000000);
+        for (i = 0; i < numThreads; i++) {
+            let worker = new Worker('parallel-bcrypt-webworker.js?cachebust=' + randint);
+            worker.onmessage = (e) => {
+                onMessageFromWorker(worker, e);
+            };
+    
+            worker.onerror = (err) => {
+                onErrorFromWorker(worker, err);
+            };
+    
+            workers[i] = worker;
+        }
+    
+        //Start each worker
+        for (i = 0; i < numThreads; i++) {
+            let msg = {
+                START: true,
+                threadIndex: i,
+                distinctThreadPasswordAsHex: threadPasswords[i],
+                saltHex: saltHex,
+                cost: cost,
+                //only request progress from the last thread.
+                //this avoids excessive thread messaging which
+                //shaves off about 200ms on my (slow) laptop.
+                //I'm assuming that the last thread launched will
+                //usually be the last to finish.
+                reportProgress: i == (numThreads - 1),
+            };
+            workers[i].postMessage(msg);
+        }
+        
+        return promise;
     }
-    exports.execute_parallel_bcrypt_webworkers = execute_parallel_bcrypt_webworkers;
+    */
+    function ignoreProgress(percent) {
+        //nothing
+    }
+    var PromiseCallbacks = /** @class */ (function () {
+        function PromiseCallbacks() {
+            this.resolve = null;
+            this.reject = null;
+        }
+        return PromiseCallbacks;
+    }());
 });
-define("execute_parallel_bcrypt_webworkers_test", ["require", "exports", "assert", "hex", "utf8", "execute_parallel_bcrypt_webworkers"], function (require, exports, assert, hex, utf8_5, execute_parallel_bcrypt_webworkers_1) {
+define("ParallelBcryptWorkers_test", ["require", "exports", "assert", "ParallelBcryptWorkers"], function (require, exports, assert, ParallelBcryptWorkers_1) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
-    function execute_parallel_bcrypt_webworkers_test() {
+    function ParallelBcryptWorkers_test() {
         return __awaiter(this, void 0, void 0, function () {
-            var salt, pass, lastPercent, progFunc, hash;
+            var rand, lastPercent, n, workers_1, workers, i;
             return __generator(this, function (_a) {
                 switch (_a.label) {
                     case 0:
-                        salt = new Uint8Array([0x71, 0xd7, 0x9f, 0x82, 0x18, 0xa3, 0x92, 0x59, 0xa7, 0xa2, 0x9a, 0xab, 0xb2, 0xdb, 0xaf, 0xc3]);
-                        pass = utf8_5.stringToUTF8("Super Secret Password");
+                        rand = new Date().getTime();
                         lastPercent = 0.0;
-                        progFunc = function (percent) {
+                        n = 1;
+                        _a.label = 1;
+                    case 1:
+                        if (!(n <= 8)) return [3 /*break*/, 4];
+                        lastPercent = 0.0;
+                        workers_1 = new ParallelBcryptWorkers_1.ParallelBcryptWorkers(n, 'parallel-bcrypt-webworker.js?cachebust=' + rand);
+                        workers_1.progressCallback = function (percent) {
                             lastPercent = percent;
                         };
-                        return [4 /*yield*/, execute_parallel_bcrypt_webworkers_1.execute_parallel_bcrypt_webworkers(4, pass, salt, 5, progFunc)];
-                    case 1:
-                        hash = _a.sent();
-                        assert.equal(hex.encode(hash), "2c70a99f125eaa36561e97f0c9d215e099ab991116ceda19b7c3c93c669ebe7e");
+                        return [4 /*yield*/, workers_1.selftest()];
+                    case 2:
+                        _a.sent();
                         assert.equal(1.0, lastPercent);
+                        workers_1.shutdown();
+                        _a.label = 3;
+                    case 3:
+                        n++;
+                        return [3 /*break*/, 1];
+                    case 4:
+                        workers = new ParallelBcryptWorkers_1.ParallelBcryptWorkers(3, 'parallel-bcrypt-webworker.js?cachebust=' + rand);
+                        i = 0;
+                        _a.label = 5;
+                    case 5:
+                        if (!(i < 5)) return [3 /*break*/, 8];
+                        return [4 /*yield*/, workers.selftest()];
+                    case 6:
+                        _a.sent();
+                        _a.label = 7;
+                    case 7:
+                        i++;
+                        return [3 /*break*/, 5];
+                    case 8:
+                        workers.shutdown();
                         return [2 /*return*/, new Promise(function (resolve) { resolve(true); })];
                 }
             });
         });
     }
-    exports.execute_parallel_bcrypt_webworkers_test = execute_parallel_bcrypt_webworkers_test;
+    exports.ParallelBcryptWorkers_test = ParallelBcryptWorkers_test;
 });
-define("unittest_everything", ["require", "exports", "assert_test", "util_test", "utf8_test", "hex_test", "sha256_test", "HmacCounterByteSource_test", "bcrypt_test", "parallel_bcrypt_test", "execute_parallel_bcrypt_webworkers_test"], function (require, exports, assert_test_1, util_test_1, utf8_test_1, hex_test_1, sha256_test_1, HmacCounterByteSource_test_1, bcrypt_test_1, parallel_bcrypt_test_1, execute_parallel_bcrypt_webworkers_test_1) {
+define("unittest_everything", ["require", "exports", "assert_test", "util_test", "utf8_test", "hex_test", "sha256_test", "HmacCounterByteSource_test", "bcrypt_test", "parallel_bcrypt_test", "ParallelBcryptWorkers_test"], function (require, exports, assert_test_1, util_test_1, utf8_test_1, hex_test_1, sha256_test_1, HmacCounterByteSource_test_1, bcrypt_test_1, parallel_bcrypt_test_1, ParallelBcryptWorkers_test_1) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     //import {calcpass2017a_test} from './calcpass2017a_test'
@@ -1877,10 +2146,10 @@ define("unittest_everything", ["require", "exports", "assert_test", "util_test",
                         console.log('bcrypt_test PASS');
                         parallel_bcrypt_test_1.default();
                         console.log('parallel_bcrypt_test PASS');
-                        return [4 /*yield*/, execute_parallel_bcrypt_webworkers_test_1.execute_parallel_bcrypt_webworkers_test()];
+                        return [4 /*yield*/, ParallelBcryptWorkers_test_1.ParallelBcryptWorkers_test()];
                     case 1:
                         _a.sent();
-                        console.log('execute_parallel_bcrypt_webworkers_test PASS');
+                        console.log('ParallelBcryptWorkers_test PASS');
                         //console.log('Testing calcpass2017a...');
                         //await calcpass2017a_test();
                         //console.log('calcpass2017a PASS');
