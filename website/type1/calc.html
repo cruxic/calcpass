@@ -3,71 +3,155 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Calculate - CalcPass</title>
+<title>CalcPass Type 1</title>
 <script type="text/javascript" src="../js/module-loader.js"></script>
 <script type="text/javascript" src="calc.js"></script>
 <style type="text/css">
 
 body {
 	font-family: sans-serif;
-	margin: 1em;
+	margin: 0;
+	
+	background-color: white;
+	background:	linear-gradient(90deg, #2A4061 0%, #5770AB 25%, #5770AB 75%, #2A4061 100%);
 }
 
-div.coords {
-	font-weight: bold;
-	font-size: large;	
+a {
+	color: #005DC2;
 }
 
-div.coords span {
-	margin-right: 1em;
-}
 
-#progbarBorder {
-	border: 1px solid black;
-}
-
-#progbar {
-	width: 0px;
-	background-color: #00FF76;
-}
-
-input, button {
+input, #btnGo, select {
+	/*fixes width discrepancy between text inputs and button*/
+	-moz-box-sizing:border-box;
+	-webkit-box-sizing:border-box;
+	box-sizing:border-box;
+	margin: 0;
+	padding: 0;
+	
 	font-size: large;
 	width: 100%;
 }
 
-
-
-#fields {
-	width: 50%;
+input, select {
+	background-color: white;
+	color: black;
+	border: 1px solid #bbbbbb;
+	border-radius: 5px;
+	padding: 4px;
 }
 
+input:focus, select:focus {
+    box-shadow: 0px 0px 5px 0px rgba(25,191,232,1);
+}
+
+
+#btnGo {
+	background-color: #007bff;
+	border: 0;
+	color: white;
+	border-radius: 5px;
+	padding: 6px;
+	font-weight: bold;
+}
+
+#btnGo:hover {
+    background-color: #005ABA;
+}
+
+
+#container {
+	margin-top: 1em;
+	max-width: 600px;
+	border-radius: 10px;
+	padding: 1em;
+	background-color: white;
+	
+	/*box-shadow: 5px 10px #888888;*/
+	box-shadow: 0px 10px 27px 0px rgba(0,0,0,0.75);
+	
+	/*the following two lines center the div on the screen*/
+	margin-left: auto;
+	margin-right: auto;	
+}
+
+
+#loading_anim {
+	display: none;
+	/*center it*/
+	margin-left: auto;
+	margin-right: auto;
+}
+
+/*
+@media only screen and (max-width: 600px) {
+    #container {
+		width: 100%;
+	}
+}
+*/
+
+#results {
+	display: none;
+	text-align: center;
+	
+}
+
+#coords {
+	border-top: 1px solid #888888;
+	border-bottom: 1px solid #888888;
+	padding: 0.5em;
+	margin: 0.5em;
+}
+
+#coords span {
+	margin-right: 1em;
+	font-weight: bold;
+	font-size: x-large;
+}
 
 </style>
 </head>
 <body>
 
-<div id="fields">
-	<input id="txtSite" type="text" placeholder="Website or service name (eg &quot;example.com&quot; or &quot;wifi&quot; or &quot;laptop&quot;)"/>
-	<p>
-	<input id="txtRevision" type="text" placeholder="Revision or user name (optional)"/>
-	<p>
+<div id="container">
+	<div style="text-align: center">
+		<div style="font-size: x-large">CalcPass Type 1</div>
+		<div style="margin-top: 0.25em"><a id="tipsLink" href="#tips">Tips &amp; FAQ</a></div>
+	</div>
 
+	<p>
+	<input id="txtSite" type="text" placeholder="What (eg &quot;example.com&quot; or &quot;wifi&quot; or &quot;laptop&quot;)"/>
+	<p>
+	<input id="txtRevision" type="text" placeholder="Revision number, user name, etc (optional)"/>
+	<p>
 	<input id="coordPass" type="password" placeholder="Coordinate Password"/>
 	<p>
-	<button id="btnGo">Go</button>
-	<div id="progbarBorder"><div id="progbar">0%</div></div>
+		
+	<button id="btnGo">Calculate</button>
 	<p>
-	Word Coordinates:
-	<div class="coords">
-		<span>E33</span>
-		<span>T34</span>
-		<span>S55</span>
-		<span>X19</span>
+	<!-- div id="progbarBorder"><div id="progbar">0%</div></div -->
+	<img id="loading_anim" src="../img/infinity-loading.gif" alt="loading animation"/>
+	
+	<div id="results">
+	
+		<div>Word Coordinates:</div>
+		<div id="coords">
+			<span>E33</span>
+			<span>T34</span>
+			<span>S55</span>
+			<span>X19</span>
+		</div>
+		
+		<div>
+		<b>Remember:</b><br/>
+		Capitalize the first word.<br/>
+		No spaces.<br/>
+		End with the digit 1.<br/>
+		</div>
+	
 	</div>
 </div>
-<textarea id="log"></textarea>
-
 
 </body>
 </html>

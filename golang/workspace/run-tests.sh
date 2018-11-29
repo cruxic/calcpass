@@ -19,6 +19,6 @@ PKG=github.com/cruxic/calcpass/golang/calcpass
 #go test -v $PKG/util
 #go test -v $PKG/bytewords
 #go test -v $PKG/parallel_bcrypt
-go test -v $PKG/type1
+go test -v $PKG/parallel_bcrypt
 #go test -v $PKG
 
