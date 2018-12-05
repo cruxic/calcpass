@@ -3,7 +3,7 @@ import * as hex from './ts/hex';
 import * as sha256 from './ts/sha256';
 import * as util from './ts/util';
 import * as bytewords from './bytewords';
-import {WordLayout, WordCell} from './WordLayout';
+import {WordLayout, WordCell, ColumnLetters} from './ts/calcpass_type1';
 
 function genSecureRandomBytes(nBytes:number): Uint8Array {
 	var ar = new Uint8Array(nBytes);
@@ -103,16 +103,16 @@ function onLoad() {
 
 	let layout = new WordLayout();
 
-	if (false)
+	if (1 == 1)
 		layout.assignTestWords();
 	else
 		layout.assignWords(words);
 
 	let quads = [
-		quadHTMLWithHeader(layout.getQuadrantRows(0), 'ABC', 'Parents 2018', 'calcpass.com/a'),
-		quadHTML(layout.getQuadrantRows(1), 'DEF'),
-		quadHTML(layout.getQuadrantRows(2), 'RST'),
-		quadHTML(layout.getQuadrantRows(3), 'XYZ'),
+		quadHTMLWithHeader(layout.getQuadrantRows(0), ColumnLetters.slice(0,3), 'Parents 2018', 'calcpass.com/a'),
+		quadHTML(layout.getQuadrantRows(1), ColumnLetters.slice(3,6)),
+		quadHTML(layout.getQuadrantRows(2), ColumnLetters.slice(6,9)),
+		quadHTML(layout.getQuadrantRows(3), ColumnLetters.slice(9,12)),
 	];
 
 	document.getElementById('quadTopL').innerHTML = quads[0];

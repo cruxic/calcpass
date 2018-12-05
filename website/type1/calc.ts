@@ -10,9 +10,10 @@ import * as bytewords from './bytewords';
 
 //import {XYMapper} from './WordLayout';
 
-import * as hex from './ts/hex';
+//import * as hex from './ts/hex';
 import {stringToUTF8} from './ts/utf8';
 import {ParallelBcryptWorkers} from './ts/ParallelBcryptWorkers';
+import * as type1 from './ts/calcpass_type1';
 
 let gBcryptWorkers:ParallelBcryptWorkers = null;
 
@@ -28,44 +29,69 @@ function Elm(id:string): any {
 	return document.getElementById(id);
 }
 
+
+
 /*Credit card dimensions: 85.60 × 53.98 mm*/
 //const QUAD_ASPECT = 54.0 / 86.0;  //0.627906977
 async function on_btnGo() {
 	Elm('results').style.display = 'none';
 
-	let salt = new Uint8Array([0x71,0xd7,0x9f,0x82,0x18,0xa3,0x92,0x59,0xa7,0xa2,0x9a,0xab,0xb2,0xdb,0xaf,0xc3]);
-	let pass = stringToUTF8("Super Secret Password");
+	//
+	// Site
+	let site = <string>Elm('txtSite').value;
+	site = type1.normalizeField(site);
+	if (site.length == 0) {
+		showError('The \"What\" field is required');
+		return;
+	}
 
-	/*
-	let progbarElm = <any>Elm('progbar');
-	
-	gBcryptWorkers.progressCallback = function(percent:number) {
-		var percStr = Math.floor(percent * 100.0) + '%';
-		progbarElm.style.width = percStr;
-		progbarElm.firstChild.nodeValue = percStr;
-	};*/
-	
+	//
+	// Personalization (optional)
+	let personalization = <string>Elm('txtPers').value;
+	personalization = type1.normalizeField(personalization);
+
+
+	//
+	// Password
+	let pass = <string>Elm('coordPass').value;
+	pass = pass.trim();
+	if (pass.length < 10) {
+		showError('Password must be 10 characters or longer.  See tips for how to create a strong memorable password.');
+		return;
+	}
+	let rawPass = stringToUTF8(pass);
+
+	//
+	// Site ID
+	let siteId = type1.makeSiteId(site, personalization);
 	
 	let t1 = new Date().getTime();
 
 	Elm('loading_anim').style.display = 'block';
-	let hash = await gBcryptWorkers.execute(pass, salt, 12);
+	let hash = await gBcryptWorkers.execute(rawPass, siteId, 12);
 	
 	let t2 = new Date().getTime();
-	console.log('Hashing took ' + (t2 - t1) + 'ms');
-	
+	console.log('Hashing took ' + (t2 - t1) + 'ms');	
 	
 	Elm('loading_anim').style.display = 'none';
+
+	let coords = type1.createWordCoordinates(hash, 4);
+
+	let html = [];
+	for (let i = 0; i < coords.length; i++) {
+		html.push(`<span>${coords[i]}</span>`);
+	}
+	Elm('coords').innerHTML = html.join('');
+	
 	Elm('results').style.display = 'block';
 	
 	
 	
 	
 	//let seconds = ((t2 - t1) / 1000.0).toFixed(2);
-	//progbarElm.firstChild.nodeValue = progbarElm.firstChild.nodeValue + ' (Took ' + seconds + ' seconds)';
 	
-	if (false)
-		Elm('log').value = 'done in' + (t2 - t1) + 'ms\n' + hex.encode(hash);
+	
+	//	Elm('log').value = 'done in' + (t2 - t1) + 'ms\n' + hex.encode(hash);
 }
 
 function showError(msg:string) {
@@ -84,6 +110,15 @@ async function onLoad() {
 		showError('Javascript self-test failed.  Please try a different web browser.');
 		return;		
 	}
+
+	Elm('txtSite').addEventListener('blur', function(e) {
+		e.target.value = type1.normalizeField(<string>e.target.value);
+	});
+
+	Elm('txtPers').addEventListener('blur', function(e) {
+		e.target.value = type1.normalizeField(<string>e.target.value);
+	});
+	
 
 	let btnGo = Elm('btnGo');
 	btnGo.addEventListener('click', on_btnGo);
