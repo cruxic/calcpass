@@ -2,6 +2,7 @@
 
 import {stringToUTF8} from './utf8';
 import * as sha256 from './sha256';
+import * as bytewords from './bytewords';
 
 export function normalizeField(s:string): string {
 	if (typeof(s) != 'string')
@@ -17,7 +18,81 @@ export function normalizeField(s:string): string {
 	while (s.indexOf('  ') != -1)
 		s = s.replace('  ', ' ');
 
-	return s;	
+	return s;
+}
+
+/*
+If the string appears to be a URL then remove the scheme and everything
+beyond the first slash.  For example:
+
+   "scheme://host:port/path?query"
+
+Becomes
+
+   "host:port"
+
+Otherwise the string is returned verbatim.
+
+*/
+export function trimURL(s:string): string {
+	let start = s.indexOf("://");
+	if (start > 0) {
+		start += 3;
+		let end = s.indexOf("/", start);
+		if (end == start)
+			return s;  //leave triple slash alone
+			
+		if (end > 0)
+			return s.slice(start, end);
+		else
+			return s.slice(start);
+	}
+	else
+		return s;
+}
+
+export enum PasswordProblem {
+	//Password is long enough and ends with the correct chkword.
+	None,
+	//Password is too short (must be at least MIN_COORD_PASS_LEN characters + 3 character chkword).
+	TooShort,
+	//Password does not end with a known chkword (or the chkword has a typo).
+	MissingChkword,
+	//Password has a chkword but it's the wrong one.
+	WrongChkword
+};
+
+export const MIN_COORD_PASS_LEN = 10;
+
+/*
+Ensure password is long enough and ends with the correct "chkword".
+The chkword is a 3 letter word which serves as a checksum of the preceeding
+characters.  This helps detect typos.
+*/
+export function validateCoordinatePassword(password:string): PasswordProblem {
+	if (password.length < MIN_COORD_PASS_LEN)
+		return PasswordProblem.TooShort;
+
+	if (password.length < MIN_COORD_PASS_LEN + 3)
+		return PasswordProblem.MissingChkword;
+
+	let prefix = password.slice(0, -3);
+	let givenWord = password.slice(-3).toLowerCase();  //case-insenstive
+
+	if (bytewords.WORDS.indexOf(givenWord) == -1)
+		return PasswordProblem.MissingChkword;
+
+	let correctWord = calcCheckWord(prefix);
+
+	if (givenWord != correctWord)
+		return PasswordProblem.WrongChkword;
+
+	return PasswordProblem.None;
+}
+
+export function calcCheckWord(password:string):string {
+	let byte = sha256.hash(stringToUTF8(password))[0];
+	return bytewords.WORDS[byte];
 }
 
 /*
@@ -29,7 +104,7 @@ However, rainbow tables will not be economical for the adversary because:
 
 	1) Coordinates are not housed "enmass" on any server and thus are
 	   only attacked one at a time.
-	   
+
 	2) Salt includes the website.  Even if adversary limits his table to the
 	   top 10 websites, his table will take 10x longer to create and
 	   occupy 10x more space.
@@ -61,7 +136,7 @@ export function createWordCoordinates(hash:Uint8Array, nWords:number): Array<str
 		let wordIndex = hash[i];  //0-255
 		//Note: no modulo bias since wordIndex is exactly 8 bits.
 
-		let res = getColumnIndexAndWordNumber(wordIndex);		
+		let res = getColumnIndexAndWordNumber(wordIndex);
 		coords[i] = ColumnLetters.charAt(res[0]) + res[1];
 	}
 
@@ -114,7 +189,7 @@ Encapsulates how the 256 words are arranged on the screen or printed paper.
 export class WordLayout {
 	columns: Array<Array<WordCell>>;
 
-	constructor() {		
+	constructor() {
 		this.columns = [
 			//top-left
 			new Array<WordCell>(getColSize(0)),  //A
@@ -127,7 +202,7 @@ export class WordLayout {
 			//bottom-left
 			new Array<WordCell>(getColSize(6)),  //T
 			new Array<WordCell>(getColSize(7)),  //U
-			new Array<WordCell>(getColSize(8)),  //V		
+			new Array<WordCell>(getColSize(8)),  //V
 			//bottom-right
 			new Array<WordCell>(getColSize(9)),  //X
 			new Array<WordCell>(getColSize(10)), //Y
@@ -143,7 +218,7 @@ export class WordLayout {
 			for (let r = 0; r < this.columns[c].length; r++) {
 				this.columns[c][r] = new WordCell(numInQuad++);
 			}
-		}	
+		}
 	}
 
 	assignWords(words: Array<string>) {
@@ -177,22 +252,22 @@ export class WordLayout {
 		let c = quad * 3;
 		let rows = new Array<Array<WordCell>>(columns[c].length);
 		let i = 0;
-		
+
 		for (let r = 0; r < columns[c].length; r++) {
 			let row = new Array<WordCell>(3);
-			
+
 			row[0] = columns[c][r];
 			row[1] = columns[c+1][r];
-			
+
 			//very last column has fewer rows
 			if (r < columns[c+2].length)
 				row[2] = columns[c+2][r];
 			else
 				row[2] = new WordCell(0);
-				
+
 			rows[i++] = row;
 		}
-		
+
 		return rows;
 	}
 }
@@ -200,7 +275,7 @@ export class WordLayout {
 export class WordCell {
 	//The word.  Empty if not assigned.
 	word: string;
-	
+
 	//Word number within the quad.
 	numInQuad: number;
 

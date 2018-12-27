@@ -2,7 +2,7 @@ import {stringToUTF8} from './ts/utf8';
 import * as hex from './ts/hex';
 import * as sha256 from './ts/sha256';
 import * as util from './ts/util';
-import * as bytewords from './bytewords';
+import {WORDS34} from './words34';
 import {WordLayout, WordCell, ColumnLetters} from './ts/calcpass_type1';
 
 function genSecureRandomBytes(nBytes:number): Uint8Array {
@@ -93,9 +93,7 @@ function onLoad() {
 		throw new Error('JavaScript self-test failed');
 	}
 
-	var words;
-
-	words = bytewords.getWords();
+	let words = WORDS34.slice();
 
 	//TODO: unit test this
 	util.secureShuffle(words, new SecureRandomByteSource());
@@ -103,7 +101,7 @@ function onLoad() {
 
 	let layout = new WordLayout();
 
-	if (1 == 1)
+	if (1 != 1)
 		layout.assignTestWords();
 	else
 		layout.assignWords(words);
